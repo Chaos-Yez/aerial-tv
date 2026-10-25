@@ -231,4 +231,13 @@
     <string name="ss_videos_hint">Add MP4 or MOV films from the phone page. Plays offline; photos are shown when no film can play.</string>
     <string name="ss_system">System</string>
     <string name="ss_system_hint">The TV\'s own screensaver, as it came with the TV (Xiaomi\'s pictures, for one). Aerial shows none of its own.</string>
+    <string name="st_video_wallpaper">Dynamic wallpaper</string>
+    <string name="st_video_wallpaper_hint">Your own film as the wallpaper, sent from your phone (landscape only, up to 200 MB). Playing it costs power and may drop frames; leave it off if that bothers you.</string>
+    <string name="st_video_mode">Playback</string>
+    <string name="st_video_mode_hint">Pause while the tiles are worked with, play on whatever is on screen, or — like the aerial films — start after Home has sat still for ten seconds.</string>
+    <string name="st_video_pause">Pause on tiles</string>
+    <string name="st_video_always">Always play</string>
+    <string name="st_video_after_idle">Play after 10s still</string>
+    <string name="st_video_sound">Sound</string>
+    <string name="st_video_sound_hint">Whether the film plays with its sound. It fades in when the film starts and out when it stops.</string>
 </resources>

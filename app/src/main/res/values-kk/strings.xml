@@ -223,4 +223,13 @@
     <string name="ss_videos_hint">Телефон бетінен MP4 немесе MOV қосыңыз. Интернетсіз ойнатылады; бейне болмаса, фотолар көрсетіледі.</string>
     <string name="ss_system">Жүйелік</string>
     <string name="ss_system_hint">Теледидардың өз экран сақтағышы (мысалы, Xiaomi суреттері). Aerial өзінікін көрсетпейді.</string>
+    <string name="st_video_wallpaper">Динамикалық тіндер</string>
+    <string name="st_video_wallpaper_hint">Телефоннан жіберілген өз бейнеңіз тіндер ретінде (тек көлденең, 200 МБ-қа дейін). Ойнату жүйенің ресурсын жұмсайды және кадр жоғалуы мүмкін; егер маңызды болса, қоспаңыз.</string>
+    <string name="st_video_mode">Ойнату</string>
+    <string name="st_video_mode_hint">Плиткамен жұмыс істегенде пауза, экрандағы барлығының үстінде ойнату немесе — ауа фильмдері сияқты — он секунд тыныштықтан кейін бастау.</string>
+    <string name="st_video_pause">Плиткада күйгірту</string>
+    <string name="st_video_always">Үнемі ойнату</string>
+    <string name="st_video_after_idle">10 с тыныштықтан кейін ойнату</string>
+    <string name="st_video_sound">Дыбыс</string>
+    <string name="st_video_sound_hint">Бейне дыбыспен ойнатылсын ба. Дыбыс басталғанда баяу қосылып, тоқтағанда баяу сөнеді.</string>
 </resources>

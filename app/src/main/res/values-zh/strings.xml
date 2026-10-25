@@ -230,4 +230,13 @@
     <string name="ss_videos_hint">扫码从手机添加 MP4 或 MOV 视频，离线轮播；没有可播放的视频时显示照片。</string>
     <string name="ss_system">系统内置</string>
     <string name="ss_system_hint">用电视自带的屏保（比如小米的那些画面），Aerial 不再显示自己的屏保。</string>
+    <string name="st_video_wallpaper">动态壁纸</string>
+    <string name="st_video_wallpaper_hint">用手机端上传视频作为动态壁纸（限横屏，单个不超过 200MB）。开启后播放会占用性能、画面可能卡顿，介意的可以不用打开。</string>
+    <string name="st_video_mode">播放方式</string>
+    <string name="st_video_mode_hint">切磁贴时暂停、一直播放，或像航拍壁纸那样在主屏静止 10 秒后才开始播放。</string>
+    <string name="st_video_pause">切磁贴暂停</string>
+    <string name="st_video_always">一直播放</string>
+    <string name="st_video_after_idle">静止10秒后播放</string>
+    <string name="st_video_sound">声音</string>
+    <string name="st_video_sound_hint">影片播放时是否出声；开始播放时淡入，停下时淡出。</string>
 </resources>

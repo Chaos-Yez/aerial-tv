@@ -84,6 +84,17 @@ class PhoneServer private constructor(private val context: Context, private val 
                     val removed = ScreensaverVideos.delete(context, form(session)["id"].orEmpty())
                     json(state().put("removed", removed))
                 }
+                // The owner's own film as the wallpaper. Both only work while the feature is
+                // turned on in Personalize; with it off the TV answers "no" and nothing is
+                // written.
+                session.method == Method.POST && path == "/api/wallpaper/video" -> wallpaperVideo(session)
+                session.method == Method.POST && path == "/api/wallpaper/video/delete" -> {
+                    if (!videoWallpaperOn()) return@runCatching text(Response.Status.FORBIDDEN, "video wallpaper is off")
+                    val id = form(session)["id"].orEmpty()
+                    val removed = LocalVideos.delete(context, id)
+                    if (removed) onMain { Wallpapers.localVideosChanged() }
+                    json(state().put("removed", removed))
+                }
                 path.startsWith("/tile/") -> tile(java.net.URLDecoder.decode(path.removePrefix("/tile/"), "UTF-8"))
                 session.method == Method.POST && path == "/api/icon" -> icon(session)
                 session.method == Method.POST && path == "/api/source/name" -> {
@@ -172,6 +183,15 @@ class PhoneServer private constructor(private val context: Context, private val 
                 ScreensaverVideos.all(context).forEach { put(JSONObject().put("id", it.id).put("name", it.name)) }
             })
             .put("focusStyle", AerialSettings.focusStyle.key)
+            // The owner's films for the wallpaper, and how they play. videoWallpaper says whether
+            // the feature is turned on at all: with it off the page does not offer it.
+            .put("videoWallpaper", videoWallpaperOn())
+            .put("videoMaxMB", LocalVideos.MAX_FILE_BYTES / 1024 / 1024)
+            .put("videoMode", AerialSettings.videoMode.key)
+            .put("videoSound", AerialSettings.videoSound)
+            .put("wallpaperVideos", JSONArray().apply {
+                LocalVideos.all(context).forEach { put(JSONObject().put("id", it.id).put("name", it.name)) }
+            })
             .put("wallpapers", list)
             .put("apps", JSONArray().apply {
                 // Pinned inputs first, then apps by the name Home shows. [default] is the name a
@@ -327,6 +347,36 @@ class PhoneServer private constructor(private val context: Context, private val 
         val name = session.parameters["video"]?.firstOrNull().orEmpty()
         val saved = ScreensaverVideos.add(context, File(path), name) != null
         return json(state().put("saved", saved))
+    }
+
+    /**
+     * Whether the owner's films may be used as the wallpaper. Read from the settings directly:
+     * this runs on the server's thread, not on the main one.
+     */
+    private fun videoWallpaperOn(): Boolean =
+        context.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("video_wallpaper", false)
+
+    /**
+     * A film for the wallpaper of Home. One film per request: a batch would need twice its
+     * total size free on the TV. It goes on the wall at once, so the owner sees it play.
+     */
+    private fun wallpaperVideo(session: IHTTPSession): Response {
+        if (!videoWallpaperOn()) return text(Response.Status.FORBIDDEN, "video wallpaper is off")
+        val length = session.headers["content-length"]?.toLongOrNull() ?: 0L
+        // Include room for multipart headers, but do not accept an unbounded chunked body.
+        if (length <= 0 || length > LocalVideos.MAX_FILE_BYTES + 1024 * 1024) return text(Response.Status.BAD_REQUEST, "too large")
+        val files = HashMap<String, String>()
+        session.parseBody(files)
+        val path = files["video"] ?: return text(Response.Status.BAD_REQUEST, "no video")
+        val name = session.parameters["video"]?.firstOrNull().orEmpty()
+        val saved = LocalVideos.add(context, File(path), name)
+        if (saved != null) {
+            onMain {
+                Wallpapers.localVideosChanged()
+                Wallpapers.select(Wallpapers.VIDEO_PREFIX + saved.id)
+            }
+        }
+        return json(state().put("saved", saved != null))
     }
 
     // NanoHTTPD writes the whole body to the cache before we see it; keep a stray or hostile

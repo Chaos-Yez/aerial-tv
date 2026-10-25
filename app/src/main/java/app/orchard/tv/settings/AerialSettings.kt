@@ -54,6 +54,24 @@ enum class Effects(val key: String) {
     }
 }
 
+/**
+ * How the owner's own film behind Home plays.
+ *
+ * - [PauseOnTiles]: it stops when the focus moves off the top row onto the tiles, and goes on
+ *   again when the top row has the focus back.
+ * - [Always]: it plays on whatever is on screen, even over the Control Center.
+ * - [AfterIdle]: like the aerial films (ui/home/LiveWallpaper): it starts after Home has sat
+ *   still for a while and stops at the next key press, the frame it stopped on staying as the
+ *   wallpaper.
+ */
+enum class VideoMode(val key: String) {
+    PauseOnTiles("pause"), Always("always"), AfterIdle("idle");
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key }
+    }
+}
+
 /** Aerial's own preferences. Compose state, written on the main thread only. */
 object AerialSettings {
     private const val PREFS = "settings"
@@ -101,6 +119,19 @@ object AerialSettings {
 
     /** Every app's name under its tile, not only the focused one's (issue #28), the top row's on the glass plate too. */
     var showAllNames by mutableStateOf(false); private set
+
+    /**
+     * Whether the owner's own film may be used as the wallpaper. Off until it is turned on in
+     * Personalize: with it off nothing of the film is loaded, no surface is made and no frame is
+     * decoded, so Home costs exactly what it costs without this feature.
+     */
+    var videoWallpaper by mutableStateOf(false); private set
+
+    /** How the owner's own film behind Home plays (see [VideoMode]). */
+    var videoMode by mutableStateOf(VideoMode.PauseOnTiles); private set
+
+    /** Whether the owner's own film behind Home plays with its sound. */
+    var videoSound by mutableStateOf(false); private set
 
     /** Back on Home's top row starts the screensaver, as on tvOS; off for homes where it gets pressed by accident (issue #94). */
     var backStartsScreensaver by mutableStateOf(true); private set
@@ -161,6 +192,9 @@ object AerialSettings {
         largeClock = prefs.getBoolean("large_clock", false)
         homePlate = prefs.getBoolean("home_plate", true)
         showAllNames = prefs.getBoolean("show_all_names", false)
+        videoWallpaper = prefs.getBoolean("video_wallpaper", false)
+        videoMode = VideoMode.of(prefs.getString("video_mode", null)) ?: VideoMode.PauseOnTiles
+        videoSound = prefs.getBoolean("video_sound", false)
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
         uiSounds = UiSounds.of(prefs.getString("ui_sounds_kind", null)) ?: when {
             !prefs.getBoolean("ui_sounds", true) -> UiSounds.Off
@@ -234,6 +268,26 @@ object AerialSettings {
     fun chooseClockRight(on: Boolean) {
         clockRight = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("clock_right", on) }
+    }
+
+    /**
+     * The owner's own film as the wallpaper, on or off. Turning it off makes Home forget the
+     * film: the surface and the player are let go, and no frame is decoded until it is turned on
+     * again.
+     */
+    fun chooseVideoWallpaper(on: Boolean) {
+        videoWallpaper = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_wallpaper", on) }
+    }
+
+    fun chooseVideoMode(mode: VideoMode) {
+        videoMode = mode
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString("video_mode", mode.key) }
+    }
+
+    fun chooseVideoSound(on: Boolean) {
+        videoSound = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_sound", on) }
     }
 
     fun chooseLargeClock(on: Boolean) {

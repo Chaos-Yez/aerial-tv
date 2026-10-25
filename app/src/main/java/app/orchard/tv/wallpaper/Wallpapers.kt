@@ -29,7 +29,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 
-enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live }
+enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live, Video }
 
 data class Wallpaper(
     val id: String,
@@ -60,6 +60,8 @@ enum class ScreensaverMode(val key: String) {
  * - Auto: the previous behaviour, light taken from the focused app's artwork.
  * - Live: Apple's aerial films, moving once Home has sat still a while (ui/home/LiveWallpaper.kt).
  *   Its picture is the frame the film last stopped on, so the glass and the grid match it.
+ * - Video: the owner's own films, sent from the phone page and played behind Home
+ *   (ui/home/VideoWallpaper.kt). The film's first frame is the picture until it moves.
  *
  * State is Compose snapshot state, written on the main thread only.
  */
@@ -70,6 +72,8 @@ object Wallpapers {
     const val AUTO = "auto"
     const val ROTATE_PHOTOS = "photos:rotate"
     const val LIVE = "aerial:live"
+    /** The owner's own film, played behind Home: "video:<id>". */
+    const val VIDEO_PREFIX = "video:"
     private const val FOLLOW = "follow"
     private const val DEFAULT_FALLBACK = "grad:aurora"
 
@@ -129,6 +133,12 @@ object Wallpapers {
         selectedId = (prefs.getString("selected", LATEST_DAILY) ?: LATEST_DAILY)
             // A built-in wallpaper from before the Mac-style set: its nearest one now.
             .let { if (it.startsWith("grad:")) "grad:" + Gradients.currentKey(it.removePrefix("grad:")) else it }
+        // The owner's own films, and the one on the wall if it is still there.
+        localVideos = LocalVideos.all(app)
+        if (selectedId.startsWith(VIDEO_PREFIX) && localVideos.none { it.id == selectedId.removePrefix(VIDEO_PREFIX) }) {
+            selectedId = LATEST_DAILY
+            prefs.edit { putString("selected", selectedId) }
+        }
         chosenScreensaver = when (val key = prefs.getString("screensaver", null)) {
             null -> firstScreensaver()
             // "wallpaper" was a fourth kind in test builds of 1.38, for what following now is.
@@ -156,6 +166,48 @@ object Wallpapers {
             f.isFile && f.lastModified() < before &&
                 (f.name.startsWith("upload") || f.name.startsWith("icon") || f.name.startsWith("NanoHTTPD-"))
         }?.forEach { val kb = it.length() / 1024; if (it.delete()) Log.i(TAG, "removed a stale upload, $kb KB") }
+    }
+
+    /** The owner's own films, kept here so the list is not read from disk on every frame. */
+    private var localVideos by mutableStateOf<List<LocalVideo>>(emptyList()); private set
+
+    /** The owner's film on the wall, or null when another wallpaper is chosen. */
+    val selectedVideo: LocalVideo?
+        get() = if (videoWallpaperOn() && selectedId.startsWith(VIDEO_PREFIX)) {
+            localVideos.firstOrNull { it.id == selectedId.removePrefix(VIDEO_PREFIX) }
+        } else null
+
+    /**
+     * Whether the owner's films may be used as the wallpaper. Read from the settings directly:
+     * this is asked from the server's thread as well as from the main one.
+     */
+    private fun videoWallpaperOn(): Boolean =
+        app.getSharedPreferences("settings", Context.MODE_PRIVATE).getBoolean("video_wallpaper", false)
+
+    /**
+     * The feature was turned on or off in Personalize: the films join or leave the list, and a
+     * film that was on the wall is put away when the feature goes off.
+     */
+    fun videoWallpaperTurned() {
+        rebuildList()
+        if (!videoWallpaperOn() && selectedId.startsWith(VIDEO_PREFIX)) {
+            selectedId = LATEST_DAILY
+            prefs.edit { putString("selected", selectedId) }
+        }
+        rebuildBackdrop()
+    }
+
+    /** A film was sent from the phone page, or one was taken away. */
+    fun localVideosChanged() {
+        rebuildList()
+        if (selectedId.startsWith(VIDEO_PREFIX)) {
+            // The film that was on the wall may be gone.
+            if (selectedVideo == null) {
+                selectedId = LATEST_DAILY
+                prefs.edit { putString("selected", selectedId) }
+            }
+            rebuildBackdrop()
+        }
     }
 
     fun select(id: String) {
@@ -212,6 +264,7 @@ object Wallpapers {
     private fun fileFor(w: Wallpaper): File? = when (w.kind) {
         WallpaperKind.Daily -> File(dailyDir, w.id.removePrefix("daily:") + ".jpg")
         WallpaperKind.Photo -> File(photoDir, w.id.removePrefix("photo:") + ".jpg")
+        WallpaperKind.Video -> localVideos.firstOrNull { it.id == w.id.removePrefix(VIDEO_PREFIX) }?.file
         else -> null
     }
 
@@ -220,6 +273,10 @@ object Wallpapers {
         WallpaperKind.Builtin -> Gradients.byKey(wp.id.removePrefix("grad:"))?.let { Gradients.render(it, w, h) }
         WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
         WallpaperKind.Auto -> null
+        // The film's first frame: what shows behind Home until the film moves, and what the
+        // glass is made of.
+        WallpaperKind.Video -> localVideos.firstOrNull { it.id == wp.id.removePrefix(VIDEO_PREFIX) }
+            ?.let { LocalVideos.firstFrame(it.file, w, h) }
         // Until a film has stopped on a frame, the first built-in stands in.
         WallpaperKind.Live -> liveFrame.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
             ?: Gradients.render(Gradients.presets.first(), w, h)
@@ -278,6 +335,7 @@ object Wallpapers {
         val stamp = when (wp.kind) {
             WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.lastModified() ?: 0L
             WallpaperKind.Live -> liveFrame.lastModified()
+            WallpaperKind.Video -> fileFor(wp)?.lastModified() ?: 0L
             else -> 0L
         }
         return "${wp.id}|$stamp|${screenW}x$screenH|${BuildConfig.VERSION_CODE}"
@@ -392,7 +450,13 @@ object Wallpapers {
             .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, if (zh) "我的照片" else "My Photo") }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")
-        items = listOf(live) + daily + builtins + photos + auto
+        // The owner's own films, sent from the phone page; each is a wallpaper of its own. With
+        // the feature off they are not offered at all.
+        localVideos = LocalVideos.all(app)
+        val videos = if (videoWallpaperOn()) {
+            localVideos.map { Wallpaper(VIDEO_PREFIX + it.id, WallpaperKind.Video, it.name) }
+        } else emptyList()
+        items = listOf(live) + daily + builtins + photos + videos + auto
     }
 
     // ---- daily photos ----

@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.settings.FocusStyle
 import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.settings.Effects
@@ -154,6 +155,35 @@ fun WallpaperSheet(
                     Spacer(Modifier.height(16.dp))
                     SectionTitle(R.string.wp_wallpaper)
                     WallpaperRows()
+
+                    // The owner's own film as the wallpaper. Off until it is turned on: with it off
+                    // no film is loaded, no surface is made and no frame is decoded.
+                    Spacer(Modifier.height(10.dp))
+                    Group { note ->
+                        Choices(
+                            R.string.st_video_wallpaper, stringResource(R.string.st_video_wallpaper_hint), note,
+                            listOf(false to R.string.st_off, true to R.string.st_on),
+                            AerialSettings.videoWallpaper,
+                            { on -> AerialSettings.chooseVideoWallpaper(on); Wallpapers.videoWallpaperTurned() },
+                            first = true,
+                        )
+                        if (AerialSettings.videoWallpaper) {
+                            Choices(
+                                R.string.st_video_mode, stringResource(R.string.st_video_mode_hint), note,
+                                listOf(
+                                    VideoMode.PauseOnTiles to R.string.st_video_pause,
+                                    VideoMode.Always to R.string.st_video_always,
+                                    VideoMode.AfterIdle to R.string.st_video_after_idle,
+                                ),
+                                AerialSettings.videoMode, AerialSettings::chooseVideoMode,
+                            )
+                            Choices(
+                                R.string.st_video_sound, stringResource(R.string.st_video_sound_hint), note,
+                                listOf(false to R.string.st_off, true to R.string.st_on),
+                                AerialSettings.videoSound, AerialSettings::chooseVideoSound,
+                            )
+                        }
+                    }
 
                     Spacer(Modifier.height(6.dp))
                     SectionTitle(R.string.st_home_layout)

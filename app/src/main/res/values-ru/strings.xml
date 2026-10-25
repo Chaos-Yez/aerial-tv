@@ -223,4 +223,13 @@
     <string name="ss_videos_hint">Добавьте MP4 или MOV со страницы на телефоне. Просмотр без сети; если видео недоступны, показываются фото.</string>
     <string name="ss_system">Системная</string>
     <string name="ss_system_hint">Заставка самого телевизора, как задумал производитель (например, картины Xiaomi). Aerial свою не показывает.</string>
+    <string name="st_video_wallpaper">Динамические обои</string>
+    <string name="st_video_wallpaper_hint">Своё видео в качестве обоев, отправленное с телефона (только горизонтальное, до 200 МБ). Воспроизведение расходует ресурсы и может приводить к пропускам кадров; если это важно, не включайте.</string>
+    <string name="st_video_mode">Воспроизведение</string>
+    <string name="st_video_mode_hint">Пауза при работе с плитками, воспроизведение поверх всего на экране или — как воздушные фильмы — запуск после десяти секунд покоя.</string>
+    <string name="st_video_pause">Пауза на плитках</string>
+    <string name="st_video_always">Играть всегда</string>
+    <string name="st_video_after_idle">Запуск после 10 с покоя</string>
+    <string name="st_video_sound">Звук</string>
+    <string name="st_video_sound_hint">Воспроизводить ли видео со звуком. Он плавно появляется при запуске и гаснет при остановке.</string>
 </resources>

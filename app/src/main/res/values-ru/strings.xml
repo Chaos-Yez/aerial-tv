@@ -90,7 +90,7 @@
     <string name="ss_photos">Фото</string>
     <string name="ss_clock">Часы</string>
     <string name="wp_phone_title">Настройка с телефона</string>
-    <string name="wp_phone_body">Отсканируйте код, чтобы отправлять фото как обои, менять значки приложений и выбирать город для погоды с телефона. Телефон и телевизор должны быть в одной сети.</string>
+    <string name="wp_phone_body">Отсканируйте код, чтобы отправлять фото как обои, видео как динамические обои, менять значки приложений и выбирать город для погоды с телефона. Телефон и телевизор должны быть в одной сети.</string>
     <string name="wp_phone_offline">Подключите телевизор к сети, чтобы настроить его с телефона.</string>
     <string name="ss_start">Запустить сейчас</string>
     <string name="ss_delay">Запускать через</string>
@@ -260,4 +260,16 @@
     <string name="ss_videos_hint">Добавьте MP4 или MOV со страницы на телефоне. Просмотр без сети; если видео недоступны, показываются фото.</string>
     <string name="ss_system">Системная</string>
     <string name="ss_system_hint">Заставка самого телевизора, как задумал производитель (например, картины Xiaomi). Aerial свою не показывает.</string>
+    <string name="wp_video_title">Динамические обои</string>
+    <string name="wp_video_after_idle">Запуск после 10 с покоя</string>
+    <string name="wp_video_idle_hint">Как воздушные фильмы: обои начинаются после десяти секунд покоя и останавливаются на следующем нажатии.</string>
+    <string name="wp_video_note">Ваше собственное видео играет за рабочим столом и повторяется. Отсканируйте код справа, чтобы отправить его с телефона.</string>
+    <string name="wp_video_mode">Воспроизведение</string>
+    <string name="wp_video_sound">Звук</string>
+    <string name="wp_video_on">Вкл</string>
+    <string name="wp_video_off">Выкл</string>
+    <string name="wp_video_pause">Пауза на плитках</string>
+    <string name="wp_video_always">Играть всегда</string>
+    <string name="wp_video_sound_on">Звук вкл.</string>
+    <string name="wp_video_sound_off">Звук выкл.</string>
 </resources>

@@ -31,7 +31,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 
-enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live }
+enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live, Video }
 
 data class Wallpaper(
     val id: String,
@@ -62,6 +62,8 @@ enum class ScreensaverMode(val key: String) {
  * - Auto: the previous behaviour, light taken from the focused app's artwork.
  * - Live: Apple's aerial films, moving once Home has sat still a while (ui/home/LiveWallpaper.kt).
  *   Its picture is the frame the film last stopped on, so the glass and the grid match it.
+ * - Video: the owner's own films, sent from the phone page and played behind Home
+ *   (ui/home/VideoWallpaper.kt). The film's first frame is the picture until it moves.
  *
  * State is Compose snapshot state, written on the main thread only.
  */
@@ -92,6 +94,8 @@ object Wallpapers {
     /** "My Photos, rotating": one card that takes turns through the photos, one a day (#27). */
     const val ROTATE_PHOTOS = "photos:rotate"
     const val LIVE = "aerial:live"
+    /** The owner's own film, played behind Home: "video:<id>". */
+    const val VIDEO_PREFIX = "video:"
     private const val FOLLOW = "follow"
     private const val DEFAULT_FALLBACK = "grad:aurora"
 
@@ -159,6 +163,12 @@ object Wallpapers {
             selectedId = RANDOM_DAILY
             prefs.edit { putString("selected", selectedId) }
         }
+        // A film that is no longer on the TV cannot be the wallpaper.
+        localVideos = LocalVideos.all(app)
+        if (selectedId.startsWith(VIDEO_PREFIX) && localVideos.none { it.id == selectedId.removePrefix(VIDEO_PREFIX) }) {
+            selectedId = LATEST_DAILY
+            prefs.edit { putString("selected", selectedId) }
+        }
         // Only the random photo on the wall is kept; the ones before it go at once.
         pruneRandom()
         chosenScreensaver = when (val key = prefs.getString("screensaver", null)) {
@@ -188,6 +198,26 @@ object Wallpapers {
             f.isFile && f.lastModified() < before &&
                 (f.name.startsWith("upload") || f.name.startsWith("icon") || f.name.startsWith("NanoHTTPD-"))
         }?.forEach { val kb = it.length() / 1024; if (it.delete()) Log.i(TAG, "removed a stale upload, $kb KB") }
+    }
+
+    /** The owner's own films, kept here so the list is not read from disk on every frame. */
+    private var localVideos by mutableStateOf<List<LocalVideo>>(emptyList()); private set
+
+    /** The owner's film on the wall, or null when another wallpaper is chosen. */
+    val selectedVideo: LocalVideo?
+        get() = if (selectedId.startsWith(VIDEO_PREFIX)) localVideos.firstOrNull { it.id == selectedId.removePrefix(VIDEO_PREFIX) } else null
+
+    /** A film was sent from the phone page, or one was taken away. */
+    fun localVideosChanged() {
+        rebuildList()
+        if (selectedId.startsWith(VIDEO_PREFIX)) {
+            // The film that was on the wall may be gone.
+            if (selectedVideo == null) {
+                selectedId = LATEST_DAILY
+                prefs.edit { putString("selected", selectedId) }
+            }
+            rebuildBackdrop()
+        }
     }
 
     fun select(id: String) {
@@ -252,6 +282,7 @@ object Wallpapers {
         w.id.startsWith(RANDOM_PREFIX) -> File(randomDir, w.id.removePrefix(RANDOM_PREFIX) + ".jpg")
         w.kind == WallpaperKind.Daily -> File(dailyDir, w.id.removePrefix("daily:") + ".jpg")
         w.kind == WallpaperKind.Photo -> File(photoDir, w.id.removePrefix("photo:") + ".jpg")
+        w.kind == WallpaperKind.Video -> localVideos.firstOrNull { it.id == w.id.removePrefix(VIDEO_PREFIX) }?.file
         else -> null
     }
 
@@ -260,6 +291,10 @@ object Wallpapers {
         WallpaperKind.Builtin -> Gradients.byKey(wp.id.removePrefix("grad:"))?.let { Gradients.render(it, w, h) }
         WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
         WallpaperKind.Auto -> null
+        // The film's first frame: what shows behind Home until the film moves, and what the
+        // glass is made of.
+        WallpaperKind.Video -> localVideos.firstOrNull { it.id == wp.id.removePrefix(VIDEO_PREFIX) }
+            ?.let { LocalVideos.firstFrame(it.file, w, h) }
         // Until a film has stopped on a frame, the first built-in stands in.
         WallpaperKind.Live -> liveFrame.takeIf { it.exists() }?.let { Images.decodeCover(it, w, h) }
             ?: Gradients.render(Gradients.presets.first(), w, h)
@@ -318,6 +353,7 @@ object Wallpapers {
             // The auto wallpaper keeps its id as the picture changes, so the file stamps it.
             WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.lastModified() ?: 0L
             WallpaperKind.Live -> liveFrame.lastModified()
+            WallpaperKind.Video -> fileFor(wp)?.lastModified() ?: 0L
             else -> 0L
         }
         return "${wp.id}|$stamp|${screenW}x$screenH|${BuildConfig.VERSION_CODE}"
@@ -440,8 +476,11 @@ object Wallpapers {
             }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")
+        // The owner's own films, sent from the phone page; each is a wallpaper of its own.
+        localVideos = LocalVideos.all(app)
+        val videos = localVideos.map { Wallpaper(VIDEO_PREFIX + it.id, WallpaperKind.Video, it.name) }
         // The random photo is the card that fetches another.
-        items = listOf(live) + daily + randomItems() + builtins + photos + auto
+        items = listOf(live) + daily + randomItems() + videos + builtins + photos + auto
     }
 
     /**

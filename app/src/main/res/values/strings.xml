@@ -103,7 +103,7 @@
     <string name="ss_photos">Photos</string>
     <string name="ss_clock">Clock</string>
     <string name="wp_phone_title">Set up with your phone</string>
-    <string name="wp_phone_body">Scan to send photos as wallpapers, change app icons and set the weather\'s city from your phone. Phone and TV must be on the same network.</string>
+    <string name="wp_phone_body">Scan to send photos as wallpapers, videos as dynamic wallpapers, change app icons and set the weather\'s city from your phone. Phone and TV must be on the same network.</string>
     <string name="wp_phone_offline">Connect the TV to a network to set up with your phone.</string>
     <string name="ss_start">Start Now</string>
     <string name="ss_delay">Start after</string>
@@ -273,4 +273,16 @@
     <string name="ss_videos_hint">Add MP4 or MOV films from the phone page. Plays offline; photos are shown when no film can play.</string>
     <string name="ss_system">System</string>
     <string name="ss_system_hint">The TV\'s own screensaver, as it came with the TV: XGIMI\'s scenes on a projector, Xiaomi\'s pictures on a Mi TV. Aerial shows none of its own.</string>
+    <string name="wp_video_title">Dynamic wallpaper</string>
+    <string name="wp_video_after_idle">Play after 10s still</string>
+    <string name="wp_video_idle_hint">Like the aerial films: the wallpaper starts after Home has sat still for ten seconds, and stops at the next key press.</string>
+    <string name="wp_video_note">Your own film, played behind Home and repeated. Scan the code on the right to send one from your phone.</string>
+    <string name="wp_video_mode">Playback</string>
+    <string name="wp_video_sound">Sound</string>
+    <string name="wp_video_on">On</string>
+    <string name="wp_video_off">Off</string>
+    <string name="wp_video_pause">Pause on tiles</string>
+    <string name="wp_video_always">Always play</string>
+    <string name="wp_video_sound_on">Sound on</string>
+    <string name="wp_video_sound_off">Sound off</string>
 </resources>

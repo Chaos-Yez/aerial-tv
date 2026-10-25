@@ -102,7 +102,7 @@
     <string name="ss_photos">照片</string>
     <string name="ss_clock">时钟</string>
     <string name="wp_phone_title">用手机设置</string>
-    <string name="wp_phone_body">扫码后在手机上发照片当壁纸、更换 App 图标、设置天气城市。手机和电视需连接同一网络。</string>
+    <string name="wp_phone_body">扫码后在手机上发照片当壁纸、发视频当动态壁纸、更换 App 图标、设置天气城市。手机和电视需连接同一网络。</string>
     <string name="wp_phone_offline">电视联网后即可用手机设置。</string>
     <string name="ss_start">立即开始</string>
     <string name="ss_delay">开始时间</string>
@@ -272,4 +272,16 @@
     <string name="ss_videos_hint">扫码从手机添加 MP4 或 MOV 视频，离线轮播；没有可播放的视频时显示照片。</string>
     <string name="ss_system">系统内置</string>
     <string name="ss_system_hint">用电视自带的屏保：极米的动态屏保、小米的画面等；Aerial 不再显示自己的屏保。</string>
+    <string name="wp_video_title">动态壁纸</string>
+    <string name="wp_video_after_idle">静止10秒后播放</string>
+    <string name="wp_video_idle_hint">和航拍壁纸一样：主屏静止 10 秒后开始播放，按任意键停下。</string>
+    <string name="wp_video_note">你自己上传的视频，在桌面后面循环播放。扫码从手机发送一个。</string>
+    <string name="wp_video_mode">播放方式</string>
+    <string name="wp_video_sound">声音</string>
+    <string name="wp_video_on">开</string>
+    <string name="wp_video_off">关</string>
+    <string name="wp_video_pause">切磁贴暂停</string>
+    <string name="wp_video_always">一直播放</string>
+    <string name="wp_video_sound_on">声音 开</string>
+    <string name="wp_video_sound_off">声音 关</string>
 </resources>

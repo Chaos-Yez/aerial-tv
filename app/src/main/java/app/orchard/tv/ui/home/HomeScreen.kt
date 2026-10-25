@@ -82,6 +82,7 @@ import app.orchard.tv.Overlay
 import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.NameMode
+import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.apps.AppEntry
 import app.orchard.tv.ui.control.ControlCenter
@@ -193,6 +194,18 @@ private const val HOME_SHOT_AFTER_MS = 450L
 /** How often that picture is taken again while Control Center stays open, for the clock. */
 private const val HOME_SHOT_EVERY_MS = 30_000L
 
+/**
+ * How long nothing may be pressed before the owner's film behind Home goes on again, when it is
+ * set to pause while the tiles are worked with.
+ */
+private const val VIDEO_IDLE_MS = 2_500L
+
+/**
+ * How long Home sits still before the owner's film starts, in "after idle" mode: like the aerial
+ * films, which start after ten seconds on the top row.
+ */
+private const val VIDEO_START_AFTER_MS = 10_000L
+
 @Composable
 fun HomeScreen(
     vm: HomeViewModel,
@@ -236,6 +249,36 @@ fun HomeScreen(
         LiveFilm.onHome = liveFilm
         onDispose { if (LiveFilm.onHome === liveFilm) LiveFilm.onHome = null }
     }
+    // The owner's own film behind Home, and whether it moves now. How it plays is the owner's
+    // choice (AerialSettings.videoMode): it stops while the tiles are being worked with, or it
+    // goes on whatever is on screen, or — like the aerial films — it waits for Home to sit still
+    // and stops at the next key press.
+    val videoWallpaper = Wallpapers.selectedVideo
+    // Nothing pressed for a moment: the film goes on again by itself.
+    var videoIdle by remember { mutableStateOf(false) }
+    LaunchedEffect(vm.lastInputAt) {
+        videoIdle = false
+        delay(if (AerialSettings.videoMode == VideoMode.AfterIdle) VIDEO_START_AFTER_MS else VIDEO_IDLE_MS)
+        videoIdle = true
+    }
+    val videoPlaying = videoWallpaper != null && vm.resumed && !vm.screensaverVisible &&
+        when (AerialSettings.videoMode) {
+            // Pause on tiles: it stops while the tiles are being worked with, and goes on again
+            // once nothing has been pressed for a moment and the top row has the focus.
+            VideoMode.PauseOnTiles -> videoIdle && focusedRow == 0 && (overlay == Overlay.None || overlay is Overlay.Wallpaper)
+            // Always: it plays on, even with the Control Center or the Personalize sheet open
+            // over it.
+            VideoMode.Always -> overlay == Overlay.None || overlay is Overlay.ControlCenter || overlay is Overlay.Wallpaper
+            // After idle: like the aerial films, it starts only once Home has sat still, and any
+            // key press stops it again.
+            VideoMode.AfterIdle -> videoIdle && focusedRow == 0 && (overlay == Overlay.None || overlay is Overlay.Wallpaper)
+        }
+    // The glass over the top row goes with the film, as with the aerial ones: while the film
+    // moves there is no plate, and when it stops the plate is back.
+    val videoStopped by animateFloatAsState(
+        if (videoWallpaper != null && !videoPlaying) 1f else 0f,
+        tween(320, easing = Motion.EaseOut), label = "video-stopped",
+    )
     // A screensaver of aerials over the aerial wallpaper carries the wallpaper's film on, one shot
     // from Home to screensaver: the apps fade, the clock moves to the corner. Whether the film is
     // moving already or still on its frame (Back on the top row), as long as Home shows it: on the
@@ -466,10 +509,11 @@ fun HomeScreen(
         // Taken again now and then for the clock.
         // Control Center shows the live wallpaper behind the glass instead of a frozen snapshot of
         // Home, so picking "random one" (or any new picture) swaps the backdrop instantly — exactly
-        // like the Personalize sheet. No toImageBitmap, no 30s re-shot wait.
+        // like the Personalize sheet. No toImageBitmap, no 30s re-shot wait. The owner's own film
+        // keeps moving behind it, so it is left out of the snapshot as well.
         var homeShot by remember { mutableStateOf<ImageBitmap?>(null) }
-        LaunchedEffect(ccOpen, Wallpapers.backdrop) {
-            homeShot = if (ccOpen) Wallpapers.backdrop else null
+        LaunchedEffect(ccOpen, Wallpapers.backdrop, videoWallpaper) {
+            homeShot = if (ccOpen && videoWallpaper == null) Wallpapers.backdrop else null
         }
 
         val ambientApp = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
@@ -522,6 +566,10 @@ fun HomeScreen(
                     live = liveFilm,
                 )
             }
+            // The owner's own film behind Home, in the same place as the aerial one.
+            videoWallpaper?.let { film ->
+                VideoWallpaper(film, videoPlaying, AerialSettings.videoSound)
+            }
             HomeBackground(
                 // The chosen wallpaper; in "Follow App" mode, light from the focused app.
                 backdrop = Wallpapers.backdrop ?: ambientApp?.art?.backdrop,
@@ -529,8 +577,12 @@ fun HomeScreen(
                 plate = plate,
                 scroll = { scroll.value },
                 collapse = collapsePx,
-                cover = { filmCover.value },
-                filmStopped = { filmStopped },
+                // The owner's film is the picture itself: Compose draws neither picture nor plate
+                // over it, and the grid's glass is made from its first frame.
+                cover = { if (videoWallpaper != null) 1f else filmCover.value },
+                // The glass over the top row goes with the film, as with the aerial one: while the
+                // film moves there is no plate, and when it stops the plate is back.
+                filmStopped = { if (videoWallpaper != null) videoStopped else filmStopped },
                 toSaver = { toSaver.value },
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },

@@ -90,7 +90,7 @@
     <string name="ss_photos">Фотолар</string>
     <string name="ss_clock">Сағат</string>
     <string name="wp_phone_title">Телефоннан баптау</string>
-    <string name="wp_phone_body">Фотоларды түсқағаз ретінде жіберу, қолданба белгішелерін өзгерту және ауа райына арналған қаланы телефоннан орнату үшін кодты сканерлеңіз. Телефон мен теледидар бір желіде болуы керек.</string>
+    <string name="wp_phone_body">Фотоларды түсқағаз ретінде, бейнелерді динамикалық түсқағаз ретінде жіберу, қолданба белгішелерін өзгерту және ауа райына арналған қаланы телефоннан орнату үшін кодты сканерлеңіз. Телефон мен теледидар бір желіде болуы керек.</string>
     <string name="wp_phone_offline">Телефоннан баптау үшін теледидарды желіге қосыңыз.</string>
     <string name="ss_start">Қазір бастау</string>
     <string name="ss_delay">Бастау уақыты</string>
@@ -260,4 +260,16 @@
     <string name="ss_videos_hint">Телефон бетінен MP4 немесе MOV қосыңыз. Интернетсіз ойнатылады; бейне болмаса, фотолар көрсетіледі.</string>
     <string name="ss_system">Жүйелік</string>
     <string name="ss_system_hint">Теледидардың өз экран сақтағышы (мысалы, Xiaomi суреттері). Aerial өзінікін көрсетпейді.</string>
+    <string name="wp_video_title">Динамикалық тіндер</string>
+    <string name="wp_video_after_idle">10 с тыныштықтан кейін ойнату</string>
+    <string name="wp_video_idle_hint">Ауа фильмдері сияқты: тіндер он секунд тыныштықтан кейін басталады және келесі басуда тоқтайды.</string>
+    <string name="wp_video_note">Сіздің өз бейнеңіз жұмыс үстелінің артында қайталанып ойнады. Оң жақтағы кодты сканерлеп, телефоннан жіберіңіз.</string>
+    <string name="wp_video_mode">Ойнату</string>
+    <string name="wp_video_sound">Дыбыс</string>
+    <string name="wp_video_on">Қосу</string>
+    <string name="wp_video_off">Өшіру</string>
+    <string name="wp_video_pause">Плиткада күйгірту</string>
+    <string name="wp_video_always">Үнемі ойнату</string>
+    <string name="wp_video_sound_on">Дыбыс қосулы</string>
+    <string name="wp_video_sound_off">Дыбыс өшірулі</string>
 </resources>

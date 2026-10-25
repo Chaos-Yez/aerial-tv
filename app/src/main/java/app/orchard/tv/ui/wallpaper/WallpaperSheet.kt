@@ -57,9 +57,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.widthIn
 import app.orchard.tv.R
 import app.orchard.tv.apps.AppDetails
@@ -68,6 +70,7 @@ import app.orchard.tv.settings.NameMode
 import app.orchard.tv.settings.FocusStyle
 import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.settings.Effects
+import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.system.Sounds
 import app.orchard.tv.ui.components.Pressable
 import app.orchard.tv.ui.components.consumeTaps
@@ -158,6 +161,14 @@ fun WallpaperSheet(
                     Spacer(Modifier.height(16.dp))
                     SectionTitle(R.string.wp_wallpaper)
                     WallpaperRows()
+
+                    // The owner's own films, if there are any, get their own group: how the film
+                    // plays, and whether it plays with its sound.
+                    if (Wallpapers.items.any { it.kind == WallpaperKind.Video }) {
+                        Spacer(Modifier.height(22.dp))
+                        SectionTitle(R.string.wp_video_title)
+                        VideoGroup()
+                    }
 
                     Spacer(Modifier.height(12.dp))
                     SectionTitle(R.string.st_home_layout)
@@ -341,6 +352,8 @@ private fun WallpaperRows() {
             // The newest random photo is the card that fetches another; it is always there,
             // picture or not.
             addAll(items.filter { Wallpapers.isRandom(it.id) })
+            // The owner's own films, played behind Home; they sit right after the random photo.
+            addAll(items.filter { it.kind == WallpaperKind.Video })
             addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected && !Wallpapers.isRandom(it.id) })
             // With two or more, one card takes turns through all of them, one a day (#27).
             items.filter { it.kind == WallpaperKind.Photo }.let { photos ->
@@ -379,6 +392,31 @@ private fun WallpaperRows() {
     }
 }
 
+/**
+ * How the owner's own film behind Home plays, and whether it plays with its sound. Laid out the
+ * way every other group in this sheet is: a card of rows, each with its name on the left and its
+ * choice on the right, and one note under the card.
+ */
+@Composable
+private fun VideoGroup() {
+    Group { noteFn ->
+        Choices(
+            R.string.wp_video_mode, stringResource(R.string.wp_video_idle_hint), noteFn,
+            listOf(
+                VideoMode.PauseOnTiles to R.string.wp_video_pause,
+                VideoMode.Always to R.string.wp_video_always,
+                VideoMode.AfterIdle to R.string.wp_video_after_idle,
+            ),
+            AerialSettings.videoMode, AerialSettings::chooseVideoMode, first = true,
+        )
+        Choices(
+            R.string.wp_video_sound, null, noteFn,
+            listOf(false to R.string.wp_video_off, true to R.string.wp_video_on),
+            AerialSettings.videoSound, { AerialSettings.chooseVideoSound(it) },
+        )
+    }
+}
+
 /** What a wallpaper card is, for the note under the row; null where its picture says it all. */
 @Composable
 private fun wallpaperNote(wp: Wallpaper): String? = when {
@@ -389,6 +427,7 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
         else -> stringResource(R.string.wp_random_hint)
     }
     wp.kind == WallpaperKind.Live -> stringResource(R.string.wp_live)
+    wp.kind == WallpaperKind.Video -> stringResource(R.string.wp_video_note)
     wp.id == Wallpapers.LATEST_DAILY -> stringResource(R.string.wp_daily_note)
     wp.id == Wallpapers.ROTATE_PHOTOS -> stringResource(R.string.wp_photos_rotate_note)
     wp.kind == WallpaperKind.Photo -> stringResource(R.string.wp_photo_note)
@@ -450,6 +489,10 @@ private fun WallpaperCard(
                 if (wp.kind == WallpaperKind.Live) {
                     GlyphIcon(Glyph.Play, Color.White, 22.dp, Modifier.align(Alignment.BottomStart).padding(7.dp))
                 }
+                // The owner's own film moves too; its card shows its first frame.
+                if (wp.kind == WallpaperKind.Video) {
+                    GlyphIcon(Glyph.Play, Color.White, 22.dp, Modifier.align(Alignment.BottomStart).padding(7.dp))
+                }
                 // The random one before anything has been fetched: no picture yet, so it says what
                 // choosing it does.
                 if (wp.id == Wallpapers.RANDOM_DAILY && thumb == null) {
@@ -483,7 +526,10 @@ private fun SectionTitle(title: Int) {
  * sheet does not shift as focus moves.
  */
 @Composable
-private fun Group(note: String? = null, rows: @Composable ColumnScope.(note: (String?) -> Unit) -> Unit) {
+private fun Group(
+    note: String? = null,
+    rows: @Composable ColumnScope.(note: (String?) -> Unit) -> Unit,
+) {
     var focusedNote by remember { mutableStateOf<String?>(null) }
     var inside by remember { mutableStateOf(false) }
     Column(
@@ -502,7 +548,13 @@ private fun Group(note: String? = null, rows: @Composable ColumnScope.(note: (St
 
 /** One row: the setting's name on the left, its control on the right, a hairline above all but the first. */
 @Composable
-private fun SettingRow(label: Int, hint: String?, note: (String?) -> Unit, first: Boolean = false, control: @Composable () -> Unit) {
+private fun SettingRow(
+    label: Int,
+    hint: String?,
+    note: (String?) -> Unit,
+    first: Boolean = false,
+    control: @Composable () -> Unit,
+) {
     if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
     Row(
         Modifier
@@ -531,7 +583,10 @@ private fun <T> Choices(
     SettingRow(label, hint, note, first) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             options.forEach { (value, text) ->
-                Chip(if (text is Int) stringResource(text) else text.toString(), on = current == value) { choose(value) }
+                Chip(
+                    if (text is Int) stringResource(text) else text.toString(),
+                    on = current == value,
+                ) { choose(value) }
             }
         }
     }
@@ -576,7 +631,13 @@ private fun WeatherValue() {
 
 /** A pill to pick one of a few options: a check on the chosen one, white when focused. */
 @Composable
-private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
+private fun Chip(
+    label: String,
+    on: Boolean,
+    onFocused: (() -> Unit)? = null,
+    focusRequester: FocusRequester? = null,
+    onClick: () -> Unit,
+) {
     Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.06f) { state ->
         if (onFocused != null) LaunchedEffect(state.focused) { if (state.focused) onFocused() }
         val bg by animateColorAsState(

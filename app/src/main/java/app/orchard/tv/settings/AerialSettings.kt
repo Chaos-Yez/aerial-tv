@@ -55,6 +55,24 @@ enum class NameMode(val key: String) {
 }
 
 /**
+ * How the owner's own film behind Home plays.
+ *
+ * - [PauseOnTiles]: it stops when the focus moves off the top row onto the tiles, and goes on
+ *   again when the top row has the focus back.
+ * - [Always]: it plays on whatever is on screen, even over the Control Center.
+ * - [AfterIdle]: like the aerial films (ui/home/LiveWallpaper): it starts after Home has sat
+ *   still for a while and stops at the next key press, the frame it stopped on staying as the
+ *   wallpaper.
+ */
+enum class VideoMode(val key: String) {
+    PauseOnTiles("pause"), Always("always"), AfterIdle("idle");
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key }
+    }
+}
+
+/**
  * How much of the interface's light and motion to draw. Full is the glass panels, a focused tile's
  * sheen, parallax and shadow, and the panel's highest refresh rate. Lite draws the panels in plain
  * dark glass (no offscreen layer per frame), a focused tile without sheen, parallax or shadow, and
@@ -120,6 +138,14 @@ object AerialSettings {
     /** The date and weather over a big clock above the top row, instead of one small line in the corner. */
     var largeClock by mutableStateOf(false); private set
 
+    /**
+     * The owner's own film behind Home: how it plays (see [VideoMode]).
+     */
+    var videoMode by mutableStateOf(VideoMode.PauseOnTiles); private set
+
+    /** Whether the owner's film behind Home plays with its sound. */
+    var videoSound by mutableStateOf(false); private set
+
     /** Every app's name under its tile, or one big title above the grid (issue #28), the top row's on the glass plate too. */
     var nameMode by mutableStateOf(NameMode.Focused); private set
     /** True when [nameMode] is [NameMode.All]; kept for 1.48 diagnostics/UI parity. */
@@ -182,6 +208,9 @@ object AerialSettings {
         peekNextRow = prefs.getBoolean("peek_next_row", true)
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", false)
+        videoMode = VideoMode.of(prefs.getString("video_mode", null))
+            ?: if (prefs.getBoolean("video_pause_on_focus", true)) VideoMode.PauseOnTiles else VideoMode.Always
+        videoSound = prefs.getBoolean("video_sound", false)
         homePlate = prefs.getBoolean("home_plate", true)
         adbAccess = prefs.getBoolean("adb_access", false)
         // Before this setting had three modes it was a boolean "show every name"; keep old installs.
@@ -271,6 +300,20 @@ object AerialSettings {
     fun chooseLargeClock(on: Boolean) {
         largeClock = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("large_clock", on) }
+    }
+
+    fun chooseVideoMode(mode: VideoMode) {
+        videoMode = mode
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putString("video_mode", mode.key)
+            // The old boolean is gone; it must not come back and overrule the mode.
+            remove("video_pause_on_focus")
+        }
+    }
+
+    fun chooseVideoSound(on: Boolean) {
+        videoSound = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_sound", on) }
     }
 
     fun chooseNameMode(mode: NameMode) {

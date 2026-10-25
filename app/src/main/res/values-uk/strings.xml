@@ -90,7 +90,7 @@
     <string name="ss_photos">Фото</string>
     <string name="ss_clock">Годинник</string>
     <string name="wp_phone_title">Налаштування з телефона</string>
-    <string name="wp_phone_body">Відскануйте код, щоб надсилати фото як шпалери, змінювати значки застосунків і вибирати місто для погоди з телефона. Телефон і телевізор мають бути в одній мережі.</string>
+    <string name="wp_phone_body">Відскануйте код, щоб надсилати фото як шпалери, відео як динамічні шпалери, змінювати значки застосунків і вибирати місто для погоди з телефона. Телефон і телевізор мають бути в одній мережі.</string>
     <string name="wp_phone_offline">Підключіть телевізор до мережі, щоб налаштувати його з телефона.</string>
     <string name="ss_start">Запустити зараз</string>
     <string name="ss_delay">Запускати через</string>
@@ -260,4 +260,16 @@
     <string name="ss_videos_hint">Додайте MP4 або MOV зі сторінки на телефоні. Перегляд без мережі; якщо відео недоступні, показуються фото.</string>
     <string name="ss_system">Системна</string>
     <string name="ss_system_hint">Заставка самого телевізора, як задумав виробник (наприклад, картини Xiaomi). Aerial свою не показує.</string>
+    <string name="wp_video_title">Динамічні шпалери</string>
+    <string name="wp_video_after_idle">Запуск після 10 с спокою</string>
+    <string name="wp_video_idle_hint">Як повітряні фільми: шпалери починаються після десяти секунд спокою і зупиняються на наступному натисканні.</string>
+    <string name="wp_video_note">Ваше власне відео грає за робочим столом і повторюється. Відскануйте код праворуч, щоб надіслати його з телефона.</string>
+    <string name="wp_video_mode">Відтворення</string>
+    <string name="wp_video_sound">Звук</string>
+    <string name="wp_video_on">Увімк.</string>
+    <string name="wp_video_off">Вимк.</string>
+    <string name="wp_video_pause">Пауза на плитках</string>
+    <string name="wp_video_always">Грати завжди</string>
+    <string name="wp_video_sound_on">Звук увімк.</string>
+    <string name="wp_video_sound_off">Звук вимк.</string>
 </resources>

@@ -34,24 +34,22 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.Inet4Address
-import java.security.SecureRandom
 
 /**
- * The page a phone opens after scanning the TV's QR code: choose a wallpaper and the screensaver,
- * send photos, give an app's tile a picture of one's own, and name the weather's city. Choosing
- * pictures or typing a place with a remote is slow; with a phone it is not.
+ * The page a phone opens to choose a wallpaper and the screensaver, send photos, give an app's
+ * tile a picture of one's own, and name the weather's city. Choosing pictures or typing a place
+ * with a remote is slow; with a phone it is not.
  *
- * It listens on the local network only while the wallpaper sheet is open on the TV (and a few
- * minutes after, so an upload can finish), and every address carries a random token shown only in
- * the QR code, so another device on the network cannot use it by guessing.
+ * It listens on the local network for as long as the app runs (started with MainActivity), and
+ * the address is the plain http://<tv-ip>:8790/ — there is no pairing code to scan or type, so
+ * the page can be opened at any time from any device on the network.
  */
-class PhoneServer private constructor(private val context: Context, private val token: String) : NanoHTTPD(PORT) {
+class PhoneServer private constructor(private val context: Context) : NanoHTTPD(PORT) {
 
     override fun serve(session: IHTTPSession): Response {
-        val prefix = "/$token"
-        val uri = session.uri
-        if (!uri.startsWith(prefix)) return text(Response.Status.NOT_FOUND, "Not found")
-        val path = uri.removePrefix(prefix).ifEmpty { "/" }
+        // No pairing code: the bare address serves the page, and so does any path a device may
+        // still hold from an older build (its token prefix simply becomes part of the path).
+        val path = session.uri.ifEmpty { "/" }
         return runCatching {
             when {
                 path == "/" -> newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", page())
@@ -60,7 +58,9 @@ class PhoneServer private constructor(private val context: Context, private val 
                 path.startsWith("/thumb/") -> thumb(path.removePrefix("/thumb/"))
                 session.method == Method.POST && path == "/api/wallpaper" -> {
                     val id = form(session)["id"].orEmpty()
-                    onMain { Wallpapers.select(id) }
+                    // "random" fetches a new picture of the day, as the card in Personalize does.
+                    if (id == "random") onMain { Wallpapers.fetchRandomDailyNow() }
+                    else onMain { Wallpapers.select(id) }
                     json(state())
                 }
                 session.method == Method.POST && path == "/api/screensaver" -> {
@@ -164,6 +164,7 @@ class PhoneServer private constructor(private val context: Context, private val 
         }
         return JSONObject()
             .put("selected", selected)
+            .put("randomFetching", Wallpapers.randomFetching)
             .put("latestDaily", Wallpapers.LATEST_DAILY)
             .put("rotatePhotos", Wallpapers.ROTATE_PHOTOS)
             .put("screensaver", Wallpapers.screensaver.key)
@@ -290,7 +291,9 @@ class PhoneServer private constructor(private val context: Context, private val 
     }
 
     private fun thumb(id: String): Response {
-        val bmp = Wallpapers.thumbnail(java.net.URLDecoder.decode(id, "UTF-8")) ?: return text(Response.Status.NOT_FOUND, "")
+        // Ignore a cache-busting query (?t=…) the phone page appends so a fresh picture is always fetched.
+        val clean = id.substringBefore('?')
+        val bmp = Wallpapers.thumbnail(java.net.URLDecoder.decode(clean, "UTF-8")) ?: return text(Response.Status.NOT_FOUND, "")
         val out = ByteArrayOutputStream()
         bmp.compress(Bitmap.CompressFormat.JPEG, 82, out)
         val bytes = out.toByteArray()
@@ -355,27 +358,25 @@ class PhoneServer private constructor(private val context: Context, private val 
         @Volatile
         private var running: PhoneServer? = null
 
-        /** Starts the server if needed and returns the address to put in the QR code, or null offline. */
+        /**
+         * Starts the server if needed and returns the address to show in the QR code, or null when
+         * the TV has no LAN address yet. The server keeps listening either way, so a network that
+         * comes up later is served too.
+         */
         @Synchronized
         fun start(context: Context): String? {
-            val ip = lanAddress(context) ?: return null
-            val server = running ?: PhoneServer(context.applicationContext, newToken()).also {
-                runCatching { it.start(SOCKET_READ_TIMEOUT, true) }.onFailure { return null }
-                running = it
+            if (running == null) {
+                val server = PhoneServer(context.applicationContext)
+                if (!runCatching { server.start(SOCKET_READ_TIMEOUT, true) }.isSuccess) return null
+                running = server
             }
-            return "http://$ip:$PORT/${server.token}/"
+            return lanAddress(context)?.let { "http://$it:$PORT/" }
         }
 
         @Synchronized
         fun stop() {
             running?.stop()
             running = null
-        }
-
-        private fun newToken(): String {
-            val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
-            val rnd = SecureRandom()
-            return (1..8).map { alphabet[rnd.nextInt(alphabet.length)] }.joinToString("")
         }
 
         fun lanAddress(context: Context): String? {

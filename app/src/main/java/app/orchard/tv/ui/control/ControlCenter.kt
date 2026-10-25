@@ -49,12 +49,15 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -76,6 +79,7 @@ import app.orchard.tv.Overlay
 import app.orchard.tv.R
 import app.orchard.tv.apps.SourceLooks
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.wallpaper.Wallpapers
 import app.orchard.tv.system.HomeStatus
 import app.orchard.tv.system.LaunchFallback
 import app.orchard.tv.system.NetKind
@@ -224,6 +228,8 @@ private fun MainPage(vm: HomeViewModel, now: LocalDateTime, takeFocus: Boolean, 
                     onOpen(pages.first())
                 }
             }
+            // 随机一张：从必应历史图库随机取一张老照片设为壁纸（与「个性化」里的随机一张同一逻辑）。
+            RoundButton(Glyph.Photo, stringResource(R.string.wp_random)) { Wallpapers.fetchRandomDailyNow() }
             RoundButton(Glyph.Gear, stringResource(R.string.cc_settings)) { vm.whenUnlocked { onOpen(SystemProbe.settingsIntent(context)) } }
         }
 
@@ -396,8 +402,8 @@ private fun SetupPage(vm: HomeViewModel, takeFocus: Boolean, onOpen: (android.co
 
 /** A round Control Center button: frosted at rest, white when focused. */
 @Composable
-private fun RoundButton(glyph: Glyph, label: String, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
-    Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.1f) { state ->
+private fun RoundButton(glyph: Glyph, label: String, focusRequester: FocusRequester? = null, enabled: Boolean = true, onClick: () -> Unit) {
+    Pressable(onClick = onClick, enabled = enabled, focusRequester = focusRequester, focusedScale = 1.1f, modifier = Modifier.alpha(if (enabled) 1f else 0.4f)) { state ->
         val bg by animateColorAsState(if (state.focused) Palette.Focus else Palette.Fill, tween(140, easing = Motion.EaseOut), label = "round-bg")
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(72.dp)) {
             Box(Modifier.size(58.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) {
@@ -503,6 +509,21 @@ private fun VolumeRow(vm: HomeViewModel) {
 @Composable
 private fun BrightnessRow(vm: HomeViewModel) {
     val context = LocalContext.current
+    // XGIMI (GMUI): the real brightness is the DLP light-engine level. It reads through the HAL
+    // class (SystemProbe.xgimiBrightnessLevel) and — on this firmware, unlike the Z7X of issue #241
+    // — writes through it too, so the row is a slider of the light engine's own levels (1..10)
+    // rather than a step that opens XGIMI's page. OK still opens that page, where the level's mode
+    // (movie, office, ...) lives. Poll the HAL while the row is on screen: the page, when opened,
+    // does not pause Aerial, so no onResume or screen_brightness observer ever fires for it.
+    val xgimi = remember { SystemProbe.xgimiBrightnessLevel() != null }
+    LaunchedEffect(xgimi) {
+        if (!xgimi) return@LaunchedEffect
+        vm.refreshBrightness()
+        while (isActive) {
+            delay(700)
+            vm.refreshBrightness()
+        }
+    }
     val level = vm.brightness
     if (level == null) {
         MenuRow(Glyph.Sun, stringResource(R.string.cc_brightness), onClick = {
@@ -514,10 +535,15 @@ private fun BrightnessRow(vm: HomeViewModel) {
             glyph = Glyph.Sun,
             level = level,
             value = Math.round(level * 100).toString(),
-            // Brightness.adjust moves 5% a step, and stops at 1%.
-            steps = 20,
+            // Brightness.adjust moves 5% a step, and stops at 1%; XGIMI steps its own levels.
+            steps = if (xgimi) SystemProbe.xgimiBrightnessMax else 20,
             onStep = vm::adjustBrightness,
-            onClick = {},
+            onClick = if (xgimi) {
+                {
+                    vm.overlay = Overlay.None
+                    SystemProbe.openPictureSettings(context)
+                }
+            } else ({}),
         )
     }
 }

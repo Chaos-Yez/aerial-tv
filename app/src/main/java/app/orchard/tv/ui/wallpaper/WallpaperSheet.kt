@@ -1,10 +1,11 @@
 package app.orchard.tv.ui.wallpaper
 
-import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import app.orchard.tv.ui.components.focusRing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -59,8 +60,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.widthIn
 import app.orchard.tv.R
+import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.NameMode
 import app.orchard.tv.settings.FocusStyle
 import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.system.Sounds
@@ -103,21 +107,21 @@ fun WallpaperSheet(
     onPin: (on: Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    var showAdbDialog by remember { mutableStateOf(false) }
+    if (showAdbDialog) AdbAccessDialog(onConfirm = { AerialSettings.chooseAdbAccess(true); showAdbDialog = false }, onDismiss = { showAdbDialog = false })
     var phoneUrl by remember { mutableStateOf<String?>(null) }
     var qr by remember { mutableStateOf<ImageBitmap?>(null) }
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
-    // The phone page only listens while this sheet is up, plus a few minutes so an upload that is
-    // already under way can finish.
+    // The phone page listens for as long as the app runs (started in MainActivity); opening the
+    // sheet only makes sure it is up and shows its address. There is no pairing code, so the
+    // address stays usable after the sheet closes.
     LaunchedEffect(visible) {
         if (visible) {
             val url = withContext(Dispatchers.IO) { PhoneServer.start(context) }
             phoneUrl = url
             qr = url?.let { withContext(Dispatchers.Default) { PhoneServer.qr(it).asImageBitmap() } }
-        } else {
-            delay(5 * 60 * 1000L)
-            withContext(Dispatchers.IO) { PhoneServer.stop() }
         }
     }
 
@@ -154,7 +158,7 @@ fun WallpaperSheet(
                     SectionTitle(R.string.wp_wallpaper)
                     WallpaperRows()
 
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(12.dp))
                     SectionTitle(R.string.st_home_layout)
                     // What is on Home and where; then the clock; then how the remote feels.
                     Group { note ->
@@ -176,8 +180,12 @@ fun WallpaperSheet(
                         )
                         Choices(
                             R.string.st_names, stringResource(R.string.st_names_hint), note,
-                            listOf(false to R.string.st_names_focused, true to R.string.st_names_all),
-                            AerialSettings.showAllNames, AerialSettings::chooseShowAllNames,
+                            listOf(
+                                NameMode.Focused to R.string.st_names_focused,
+                                NameMode.All to R.string.st_names_all,
+                                NameMode.HeroTitle to R.string.st_names_hero,
+                            ),
+                            AerialSettings.nameMode, AerialSettings::chooseNameMode,
                         )
                         // Apps taken off Home are kept with the rest of how Home looks.
                         SettingRow(R.string.st_hidden_apps, stringResource(R.string.st_hidden_apps_hint), note) {
@@ -272,6 +280,20 @@ fun WallpaperSheet(
                             PinChoice(onPin, onFocused = { scope.launch { scroll.animateScrollTo(scroll.maxValue) } })
                         }
                     }
+                    // Only where Aerial's own App Info is in use, which is where this is needed.
+                    if (remember { !AppDetails.hasSystemScreen(context) }) {
+                        Spacer(Modifier.height(22.dp))
+                        SectionTitle(R.string.wp_advanced)
+                        Group(stringResource(R.string.st_adb_hint)) { note ->
+                            Choices(
+                                R.string.st_adb, null, note,
+                                listOf(false to R.string.st_adb_off, true to R.string.st_adb_on),
+                                AerialSettings.adbAccess,
+                                { on -> if (on) showAdbDialog = true else AerialSettings.chooseAdbAccess(false) },
+                                first = true,
+                            )
+                        }
+                    }
                     Spacer(Modifier.height(24.dp))
                 }
                 Spacer(Modifier.width(28.dp))
@@ -296,22 +318,29 @@ private fun WallpaperRows() {
         withFrameNanos { }
         runCatching { first.requestFocus() }
     }
+    val scope = rememberCoroutineScope()
     val dailyTitle = stringResource(R.string.wp_daily_latest)
     val rotateTitle = stringResource(R.string.wp_photos_rotate)
     val list = remember(items, selected, dailyTitle, rotateTitle) {
         buildList {
             addAll(items.filter { it.kind == WallpaperKind.Live })
-            if (items.any { it.kind == WallpaperKind.Daily }) add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
-            addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected })
-            val photos = items.filter { it.kind == WallpaperKind.Photo }
+            if (items.any { it.kind == WallpaperKind.Daily && !Wallpapers.isRandom(it.id) }) {
+                add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
+            }
+            // The newest random photo is the card that fetches another; it is always there,
+            // picture or not.
+            addAll(items.filter { Wallpapers.isRandom(it.id) })
+            addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected && !Wallpapers.isRandom(it.id) })
             // With two or more, one card takes turns through all of them, one a day (#27).
-            if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, rotateTitle))
-            addAll(photos)
+            items.filter { it.kind == WallpaperKind.Photo }.let { photos ->
+                if (photos.size > 1) add(Wallpaper(Wallpapers.ROTATE_PHOTOS, WallpaperKind.Photo, rotateTitle))
+                addAll(photos)
+            }
             addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || it.id == selected) })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
         }
     }
-    var note by remember { mutableStateOf<String?>(null) }
+    var focusedId by remember { mutableStateOf<String?>(null) }
     // A row clips to its bounds, and the focused card grows by 8%: room on the left for that,
     // with the row moved back by as much so the cards still line up with the titles.
     LazyRow(
@@ -320,18 +349,34 @@ private fun WallpaperRows() {
         contentPadding = PaddingValues(start = 14.dp, end = 24.dp, top = 6.dp, bottom = 4.dp),
     ) {
         items(list, key = { it.id }) { wp ->
-            val hint = wallpaperNote(wp)
-            WallpaperCard(wp, if (wp === list.first()) first else null, onFocused = { note = hint })
+            // The random photo is fetched by choosing its card.
+            WallpaperCard(
+                wp,
+                if (wp === list.first()) first else null,
+                onFocused = { focusedId = wp.id },
+                onChosen = if (wp.id == Wallpapers.RANDOM_DAILY) ({ scope.launch { Wallpapers.fetchRandomDaily() } }) else null,
+            )
         }
     }
+    // Read again as it composes, so "fetching" and "could not fetch" show up under the row.
+    val focused = list.firstOrNull { it.id == focusedId }
+    val noteText = if (focused != null) wallpaperNote(focused) else null
     Box(Modifier.height(42.dp).padding(start = 4.dp, top = 8.dp)) {
-        note?.let { BasicText(it, style = Type.Caption.copy(color = Palette.TertiaryLabel), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        noteText?.let {
+            BasicText(it, style = Type.Caption.copy(color = Palette.TertiaryLabel), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
 /** What a wallpaper card is, for the note under the row; null where its picture says it all. */
 @Composable
 private fun wallpaperNote(wp: Wallpaper): String? = when {
+    wp.id == Wallpapers.RANDOM_DAILY -> when {
+        Wallpapers.randomFetching -> stringResource(R.string.wp_random_getting)
+        Wallpapers.randomFailedLast -> stringResource(R.string.wp_random_failed)
+        wp.caption != null -> wp.caption
+        else -> stringResource(R.string.wp_random_hint)
+    }
     wp.kind == WallpaperKind.Live -> stringResource(R.string.wp_live)
     wp.id == Wallpapers.LATEST_DAILY -> stringResource(R.string.wp_daily_note)
     wp.id == Wallpapers.ROTATE_PHOTOS -> stringResource(R.string.wp_photos_rotate_note)
@@ -342,23 +387,37 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
 }
 
 @Composable
-private fun WallpaperCard(wp: Wallpaper, focusRequester: FocusRequester?, onFocused: () -> Unit) {
+private fun WallpaperCard(
+    wp: Wallpaper,
+    focusRequester: FocusRequester?,
+    onFocused: () -> Unit,
+    onChosen: (() -> Unit)? = null,
+) {
     val selected = Wallpapers.selectedId == wp.id
+    // The auto wallpaper's card shows the picture on the wall, so it is asked again when that changes.
     val thumb by produceState<ImageBitmap?>(null, wp.id, Wallpapers.items) {
         value = withContext(Dispatchers.Default) { Wallpapers.thumbnail(wp.id)?.asImageBitmap() }
     }
-    Pressable(onClick = { Wallpapers.select(wp.id) }, focusRequester = focusRequester, focusedScale = 1.08f) { state ->
+    Pressable(
+        onClick = { if (onChosen != null) onChosen() else Wallpapers.select(wp.id) },
+        focusRequester = focusRequester,
+        focusedScale = 1.08f,
+    ) { state ->
         LaunchedEffect(state.focused) { if (state.focused) onFocused() }
+        val highContrast = AerialSettings.focusStyle == FocusStyle.HighContrast
+        val ring by animateFloatAsState(if (state.focused && highContrast) 1f else 0f, tween(140, easing = Motion.EaseOut), label = "card-ring")
         Column(Modifier.width(168.dp)) {
             Box(
                 Modifier
                     .size(168.dp, 94.dp)
+                    // The high-contrast frame lies outside the card, so it goes before the clip.
+                    .focusRing(12.dp, ring)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Palette.Fill)
                     .border(
-                        if (state.focused || selected) 3.dp else 1.dp,
+                        if (state.focused && !highContrast || selected) 3.dp else 1.dp,
                         when {
-                            state.focused -> Palette.Focus
+                            state.focused && !highContrast -> Palette.Focus
                             selected -> Palette.Focus.copy(alpha = 0.55f)
                             else -> Palette.Hairline
                         },
@@ -379,6 +438,17 @@ private fun WallpaperCard(wp: Wallpaper, focusRequester: FocusRequester?, onFocu
                 // The aerial wallpaper moves; its card shows the last frame it stopped on.
                 if (wp.kind == WallpaperKind.Live) {
                     GlyphIcon(Glyph.Play, Color.White, 22.dp, Modifier.align(Alignment.BottomStart).padding(7.dp))
+                }
+                // The random one before anything has been fetched: no picture yet, so it says what
+                // choosing it does.
+                if (wp.id == Wallpapers.RANDOM_DAILY && thumb == null) {
+                    BasicText(
+                        stringResource(if (Wallpapers.randomFetching) R.string.wp_random_getting else R.string.wp_random_tap),
+                        style = Type.Caption.copy(color = Palette.SecondaryLabel),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 10.dp),
+                    )
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -495,8 +565,8 @@ private fun WeatherValue() {
 
 /** A pill to pick one of a few options: a check on the chosen one, white when focused. */
 @Composable
-private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, onClick: () -> Unit) {
-    Pressable(onClick = onClick, focusedScale = 1.06f) { state ->
+private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
+    Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.06f) { state ->
         if (onFocused != null) LaunchedEffect(state.focused) { if (state.focused) onFocused() }
         val bg by animateColorAsState(
             when {

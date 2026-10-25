@@ -141,8 +141,21 @@ class XgimiSettingsTest {
     }
 
     @Test
-    fun pictureSettingsKeepsLegacyActivityFallbackWhenXgimiServiceIsPresent() {
+    fun pictureSettingsOpensXgimiBrightnessPageAsService() {
         pm.addServiceIfNotPresent(service).exported = true
+        val settings = settingsCandidates().first()
+        pm.addActivityIfNotPresent(settings.component!!).exported = true
+        val application = shadowOf(RuntimeEnvironment.getApplication())
+        application.checkActivities(true)
+        assertTrue(SystemProbe.openPictureSettings(context))
+        assertNull(application.nextStartedActivity)
+        val started = application.nextStartedService
+        assertNotNull("openPictureSettings must start the XGIMI service", started)
+        assertService(started, "Settings://com.xgimi.settings.brightness/brightness_misckey")
+    }
+
+    @Test
+    fun pictureSettingsKeepsLegacyActivityFallbackWithoutXgimiService() {
         val settings = settingsCandidates().first()
         pm.addActivityIfNotPresent(settings.component!!).exported = true
         val application = shadowOf(RuntimeEnvironment.getApplication())
@@ -150,6 +163,18 @@ class XgimiSettingsTest {
         assertTrue(SystemProbe.openPictureSettings(context))
         assertTrue(settings.filterEquals(application.nextStartedActivity))
         assertNull(application.nextStartedService)
+    }
+
+    @Test
+    fun inputPickerOpensXgimiSourcePageAsService() {
+        pm.addServiceIfNotPresent(service).exported = true
+        val application = shadowOf(RuntimeEnvironment.getApplication())
+        application.checkActivities(true)
+        assertTrue(SystemProbe.openInputPicker(context))
+        assertNull(application.nextStartedActivity)
+        val started = application.nextStartedService
+        assertNotNull("openInputPicker must start the XGIMI service", started)
+        assertService(started, "Settings://com.xgimi.settings.signalSource/hdmi_misckey")
     }
 
     private fun open(activity: MainActivity, intent: Intent) {

@@ -5,6 +5,7 @@ import android.os.Build
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import app.orchard.tv.settings.AerialSettings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.edit
 import app.orchard.tv.BuildConfig
+import app.orchard.tv.R
 import app.orchard.tv.guard.GuardSetup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,8 +57,8 @@ enum class ScreensaverMode(val key: String) {
  * - Built-in: Aerial's own Mac-style pictures, drawn on the TV ([Gradients]).
  * - Daily: Bing's photo of the day (cn.bing.com, reachable from China without a proxy). The last
  *   eight are kept; "daily:latest" always follows the newest.
- * - Photos: pictures uploaded from a phone through the setup page ([PhoneServer]). "photos:rotate"
- *   shows a different one of them each day (issue #27).
+ * - Photos: "My Photos": pictures uploaded from a phone through the setup page ([PhoneServer]),
+ *   with who made them in a `<name>.json` beside.
  * - Auto: the previous behaviour, light taken from the focused app's artwork.
  * - Live: Apple's aerial films, moving once Home has sat still a while (ui/home/LiveWallpaper.kt).
  *   Its picture is the frame the film last stopped on, so the glass and the grid match it.
@@ -67,7 +69,27 @@ object Wallpapers {
     private const val TAG = "AerialWallpaper"
     const val LATEST_DAILY = "daily:latest"
     private const val DAILY_RETRY_MS = 30 * 60 * 1000L
+    /**
+     * "A random photo": old pictures of the day, fetched on demand (Personalize). Not part of the
+     * eight days kept; it has a folder and a file of its own, so the daily refresh leaves it alone.
+     * Only the one just fetched is kept — the one before it goes at once — so the folder stays small.
+     */
+    const val RANDOM_DAILY = "daily:random"
+    /** The older one of the two: "daily:random:20230510". */
+    const val RANDOM_PREFIX = "daily:random:"
+    /**
+     * An archive that keeps every picture of the day, and keeps Bing's Chinese line with each:
+     * {"format_date":"2023-05-10","url":"...","title":"...","copy_right":"科尔杜昂灯塔… (© …)"}.
+     * Bing's own archive stops at eight pages, and the other archives answer in English.
+     */
+    private const val RANDOM_ARCHIVE = "https://bing.xinac.net/api/random?format=json"
+    /** The same archive in English, used only if the one above is not answering. */
+    private const val RANDOM_ARCHIVE_EN = "https://bingw.jasonzeng.dev/?index=random&format=json"
+    /** Whether [id] is one of the random photos, newest or the one before it. */
+    fun isRandom(id: String): Boolean = id == RANDOM_DAILY || id.startsWith(RANDOM_PREFIX)
+
     const val AUTO = "auto"
+    /** "My Photos, rotating": one card that takes turns through the photos, one a day (#27). */
     const val ROTATE_PHOTOS = "photos:rotate"
     const val LIVE = "aerial:live"
     private const val FOLLOW = "follow"
@@ -81,6 +103,7 @@ object Wallpapers {
     private val io = Mutex()
     private val prefs by lazy { app.getSharedPreferences("wallpaper", Context.MODE_PRIVATE) }
     private val dailyDir by lazy { File(app.filesDir, "daily").apply { mkdirs() } }
+    private val randomDir by lazy { File(app.filesDir, "daily-random").apply { mkdirs() } }
     private val photoDir by lazy { File(app.filesDir, "photos").apply { mkdirs() } }
     private val liveFrame by lazy { File(app.filesDir, "live-frame.jpg") }
     private val bakedDir by lazy { File(app.filesDir, "backdrop").apply { mkdirs() } }
@@ -122,13 +145,22 @@ object Wallpapers {
         if (started) return
         started = true
         app = context.applicationContext
+        // The auto wallpaper reads its sources, themes and interval from the settings at once.
+        AerialSettings.init(context)
         context.resources.displayMetrics.let {
             screenW = maxOf(it.widthPixels, it.heightPixels)
             screenH = minOf(it.widthPixels, it.heightPixels)
         }
         selectedId = (prefs.getString("selected", LATEST_DAILY) ?: LATEST_DAILY)
-            // A built-in wallpaper from before the Mac-style set: its nearest one now.
-            .let { if (it.startsWith("grad:")) "grad:" + Gradients.currentKey(it.removePrefix("grad:")) else it }
+        // A built-in wallpaper from before the Mac-style set: its nearest one now.
+        .let { if (it.startsWith("grad:")) "grad:" + Gradients.currentKey(it.removePrefix("grad:")) else it }
+        // The random photo is a single card now; a pick of the one before it falls back to it.
+        if (selectedId.startsWith(RANDOM_PREFIX)) {
+            selectedId = RANDOM_DAILY
+            prefs.edit { putString("selected", selectedId) }
+        }
+        // Only the random photo on the wall is kept; the ones before it go at once.
+        pruneRandom()
         chosenScreensaver = when (val key = prefs.getString("screensaver", null)) {
             null -> firstScreensaver()
             // "wallpaper" was a fourth kind in test builds of 1.38, for what following now is.
@@ -164,6 +196,11 @@ object Wallpapers {
         rebuildBackdrop()
     }
 
+    /** A picture was added to "My Photos" from outside (saved from another source). */
+    fun photosChanged() {
+        rebuildList()
+    }
+
     /**
      * A new install's screensaver follows the wallpaper. One that was already in use when that came
      * (1.38) keeps what it showed, aerial films, until the owner chooses. Kept either way, so it
@@ -189,7 +226,8 @@ object Wallpapers {
 
     /** The concrete wallpaper the selection points at today. */
     fun resolve(id: String = selectedId): Wallpaper? = when (id) {
-        LATEST_DAILY -> items.firstOrNull { it.kind == WallpaperKind.Daily }
+        // The random photos are pictures of the day too, and must not stand in for the newest.
+        LATEST_DAILY -> items.firstOrNull { it.kind == WallpaperKind.Daily && !isRandom(it.id) }
         ROTATE_PHOTOS -> items.filter { it.kind == WallpaperKind.Photo }.sortedBy { it.id }.let { photos ->
             if (photos.isEmpty()) resolve(LATEST_DAILY) else photos[Math.floorMod(today(), photos.size)]
         }
@@ -209,9 +247,11 @@ object Wallpapers {
 
     // ---- pictures ----
 
-    private fun fileFor(w: Wallpaper): File? = when (w.kind) {
-        WallpaperKind.Daily -> File(dailyDir, w.id.removePrefix("daily:") + ".jpg")
-        WallpaperKind.Photo -> File(photoDir, w.id.removePrefix("photo:") + ".jpg")
+    private fun fileFor(w: Wallpaper): File? = when {
+        w.id == RANDOM_DAILY -> randomDate()?.let { File(randomDir, "$it.jpg") }
+        w.id.startsWith(RANDOM_PREFIX) -> File(randomDir, w.id.removePrefix(RANDOM_PREFIX) + ".jpg")
+        w.kind == WallpaperKind.Daily -> File(dailyDir, w.id.removePrefix("daily:") + ".jpg")
+        w.kind == WallpaperKind.Photo -> File(photoDir, w.id.removePrefix("photo:") + ".jpg")
         else -> null
     }
 
@@ -246,7 +286,6 @@ object Wallpapers {
                 frosted = null
                 return@launch
             }
-            rotatedOn = today()
             val wp = resolve(id) ?: resolve(DEFAULT_FALLBACK)
             val key = wp?.let(::bakedKey)
             if (key != null && key == bakedKey && backdrop != null) return@launch
@@ -276,6 +315,7 @@ object Wallpapers {
     /** Changes with the picture behind [wp], the screen size, and Aerial's version (the baking may change). */
     private fun bakedKey(wp: Wallpaper): String {
         val stamp = when (wp.kind) {
+            // The auto wallpaper keeps its id as the picture changes, so the file stamps it.
             WallpaperKind.Daily, WallpaperKind.Photo -> fileFor(wp)?.lastModified() ?: 0L
             WallpaperKind.Live -> liveFrame.lastModified()
             else -> 0L
@@ -389,11 +429,56 @@ object Wallpapers {
         val builtins = Gradients.presets.map { Wallpaper("grad:${it.key}", WallpaperKind.Builtin, if (zh) it.nameZh else it.nameEn) }
         val photos = (photoDir.listFiles { f -> f.extension == "jpg" } ?: emptyArray())
             .sortedByDescending { it.lastModified() }
-            .map { Wallpaper("photo:${it.nameWithoutExtension}", WallpaperKind.Photo, if (zh) "我的照片" else "My Photo") }
+            .map { file ->
+                // Saved from another source: who made it, beside the picture.
+                val note = runCatching { JSONObject(File(photoDir, file.nameWithoutExtension + ".json").readText()) }.getOrNull()
+                Wallpaper(
+                    "photo:${file.nameWithoutExtension}", WallpaperKind.Photo,
+                    note?.optString("title")?.takeIf { it.isNotBlank() } ?: if (zh) "我的照片" else "My Photo",
+                    note?.optString("credit")?.takeIf { it.isNotBlank() },
+                )
+            }
         val auto = Wallpaper(AUTO, WallpaperKind.Auto, if (zh) "跟随 App" else "Follow App")
         val live = Wallpaper(LIVE, WallpaperKind.Live, if (zh) "航拍" else "Aerial")
-        items = listOf(live) + daily + builtins + photos + auto
+        // The random photo is the card that fetches another.
+        items = listOf(live) + daily + randomItems() + builtins + photos + auto
     }
+
+    /**
+     * The random photo on disk, with the day it is from: the one fetched last, and the only one
+     * kept. Ordered by when it was fetched, not by its date: an older picture can turn up later.
+     */
+    private fun randomDate(): String? = randomDir
+        .listFiles { f -> f.extension == "jpg" && f.nameWithoutExtension.length == 8 }
+        ?.maxByOrNull { it.lastModified() }
+        ?.nameWithoutExtension
+
+    /** Only the picture fetched last is kept, with its line; the ones before it go. */
+    private fun pruneRandom() {
+        val keep = randomDate()
+        randomDir.listFiles()?.forEach { f ->
+            if (f.name != "$keep.jpg" && f.name != "$keep.json") f.delete()
+        }
+    }
+
+    private fun randomItems(): List<Wallpaper> {
+        // One card only: the random photo. It is always there, picture or not — it is the button
+        // that fetches one.
+        val date = randomDate()
+        return listOf(
+            Wallpaper(
+                RANDOM_DAILY, WallpaperKind.Daily,
+                app.getString(R.string.wp_random),
+                date?.let { randomCaption(it) },
+            )
+        )
+    }
+
+    /** What the random photo is, under the row: its date and the Chinese line Bing wrote about it. */    private fun randomCaption(date: String): String? = runCatching {
+        val o = JSONObject(File(randomDir, "$date.json").readText())
+        val pretty = if (date.length == 8) "${date.substring(0, 4)}-${date.substring(4, 6)}-${date.substring(6)}" else date
+        listOf(pretty, o.optString("caption")).filter { it.isNotBlank() }.joinToString(" · ").takeIf { it.isNotBlank() }
+    }.getOrNull()
 
     // ---- daily photos ----
 
@@ -490,10 +575,112 @@ object Wallpapers {
         }
     }
 
+    // ---- a random photo ----
+
+    var randomFetching by mutableStateOf(false); private set
+    var randomFailedLast by mutableStateOf(false); private set
+
+    /**
+     * "A random photo": one of Bing's older pictures, put on the wall at once. Never one of the
+     * eight days Home keeps, so the picture that turns up is one the owner has not just seen, and
+     * never one without a Chinese line about it: the row under the cards says what it is.
+     */
+    suspend fun fetchRandomDaily(): Boolean {
+        if (randomFetching) return false
+        randomFetching = true
+        val done = withContext(Dispatchers.IO) { runCatching { grabRandomPicture() }.getOrDefault(false) }
+        randomFetching = false
+        randomFailedLast = !done
+        if (done) {
+            synchronized(thumbs) { thumbs.keys.removeAll { isRandom(it) } }
+            rebuildList()
+            select(RANDOM_DAILY)
+        }
+        return done
+    }
+
+    /**
+     * Starts a fetch without waiting for it: the phone page and the adb line ask for it this way.
+     */
+    fun fetchRandomDailyNow() { scope.launch { fetchRandomDaily() } }
+
+    private fun grabRandomPicture(): Boolean {
+        // The eight days kept are the ones not to repeat; anything older is fair game.
+        val oldest = readDailyIndex().map { it.first }.minOrNull()
+        // The one on the wall now: a draw of the same day would look like nothing happened.
+        val current = randomDate()
+        // First the archive that writes in Chinese: the line under the card is the point of it.
+        repeat(4) {
+            val pic = randomFromArchive(RANDOM_ARCHIVE, chinese = true) ?: return@repeat
+            if (usable(pic, oldest, current) && speaksChinese(pic.caption) && saveRandom(pic)) return true
+        }
+        // Then one that answers in English, rather than nothing at all.
+        repeat(2) {
+            val pic = randomFromArchive(RANDOM_ARCHIVE_EN, chinese = false) ?: return@repeat
+            if (usable(pic, oldest, current) && saveRandom(pic)) return true
+        }
+        // Bing's own archive, its oldest page: the eight days before the newest eight.
+        val pic = randomFromBing() ?: return false
+        return saveRandom(pic)
+    }
+
+    /** Whether the picture may be used: an old day, and not the one already on the wall. */
+    private fun usable(pic: RandomPicture, oldest: String?, current: String?): Boolean =
+        pic.date.length == 8 && (oldest == null || pic.date < oldest) && pic.date != current
+
+    /** A picture of the day with where to get it; [caption] is Bing's line about it. */
+    private data class RandomPicture(val date: String, val url: String, val caption: String)
+
+    /** Whether Bing wrote about it in Chinese; a few pictures in the archive have only English. */
+    private fun speaksChinese(s: String) = s.any { it in '\u4e00'..'\u9fff' }
+
+    /**
+     * An archive that keeps every picture of the day, so the random one can be years old. The
+     * Chinese one keeps Bing's line with each picture; the English one answers with the same
+     * pictures in English.
+     */
+    private fun randomFromArchive(url: String, chinese: Boolean): RandomPicture? = runCatching {
+        val json = JSONObject(get(url).decodeToString())
+        val date = if (chinese) json.getString("format_date").filter { it.isDigit() } else json.getString("startdate")
+        val caption = if (chinese) {
+            json.optString("copy_right").ifBlank { json.optString("title") }
+        } else json.optString("copyright")
+        RandomPicture(date, json.getString("url"), caption)
+    }.onFailure { Log.w(TAG, "random photo: archive unavailable", it) }.getOrNull()
+
+    /** The oldest page Bing still lists, of which the eight days after the kept ones are left. */
+    private fun randomFromBing(): RandomPicture? = runCatching {
+        // Always Chinese: the line under the cards is the point of it.
+        val json = JSONObject(get("https://cn.bing.com/HPImageArchive.aspx?format=js&idx=7&n=8&mkt=zh-CN").decodeToString())
+        val images = json.getJSONArray("images")
+        val oldest = readDailyIndex().map { it.first }.minOrNull()
+        val older = (0 until images.length()).map { images.getJSONObject(it) }
+            .filter { oldest == null || it.getString("startdate") < oldest }
+        val pick = older.randomOrNull() ?: return null
+        val path = if (screenW > 1920) pick.getString("urlbase") + "_UHD.jpg" else pick.getString("url")
+        RandomPicture(pick.getString("startdate"), "https://cn.bing.com$path", pick.optString("copyright"))
+    }.onFailure { Log.w(TAG, "random photo: Bing's archive unavailable", it) }.getOrNull()
+
+    private fun saveRandom(pic: RandomPicture): Boolean = runCatching {
+        val date = pic.date.filter { it.isDigit() }
+        check(date.length == 8) { "no date: ${pic.date}" }
+        val bytes = get(pic.url)
+        File(randomDir, "$date.jpg").writeBytes(bytes)
+        File(randomDir, "$date.json").writeText(JSONObject().put("caption", pic.caption).toString())
+        // The picture before this one goes at once: only what is on the wall is kept, so the
+        // folder never grows past one picture.
+        randomDir.listFiles()?.forEach { f ->
+            if (f.name != "$date.jpg" && f.name != "$date.json") f.delete()
+        }
+        true
+    }.onFailure { Log.w(TAG, "random photo: could not keep it", it) }.getOrDefault(false)
+
     private fun get(url: String): ByteArray {
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 10_000
         c.readTimeout = 20_000
+        // The archive's host and www.bing.com both want one; cn.bing.com's pictures do not care.
+        c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 9) aerial-tv")
         return c.inputStream.use { it.readBytes() }.also { c.disconnect() }
     }
 
@@ -534,6 +721,7 @@ object Wallpapers {
         fileFor(photo)?.delete()
         synchronized(thumbs) { thumbs.remove(id); thumbs.remove(ROTATE_PHOTOS) }
         rebuildList()
+        File(photoDir, photo.id.removePrefix("photo:") + ".json").delete()
         if (selectedId == id) select(LATEST_DAILY)
         else if (selectedId == ROTATE_PHOTOS) rebuildBackdrop()
     }

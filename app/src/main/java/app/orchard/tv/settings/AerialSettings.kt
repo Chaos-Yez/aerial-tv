@@ -8,6 +8,7 @@ import androidx.core.content.edit
 import android.os.SystemClock
 import android.provider.Settings
 import app.orchard.tv.guard.GuardSetup
+import app.orchard.tv.system.AdbShell
 import app.orchard.tv.system.DeviceClass
 import app.orchard.tv.wallpaper.AerialQuality
 import java.security.MessageDigest
@@ -40,6 +41,20 @@ enum class UiSounds(val key: String) {
 }
 
 /**
+
+ * How app names show on Home: the focused app's under its tile (tvOS), every tile's, or one big
+ * title in the top-left corner of the grid (the older CleanYourTV-style launcher). The big title
+ * replaces the labels under the tiles.
+ */
+enum class NameMode(val key: String) {
+    Focused("focused"), All("all"), HeroTitle("hero");
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key }
+    }
+}
+
+/**
  * How much of the interface's light and motion to draw. Full is the glass panels, a focused tile's
  * sheen, parallax and shadow, and the panel's highest refresh rate. Lite draws the panels in plain
  * dark glass (no offscreen layer per frame), a focused tile without sheen, parallax or shadow, and
@@ -61,7 +76,6 @@ object AerialSettings {
     private lateinit var app: Context
 
     var focusStyle by mutableStateOf(FocusStyle.HighContrast); private set
-
 
     /** TV inputs pinned to Home as tiles, by TvInputInfo id. */
     var pinnedSources by mutableStateOf<Set<String>>(emptySet()); private set
@@ -90,6 +104,13 @@ object AerialSettings {
     /** Interface sounds (system/Sounds), as tvOS plays them on every press. */
     var uiSounds by mutableStateOf(UiSounds.Tv); private set
 
+    /**
+     * Whether App Info may change other apps (permissions, force stop, clear data) through the TV's own
+     * adbd. Off until the owner has read what it means and agreed (WallpaperSheet); turning it off
+     * deletes the key it used.
+     */
+    var adbAccess by mutableStateOf(false); private set
+
     /** The Liquid Glass plate under the top row; some prefer the apps straight on the wallpaper (#151). */
     var homePlate by mutableStateOf(true); private set
 
@@ -99,8 +120,10 @@ object AerialSettings {
     /** The date and weather over a big clock above the top row, instead of one small line in the corner. */
     var largeClock by mutableStateOf(false); private set
 
-    /** Every app's name under its tile, not only the focused one's (issue #28), the top row's on the glass plate too. */
-    var showAllNames by mutableStateOf(false); private set
+    /** Every app's name under its tile, or one big title above the grid (issue #28), the top row's on the glass plate too. */
+    var nameMode by mutableStateOf(NameMode.Focused); private set
+    /** True when [nameMode] is [NameMode.All]; kept for 1.48 diagnostics/UI parity. */
+    val showAllNames: Boolean get() = nameMode == NameMode.All
 
     /** Back on Home's top row starts the screensaver, as on tvOS; off for homes where it gets pressed by accident (issue #94). */
     var backStartsScreensaver by mutableStateOf(true); private set
@@ -160,7 +183,10 @@ object AerialSettings {
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", false)
         homePlate = prefs.getBoolean("home_plate", true)
-        showAllNames = prefs.getBoolean("show_all_names", false)
+        adbAccess = prefs.getBoolean("adb_access", false)
+        // Before this setting had three modes it was a boolean "show every name"; keep old installs.
+        nameMode = NameMode.of(prefs.getString("name_mode", null))
+            ?: if (prefs.getBoolean("show_all_names", false)) NameMode.All else NameMode.Focused
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
         uiSounds = UiSounds.of(prefs.getString("ui_sounds_kind", null)) ?: when {
             !prefs.getBoolean("ui_sounds", true) -> UiSounds.Off
@@ -226,6 +252,12 @@ object AerialSettings {
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString("ui_sounds_kind", kind.key) }
     }
 
+    fun chooseAdbAccess(on: Boolean) {
+        adbAccess = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("adb_access", on) }
+        if (!on) AdbShell.revoke(app)
+    }
+
     fun chooseHomePlate(on: Boolean) {
         homePlate = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("home_plate", on) }
@@ -241,9 +273,13 @@ object AerialSettings {
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("large_clock", on) }
     }
 
-    fun chooseShowAllNames(on: Boolean) {
-        showAllNames = on
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("show_all_names", on) }
+    fun chooseNameMode(mode: NameMode) {
+        nameMode = mode
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putString("name_mode", mode.key)
+            // Drop the old boolean so a downgrade to an older build still reads the right mode.
+            putBoolean("show_all_names", mode == NameMode.All)
+        }
     }
 
     fun chooseBackStartsScreensaver(on: Boolean) {
@@ -277,5 +313,4 @@ object AerialSettings {
         focusStyle = style
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString("focus_style", style.key) }
     }
-
 }

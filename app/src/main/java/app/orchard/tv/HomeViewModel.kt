@@ -40,9 +40,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/** A brightness poll closer than this to a step is stale: the engine applies the write meanwhile. */
+private const val POLL_QUIET_MS = 400L
 
 sealed interface Overlay {
     data object None : Overlay
@@ -51,6 +55,8 @@ sealed interface Overlay {
     data class AppMenu(val key: String, val anchor: Rect, val inFolder: String? = null) : Overlay
     data class Folder(val id: String) : Overlay
     data object HiddenApps : Overlay
+    /** App Info drawn by Aerial, on firmware that has no screen for it. */
+    data class AppInfo(val packageName: String) : Overlay
     data object Wallpaper : Overlay
     data class Pin(val mode: PinMode, val onDone: () -> Unit) : Overlay
 }
@@ -93,6 +99,21 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     var brightness by mutableStateOf<Float?>(null); private set
 
     /**
+     * When the Control Center row last took a step (uptime ms). The HAL reports the level a moment
+     * after the write, so a poll that runs in between must not put the previous step back on screen.
+     */
+    private var brightnessActedAt = 0L
+
+    /**
+     * Levels the row asked for, newest kept: between a held key's repeats the light engine only
+     * needs the level it is to end on. Written off the main thread and in order.
+     */
+    private val brightnessSteps = Channel<Int>(Channel.CONFLATED)
+
+    /** XGIMI's light engine steps its own levels; every other TV steps the panel in percent. */
+    private val xgimiBrightness by lazy { SystemProbe.xgimiBrightnessLevel() != null }
+
+    /**
      * Set when Home is pressed: go back to the top row. Done once the window has focus again,
      * since a focus request made while another app is in front is lost.
      */
@@ -127,6 +148,11 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         AppCatalog.pinSource = ::pinSourceById
         AppCatalog.layout = layoutOps
         reload()
+        // The light engine is written off the main thread: a held key repeats every few tens of ms,
+        // and doing the HAL call on the key's own thread left the row lagging behind the picture.
+        viewModelScope.launch(Dispatchers.Default) {
+            for (level in brightnessSteps) SystemProbe.setXgimiBrightnessLevel(level)
+        }
         // A tile picture set or removed from the phone page.
         viewModelScope.launch { snapshotFlow { CustomIcons.version }.drop(1).collect { reload() } }
         offerSetupOnce()
@@ -431,6 +457,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Just the brightness, for the Control Center row to poll while it is on screen. */
+    fun refreshBrightness() {
+        viewModelScope.launch {
+            val ctx = context
+            val level = withContext(Dispatchers.Default) { Brightness.level(ctx) }
+            // A step taken while this read was in flight is newer than the level it read; the poll
+            // after the key is released puts the light engine's own answer back.
+            if (SystemClock.elapsedRealtime() - brightnessActedAt < POLL_QUIET_MS) return@launch
+            brightness = level
+        }
+    }
+
     fun refreshNetwork() { network = SystemProbe.network(context) }
 
     /**
@@ -446,6 +484,18 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun adjustBrightness(direction: Int) {
+        val current = brightness
+        if (xgimiBrightness && current != null) {
+            // Step from what the row shows, not from the HAL: a level read back while the engine is
+            // still applying the previous step repeats the same notch on every held repeat.
+            val max = SystemProbe.xgimiBrightnessMax
+            val now = Math.round(current * max)
+            val next = (now + if (direction > 0) 1 else -1).coerceIn(1, max)
+            brightness = next / max.toFloat()
+            brightnessActedAt = SystemClock.elapsedRealtime()
+            brightnessSteps.trySend(next)
+            return
+        }
         brightness = Brightness.adjust(context, direction)
     }
 

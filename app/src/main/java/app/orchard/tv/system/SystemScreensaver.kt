@@ -9,7 +9,7 @@ import app.orchard.tv.dream.AerialDream
 
 /**
  * The TV's own screensaver: Android's dream where the firmware uses it (TCL, most Android TVs), or
- * the maker's own app where it runs outside it (Xiaomi HyperOS).
+ * the maker's own app where it runs outside it (Xiaomi HyperOS, XGIMI's projectors).
  */
 object SystemScreensaver {
     private const val TAG = "AerialScreensaver"
@@ -18,6 +18,15 @@ object SystemScreensaver {
 
     /** Xiaomi's screensaver, which HyperOS starts by its own timer (screen_saver_timeout), not as a dream. */
     const val XIAOMI = "com.xiaomi.mitv.hyper.screensaver"
+
+    /** XGIMI's own scenes (GMUI): an activity, which is what the projector shows on its own. */
+    const val XGIMI = "com.xgimi.atmosphere"
+    private const val XGIMI_CLASS = "com.xgimi.atmosphere.view.ScreensaverActivity"
+    private const val XGIMI_ACTION = "com.xgimi.atmosphere.switch.screensaver"
+
+    /** The dream XGIMI declares to Android, in the app the vendor ships beside the scenes. */
+    const val XGIMI_DREAM = "com.xgimi.screensaver"
+    private const val XGIMI_DREAM_CLASS = "com.xgimi.screensaver.service.ScreenSaverDreamService"
 
     /** Android's dream that starts on demand (what "Start now" in Android's settings opens). */
     private val SOMNAMBULATOR = ComponentName("com.android.systemui", "com.android.systemui.Somnambulator")
@@ -32,10 +41,22 @@ object SystemScreensaver {
     fun isAerials(context: Context): Boolean =
         dreamsOn(context) && component(context).split(',').firstOrNull() == ComponentName(context, AerialDream::class.java).flattenToString()
 
-    /** The dream the firmware came with, or null where it has none on record. */
-    fun firmwareDream(context: Context): String? =
-        runCatching { Settings.Secure.getString(context.contentResolver, DEFAULT_COMPONENT) }.getOrNull()
+    /**
+     * The dream the firmware came with, or null where it has none on record. XGIMI's where the
+     * projector ships one: the record there (screensaver_default_component) is Android's own
+     * build default — the DeskClock's screensaver on GMUI 9 — which is not what the TV shows.
+     */
+    fun firmwareDream(context: Context): String? {
+        xgimiDream(context)?.let { return it }
+        return runCatching { Settings.Secure.getString(context.contentResolver, DEFAULT_COMPONENT) }.getOrNull()
             ?.takeIf { it.isNotBlank() && !it.startsWith(context.packageName + "/") }
+    }
+
+    /** XGIMI's dream, where the projector ships it; null elsewhere. */
+    fun xgimiDream(context: Context): String? {
+        if (runCatching { context.packageManager.getPackageInfo(XGIMI_DREAM, 0) }.isFailure) return null
+        return ComponentName(XGIMI_DREAM, XGIMI_DREAM_CLASS).flattenToString()
+    }
 
     /** Starts the TV's dream now, whichever it is; false where that is not possible. */
     fun startDream(context: Context): Boolean {
@@ -47,10 +68,12 @@ object SystemScreensaver {
     }
 
     /**
-     * Starts the firmware's own screensaver now, for Back with "System" chosen: Xiaomi's app where it
-     * is installed, else the dream. False where neither can be started.
+     * Starts the firmware's own screensaver now, for Back with "System" chosen: XGIMI's scenes where
+     * the projector has them, Xiaomi's app where it is installed, else the dream. False where none
+     * can be started.
      */
     fun startFirmware(context: Context): Boolean {
+        if (startXgimi(context)) return true
         val pm = context.packageManager
         val xiaomi = runCatching { pm.getPackageInfo(XIAOMI, 0) }.isSuccess
         if (xiaomi) {
@@ -65,5 +88,19 @@ object SystemScreensaver {
             Log.w(TAG, "could not open Xiaomi's screensaver")
         }
         return startDream(context)
+    }
+
+    /**
+     * XGIMI's screensaver on the screen now. GMUI has no Somnambulator to start a dream with, so
+     * there is no starting the vendor's dream: the scenes are an exported activity of their own
+     * (com.xgimi.atmosphere, single task), and Back leaves them.
+     */
+    private fun startXgimi(context: Context): Boolean {
+        if (runCatching { context.packageManager.getPackageInfo(XGIMI, 0) }.isFailure) return false
+        val saver = Intent(XGIMI_ACTION).setClassName(XGIMI, XGIMI_CLASS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(saver) }
+            .onSuccess { Log.i(TAG, "started XGIMI's screensaver") }
+            .onFailure { Log.w(TAG, "could not open XGIMI's screensaver", it) }
+            .isSuccess
     }
 }

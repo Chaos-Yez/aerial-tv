@@ -19,6 +19,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
@@ -52,6 +54,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -62,17 +65,24 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import app.orchard.tv.CcPage
 import app.orchard.tv.apps.SourceLooks
 import app.orchard.tv.HomeViewModel
 import app.orchard.tv.Overlay
 import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.NameMode
+import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.apps.AppEntry
 import app.orchard.tv.ui.control.ControlCenter
 import app.orchard.tv.ui.wallpaper.WallpaperSheet
@@ -86,11 +96,11 @@ import androidx.compose.runtime.snapshotFlow
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.system.SystemProbe
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -104,6 +114,9 @@ private val PlateMarginBottom = 30.dp
 
 /** How much taller the glass plate grows to hold the top row's names, with the second row kept clear of it. */
 private val PlateNameRoom = 28.dp
+
+/** 极米: 显示所有应用名时，名字占用的额外高度。 */
+private val NameRoom = 22.dp
 
 /** Control Center has been drawn once in this process (HomeScreen's warm-up). */
 private object ControlCenterWarmed { var done = false }
@@ -189,6 +202,8 @@ fun HomeScreen(
     onUninstall: (String) -> Unit,
     onStartScreensaver: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val view = LocalView.current
     val apps = vm.apps
     val overlay = vm.overlay
     val moving = vm.movingKey
@@ -408,8 +423,9 @@ fun HomeScreen(
         val rows = (apps.size + COLUMNS - 1) / COLUMNS
         // With a single row of apps the two-row layout would leave the bottom of the screen empty.
         val oneRow = AerialSettings.oneRowHome || rows <= 1
+        val nameRoom = if (AerialSettings.nameMode == NameMode.All) NameRoom else 0.dp
         // With every name shown, the top row's go on its glass plate, which grows to hold them.
-        val plateNames = AerialSettings.showAllNames && AerialSettings.homePlate
+        val plateNames = AerialSettings.nameMode == NameMode.All && AerialSettings.homePlate
         val peek = AerialSettings.peekNextRow
         val hasPlate = AerialSettings.homePlate
         val metrics = remember(maxWidth, maxHeight, oneRow, plateNames, peek, hasPlate) {
@@ -434,7 +450,8 @@ fun HomeScreen(
         val openFolder = (overlay as? Overlay.Folder)?.id ?: (overlay as? Overlay.AppMenu)?.inFolder
         val folderOpen = overlay is Overlay.HiddenApps || openFolder != null
         val ccOpen = overlay is Overlay.ControlCenter
-        // Folders open on Home frosted, as on tvOS; Control Center keeps Home sharp, dimmed.
+        // Folders open on Home frosted, as on tvOS. Control Center leaves Home as it is, the way
+        // Personalize's own sheet does: 1.42 dimmed it, which owners took for the picture going off.
         val backdropFrost by animateFloatAsState(
             if (folderOpen) 1f else 0f,
             tween(320, easing = Motion.EaseOut), label = "backdrop-frost",
@@ -446,20 +463,13 @@ fun HomeScreen(
         // With Control Center open, Home is still: once the panel is in, a picture of it stands in
         // for it, one full-screen image a frame instead of every tile again under the panel
         // (MiTV-MFTR0: GPU 18-21 ms a frame drawing Home under it, as against 9-15 ms frosted).
-        // Taken again now and then for the clock. Not before Android 7: on Android 6 the picture's
-        // ImageReader surface leaves a RenderNode that the finalizer thread later frees together
-        // with GPU layers, and hwui aborts with "Wrong thread!" (MiTV4-ANSM0, Android 6.0.1,
-        // issue #466: the reporter rebuilt the same steps in a small app and got the same 16 frames).
-        val homeLayer = rememberGraphicsLayer()
+        // Taken again now and then for the clock.
+        // Control Center shows the live wallpaper behind the glass instead of a frozen snapshot of
+        // Home, so picking "random one" (or any new picture) swaps the backdrop instantly — exactly
+        // like the Personalize sheet. No toImageBitmap, no 30s re-shot wait.
         var homeShot by remember { mutableStateOf<ImageBitmap?>(null) }
-        LaunchedEffect(ccOpen) {
-            homeShot = null
-            if (!ccOpen || Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return@LaunchedEffect
-            delay(HOME_SHOT_AFTER_MS)
-            while (true) {
-                homeShot = runCatching { homeLayer.toImageBitmap() }.getOrNull()
-                delay(HOME_SHOT_EVERY_MS)
-            }
+        LaunchedEffect(ccOpen, Wallpapers.backdrop) {
+            homeShot = if (ccOpen) Wallpapers.backdrop else null
         }
 
         val ambientApp = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
@@ -482,17 +492,12 @@ fun HomeScreen(
                 // While moving an app, a tap on empty space ends the move, as OK does.
                 .pointerInput(Unit) { detectTapGestures { if (movingNow != null) vm.endMove() } }
                 .graphicsLayer {
-                    // Under the frost once it is whole, Home is not drawn at all: on MFTR0 the
-                    // picture, plate and tiles cost the GPU as much again as the panel over them.
-                    alpha = if (backdropFrost > 0.999f || homeShot != null) 0f else 1f
+                    // Home is drawn live only when it is actually shown. With Control Center open and a
+                    // still wallpaper chosen, the live picture stands in for Home so the panel sits on
+                    // it; with a live wallpaper it stays drawn underneath.
+                    alpha = if (backdropFrost > 0.999f || (overlay is Overlay.ControlCenter && homeShot != null)) 0f else 1f
                 }
-                // Recorded while Control Center is open, for the picture that stands in for Home.
-                .drawWithContent {
-                    if (ccOpen && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        homeLayer.record { this@drawWithContent.drawContent() }
-                        drawLayer(homeLayer)
-                    } else drawContent()
-                },
+                .drawWithContent { drawContent() },
         ) {
             // The glass plate under the top row (tvOS 26), the row's full width however few apps
             // there are, which sit at its left: sized to three apps it read as a stray panel (#284).
@@ -573,6 +578,34 @@ fun HomeScreen(
 
                 // In one row with no peek, the rows below stay out of sight until Home scrolls to them.
                 val hideBelow = oneRow && !peek
+                // One big name above the grid for the focused app (CleanYourTV-style), in place of
+                // the top row's labels. It fades out as the grid scrolls up and as focus leaves that
+                // row; down in the grid the focused app names itself under its tile instead, so the
+                // name follows the focus wherever it goes.
+                val heroMode = AerialSettings.nameMode == NameMode.HeroTitle
+                if (heroMode) {
+                    val hero = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
+                    val heroHere by animateFloatAsState(
+                        if (focusedRow <= 0 && !vm.screensaverVisible) 1f else 0f,
+                        tween(160, easing = Motion.EaseOut),
+                        label = "hero-name",
+                    )
+                    if (hero != null) {
+                        BasicText(
+                            text = hero.label,
+                            style = Type.Title.copy(fontSize = 42.sp, letterSpacing = (-0.02).em),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(start = metrics.margin, top = metrics.topRowY - 74.dp)
+                                .graphicsLayer {
+                                    alpha = heroHere * (1f - (scroll.value / collapsePx * 1.6f).coerceIn(0f, 1f))
+                                },
+                        )
+                    }
+                }
+
                 apps.forEachIndexed { index, app ->
                     key(app.key) {
                         val (x, y) = metrics.slot(index, onTop = focusedRow <= 0)
@@ -642,17 +675,27 @@ fun HomeScreen(
                                 },
                             rowEnd = index % COLUMNS == COLUMNS - 1 || index == apps.lastIndex,
                             // On the glass plate only with every name shown (an earlier build showed
-                            // the focused one alone there, but it sat oddly on the glass).
-                            showName = plate == null || index >= COLUMNS || plateNames,
+                            // the focused one alone there, but it sat oddly on the glass). In
+                            // HeroTitle mode only the top row's are held back: the big name above
+                            // stands in for those, while the rows below name the focused app.
+                            showName = if (heroMode) index >= COLUMNS else plate == null || index >= COLUMNS || plateNames,
                             nameOnPlate = plate != null && index < COLUMNS,
+                            topRow = index < COLUMNS,
                         )
                     }
                 }
             }
         }
 
-        homeShot?.let { shot -> Canvas(Modifier.fillMaxSize()) { drawImage(shot) } }
-        PanelBackdrop(Wallpapers.frosted.takeIf { Wallpapers.backdrop != null }, { backdropFrost }, { backdropVeil })
+        homeShot?.let { shot ->
+            Image(
+                bitmap = shot,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        PanelBackdrop(Wallpapers.frosted.takeIf { Wallpapers.backdrop != null }, { backdropFrost })
 
         // Rows that scroll up under the status pill fade out instead of colliding with it.
         Canvas(
@@ -782,7 +825,11 @@ fun HomeScreen(
                 closeMenu()
                 vm.hide(key)
             },
-            onInfo = { closeMenu(); onAppInfo(it) },
+            onInfo = { key ->
+                closeMenu()
+                // Firmware without an App Info screen (Xiaomi HyperOS, MiTV-MFTR0) gets Aerial's own.
+                if (AppDetails.hasSystemScreen(context)) onAppInfo(key) else vm.overlay = Overlay.AppInfo(key)
+            },
             onUninstall = { closeMenu(); onUninstall(it) },
             onUnpin = { key ->
                 closeMenu()
@@ -824,6 +871,23 @@ fun HomeScreen(
                 closeMenu()
             },
             onDismiss = { closeMenu() },
+        )
+
+        val infoKey = (overlay as? Overlay.AppInfo)?.packageName
+        AppInfoSheet(
+            pkg = infoKey,
+            removable = infoKey?.let { vm.entry(it)?.removable } == true,
+            requestOnly = false,
+            onlyOp = null,
+            onOpen = { key ->
+                vm.overlay = Overlay.None
+                vm.entry(key)?.let { onLaunch(it, null) }
+            },
+            onUninstall = { key ->
+                vm.overlay = Overlay.None
+                onUninstall(key)
+            },
+            onDismiss = { vm.overlay = Overlay.None },
         )
 
         HiddenAppsSheet(

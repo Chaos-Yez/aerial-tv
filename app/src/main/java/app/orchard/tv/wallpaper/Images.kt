@@ -106,23 +106,59 @@ object Images {
 
     fun boxBlur(px: IntArray, w: Int, h: Int, r: Int) {
         val tmp = IntArray(px.size)
-        pass(px, tmp, w, h, r, horizontal = true)
-        pass(tmp, px, w, h, r, horizontal = false)
+        passH(px, tmp, w, h, r)
+        passV(tmp, px, w, h, r)
     }
 
-    private fun pass(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int, horizontal: Boolean) {
-        val lines = if (horizontal) h else w
-        val len = if (horizontal) w else h
-        for (l in 0 until lines) {
-            for (i in 0 until len) {
-                var a = 0; var rr = 0; var g = 0; var b = 0; var n = 0
-                for (k in -r..r) {
-                    val j = (i + k).coerceIn(0, len - 1)
-                    val c = if (horizontal) src[l * w + j] else src[j * w + l]
-                    a += c ushr 24; rr += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF; n++
+    /**
+     * The box blur, horizontal then vertical, as sliding windows: the sums move one sample along
+     * at a time, so a pass costs the same whatever the radius. The samples that hang off either
+     * end are clamped, as they were in the plain loop, and the sums are divided by the window's
+     * width, so the picture comes out exactly as the plain loop made it, only sooner. The two
+     * directions are apart, not one loop with a flag: the flag was a branch on every pixel.
+     */
+    private fun passH(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int) {
+        val win = 2 * r + 1
+        for (l in 0 until h) {
+            val row = l * w
+            var a = 0; var rr = 0; var g = 0; var b = 0
+            for (k in -r..r) {
+                val c = src[row + k.coerceIn(0, w - 1)]
+                a += c ushr 24; rr += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF
+            }
+            for (i in 0 until w) {
+                dst[row + i] = ((a / win) shl 24) or ((rr / win) shl 16) or ((g / win) shl 8) or (b / win)
+                if (i + 1 < w) {
+                    val oc = src[row + (i - r).coerceIn(0, w - 1)]
+                    val ic = src[row + (i + 1 + r).coerceIn(0, w - 1)]
+                    a += (ic ushr 24) - (oc ushr 24)
+                    rr += ((ic shr 16) and 0xFF) - ((oc shr 16) and 0xFF)
+                    g += ((ic shr 8) and 0xFF) - ((oc shr 8) and 0xFF)
+                    b += (ic and 0xFF) - (oc and 0xFF)
                 }
-                val idx = if (horizontal) l * w + i else i * w + l
-                dst[idx] = ((a / n) shl 24) or ((rr / n) shl 16) or ((g / n) shl 8) or (b / n)
+            }
+        }
+    }
+
+    private fun passV(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int) {
+        val win = 2 * r + 1
+        for (x in 0 until w) {
+            var a = 0; var rr = 0; var g = 0; var b = 0
+            for (k in -r..r) {
+                val c = src[k.coerceIn(0, h - 1) * w + x]
+                a += c ushr 24; rr += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF
+            }
+            for (y in 0 until h) {
+                val at = y * w + x
+                dst[at] = ((a / win) shl 24) or ((rr / win) shl 16) or ((g / win) shl 8) or (b / win)
+                if (y + 1 < h) {
+                    val oc = src[(y - r).coerceIn(0, h - 1) * w + x]
+                    val ic = src[(y + 1 + r).coerceIn(0, h - 1) * w + x]
+                    a += (ic ushr 24) - (oc ushr 24)
+                    rr += ((ic shr 16) and 0xFF) - ((oc shr 16) and 0xFF)
+                    g += ((ic shr 8) and 0xFF) - ((oc shr 8) and 0xFF)
+                    b += (ic and 0xFF) - (oc and 0xFF)
+                }
             }
         }
     }

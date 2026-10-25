@@ -2,9 +2,11 @@ package app.orchard.tv
 
 import android.app.ActivityOptions
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
@@ -44,6 +46,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.lifecycleScope
+import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.apps.AppEntry
 import app.orchard.tv.apps.CustomIcons
 import app.orchard.tv.apps.AppNames
@@ -59,6 +62,7 @@ import app.orchard.tv.ui.home.TileFaces
 import app.orchard.tv.ui.theme.FontWarmup
 import app.orchard.tv.ui.theme.canvasDensity
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.wallpaper.PhoneServer
 import app.orchard.tv.wallpaper.Wallpapers
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.system.FrameStats
@@ -181,6 +185,10 @@ class MainActivity : ComponentActivity() {
         AppNames.init(this)
         AerialSettings.init(this)
         Sounds.init(this)
+        // The phone page (http://<tv-ip>:8790) listens for as long as the app runs. There is no
+        // pairing code to scan, so the address works at any time, also before the wallpaper sheet
+        // has ever been opened.
+        Thread { PhoneServer.start(applicationContext) }.start()
         val reducedMotion = Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
 
         // The home screen paints every pixel itself; a window background would be one more
@@ -248,6 +256,28 @@ class MainActivity : ComponentActivity() {
             // register receivers while stopped, or mark Aerial resumed with the screen off.
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) startWork()
             if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) resumeWork()
+        }
+        updateAppInfoEntry()
+    }
+
+    /**
+     * Firmware without Android's App Info screen (Xiaomi HyperOS on MiTV-MFTR0 has none) sends apps
+     * that ask for it to nothing: File Manager+ showed "Error". Aerial answers those intents with
+     * AppInfoActivity, through one alias per screen, each on only when the firmware has no screen of
+     * its own for it, so that other TVs do not get an "Open with" choice for it. Screens are
+     * checked one by one: MFTR0 lacks App Info but has "Install unknown apps".
+     */
+    private fun updateAppInfoEntry() {
+        for ((alias, action) in APP_INFO_ENTRIES) {
+            val component = ComponentName(this, "$packageName.$alias")
+            val state = if (AppDetails.hasSystemScreen(this, action)) {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            } else {
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+            }
+            if (packageManager.getComponentEnabledSetting(component) != state) {
+                packageManager.setComponentEnabledSetting(component, state, PackageManager.DONT_KILL_APP)
+            }
         }
     }
 
@@ -428,6 +458,7 @@ class MainActivity : ComponentActivity() {
     // ---- Screensaver: Aerial's own, before the firmware's ad-carrying one can start ----
 
     private val idleHandler = Handler(Looper.getMainLooper())
+
     private val showScreensaver = Runnable { startScreensaver(asked = false) }
 
     /**
@@ -435,12 +466,13 @@ class MainActivity : ComponentActivity() {
      *
      * Where Aerial's dream is the TV's screensaver (TCL), that dream is the one shown either way:
      * Home's own screensaver was a second one, which the TV's timer then replaced with the dream
-     * (in its own quality), and which never held it off (TCL MT5879). With "System" chosen, Aerial
-     * starts nothing on the timer, and Back starts the firmware's.
+     * (in its own quality), and which never held it off (TCL MT5879). "System" shows the firmware's
+     * own: XGIMI's scenes on GMUI, which has no dream to start on demand and no timer Aerial can
+     * count on, so Home starts them itself, as it does the others.
      */
     private fun startScreensaver(asked: Boolean) {
         if (Wallpapers.screensaver == ScreensaverMode.System) {
-            if (asked && !SystemScreensaver.startFirmware(this)) DiagLog.i("no system screensaver to start")
+            if (!SystemScreensaver.startFirmware(this) && asked) DiagLog.i("no system screensaver to start")
             return
         }
         // Aerials over the aerial wallpaper: Home carries the wallpaper's film on, the same player in
@@ -721,6 +753,9 @@ class MainActivity : ComponentActivity() {
         try {
             startActivity(settingsLaunchIntent(this, app.launchIntent()), options)
         } catch (e: Exception) {
+            // XGIMI: nothing answers the passthrough intent a source tile carries, so switching
+            // goes through the source page of its settings service (issue #241).
+            if (app.source != null && SystemProbe.openInputPicker(this)) return
             Toast.makeText(this, getString(R.string.launch_failed, app.label), Toast.LENGTH_SHORT).show()
         }
     }
@@ -729,12 +764,26 @@ class MainActivity : ComponentActivity() {
         try {
             SystemProbe.startSettingsIntent(this, intent)
         } catch (e: Exception) {
+            // XGIMI: nothing answers the passthrough intent its inputs carry, so switching goes
+            // through the source page of its settings service (issue #241).
+            if (intent.data?.host == "android.media.tv" && SystemProbe.openInputPicker(this)) return
             LaunchFallback.next()?.let { return open(it) }
             Toast.makeText(this, R.string.unavailable, Toast.LENGTH_SHORT).show()
         }
     }
 
     companion object {
+        /** The manifest's aliases for AppInfoActivity, and the settings screen each stands in for. */
+        private val APP_INFO_ENTRIES = listOf(
+            "AppInfoEntry" to Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            "AllFilesAccessEntry" to "android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION",
+            "WriteSettingsEntry" to "android.settings.action.MANAGE_WRITE_SETTINGS",
+            "UnknownSourcesEntry" to "android.settings.MANAGE_UNKNOWN_APP_SOURCES",
+        )
+
+        /** Set as the locked start recreates itself at unlock; read by the next onCreate. */
+        private var startedLocked = false
+
         /** The system's dream did not show when asked (see dreamCheck); for this process. */
         private var dreamFails = false
 

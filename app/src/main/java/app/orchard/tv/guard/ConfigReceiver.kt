@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import app.orchard.tv.apps.TileSheet
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.NameMode
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.update.Updates
 import app.orchard.tv.wallpaper.ScreensaverMode
@@ -19,8 +20,9 @@ import kotlinx.coroutines.launch
  *                                   for TVs that do not wake with it enabled, issue #371)
  *   ... --ez clear_pin true         (turn the parental PIN off, for an owner who forgot it)
  *   ... --ez large_clock true --ez clock_right false --ez one_row_home true
- *       --ez peek_next_row false --ez home_plate true --ez show_all_names false
- *                                   (Home's layout, as in Personalize; for screenshots of each)
+ *       --ez peek_next_row false --ez home_plate true --es name_mode hero
+ *                                   (Home's layout, as in Personalize; for screenshots of each;
+ *                                    name_mode is focused, all or hero, as App Names in Personalize)
  *   ... --ez check_update true      (look for a new version now, not within three hours)
  *   ... --ez update_test true       ("Download and Install" takes files/update-test.apk instead,
  *                                   until Aerial restarts; for trying an update before a release)
@@ -40,6 +42,15 @@ class ConfigReceiver : BroadcastReceiver() {
             resultData = "exporting $name"
             return
         }
+        // ... --ei xgimi_level 4   (the DLP light-engine level, 1..10, on XGIMI; the broadcast
+        //                           result says what the HAL read back, so a dropped write shows)
+        if (intent.hasExtra("xgimi_level")) {
+            val before = app.orchard.tv.system.SystemProbe.xgimiBrightnessLevel()
+            val after = app.orchard.tv.system.SystemProbe.setXgimiBrightnessLevel(intent.getIntExtra("xgimi_level", 6))
+            DiagLog.i("xgimi level: asked ${intent.getIntExtra("xgimi_level", 6)}, before $before, after $after")
+            resultData = "xgimi before=$before after=$after"
+            return
+        }
         if (intent.getBooleanExtra("clear_pin", false)) {
             AerialSettings.init(context)
             AerialSettings.choosePin(null)
@@ -50,11 +61,15 @@ class ConfigReceiver : BroadcastReceiver() {
             "one_row_home" to AerialSettings::chooseOneRowHome,
             "peek_next_row" to AerialSettings::choosePeekNextRow,
             "home_plate" to AerialSettings::chooseHomePlate,
-            "show_all_names" to AerialSettings::chooseShowAllNames,
         ).filterKeys { intent.hasExtra(it) }
         if (layout.isNotEmpty()) {
             AerialSettings.init(context)
             layout.forEach { (key, choose) -> choose(intent.getBooleanExtra(key, false)) }
+        }
+        // ... --es name_mode focused|all|hero   (which App names show on Home; see NameMode)
+        intent.getStringExtra("name_mode")?.let { key ->
+            AerialSettings.init(context)
+            NameMode.of(key)?.let { AerialSettings.chooseNameMode(it) }
         }
         // ... --ez diag true / --ez mode_switch false / --ez soft_layer true   (see DiagLog;
         //                                 the last two apply the next time Home starts)

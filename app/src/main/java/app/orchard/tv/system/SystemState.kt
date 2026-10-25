@@ -64,7 +64,17 @@ object SystemProbe {
                 val wm = context.applicationContext.getSystemService<WifiManager>()
                 @Suppress("DEPRECATION")
                 val info = wm?.connectionInfo
-                val ssid = info?.ssid?.trim('"')?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID.trim('<', '>') || it == "<unknown ssid>" }
+                var ssid = info?.ssid?.trim('"')?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID.trim('<', '>') || it == "<unknown ssid>" }
+                // On Android 8.1+ the live SSID is hidden behind the location toggle, which is off on
+                // TVs; the saved-network list still carries it, so read the connected network's SSID
+                // from there (XGIMI/GMUI and other Android 9 firmwares hit this).
+                if (ssid == null) {
+                    @Suppress("DEPRECATION")
+                    ssid = runCatching {
+                        val id = info?.networkId ?: -1
+                        wm?.configuredNetworks?.firstOrNull { it.networkId == id }?.SSID?.trim('"')?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID.trim('<', '>') || it == "<unknown ssid>" }
+                    }.getOrNull()
+                }
                 val level = if (info == null) 1f else if (Build.VERSION.SDK_INT >= 30) {
                     wm.calculateSignalLevel(info.rssi) / wm.maxSignalLevel.coerceAtLeast(1).toFloat()
                 } else {
@@ -226,6 +236,8 @@ object SystemProbe {
 
     private val XGIMI_SETTINGS = ComponentName("com.android.newsettings", "com.xgimi.newsettings.SettingService")
     private const val XGIMI_NETWORK_PAGE = "Settings://com.xgimi.settings.net/wifi_misckey"
+    private const val XGIMI_SOURCE_PAGE = "Settings://com.xgimi.settings.signalSource/hdmi_misckey"
+    private const val XGIMI_BRIGHTNESS_PAGE = "Settings://com.xgimi.settings.brightness/brightness_misckey"
 
     // XGIMI Z7X (GMUI 6.11) opens these pages through an exported service rather than an activity;
     // the reporter of issue #241 opened settings, network, inputs and picture through it on a Z7X.
@@ -251,6 +263,63 @@ object SystemProbe {
     }
 
     /**
+     * The highest level [xgimiBrightnessLevel] reports on the firmware it was measured on (Z7X,
+     * GMUI 6.11). The HAL has no getter for it, and other models may use a wider range.
+     */
+    private const val XGIMI_DLP_LUMENS_MAX = 10
+
+    /**
+     * XGIMI's real brightness as 0..1, read from the DLP light-engine HAL
+     * `com.xgimi.gmpf.api.DisplayManager.getDlpLumensLevel()` (a byte). The class ships only on the
+     * device (com.xgimi.api.jar), so it is reached by reflection and is absent everywhere else. The
+     * system `screen_brightness` setting does not follow this value — which is why Control Center
+     * reads it here to show the true level. Writing goes through the same class; see
+     * [setXgimiBrightnessLevel]. Measured on a Z7X (issue #241) and a `pig_chivalrous` (GMUI 9).
+     */
+    fun xgimiBrightnessLevel(): Float? = runCatching {
+        val dm = xgimiDisplayManager() ?: return null
+        val raw = (xgimiDisplayManagerClass()!!.getMethod("getDlpLumensLevel").invoke(dm) as? Number)?.toInt() ?: return null
+        ((raw and 0xFF) / XGIMI_DLP_LUMENS_MAX.toFloat()).coerceIn(0f, 1f)
+    }.getOrNull()
+
+    /** The class, only on devices that have XGIMI's SDK in their boot class path. */
+    private fun xgimiDisplayManagerClass(): Class<*>? =
+        runCatching { Class.forName("com.xgimi.gmpf.api.DisplayManager") }.getOrNull()
+
+    private fun xgimiDisplayManager(): Any? {
+        val c = xgimiDisplayManagerClass() ?: return null
+        return runCatching { c.getMethod("getInstance").invoke(null) }.getOrNull()
+            ?: runCatching { c.getDeclaredConstructor().also { it.isAccessible = true }.newInstance() }.getOrNull()
+    }
+
+    /**
+     * Sets the DLP light-engine level, 1..[XGIMI_DLP_LUMENS_MAX], and reads it back after the HAL has
+     * had a moment to apply it. Returns the level the light engine reports (0..1), or null where the
+     * class or the setter is missing.
+     *
+     * Issue #241 took this for read-only on a Z7X, where the native setter was said to drop a
+     * third-party call. On the GMUI 9 firmware of `pig_chivalrous` it goes through from a plain app:
+     * `setDlpLumensLevel` changes what `getDlpLumensLevel` answers, across processes. So it is tried
+     * here rather than assumed broken, and [levels] lets the caller tell "the TV took it" from "the
+     * level came back as it was".
+     */
+    fun setXgimiBrightnessLevel(level: Int): Float? {
+        val c = xgimiDisplayManagerClass() ?: return null
+        val dm = xgimiDisplayManager() ?: return null
+        val target = level.coerceIn(1, XGIMI_DLP_LUMENS_MAX)
+        runCatching { c.getMethod("setDlpLumensLevel", java.lang.Byte.TYPE).invoke(dm, target.toByte()) }
+            .onFailure { return null }
+        // The level asked for, not one read back: the light engine applies it off the caller's
+        // thread, so a read here answers the previous level for a moment. Control Center shows the
+        // step at once and polls the HAL while its row is up, which corrects it if the TV dropped
+        // the write. Waiting here to read back blocked the row for 80 ms on every held key.
+        return target / XGIMI_DLP_LUMENS_MAX.toFloat()
+    }
+
+    /** The DLP levels on this light engine, as the top step Control Center steps through. */
+    val xgimiBrightnessMax: Int get() = XGIMI_DLP_LUMENS_MAX
+
+    /**
      * Whaley (WTV55K1J, Android 5.0) answers no settings action; its network page is not exported,
      * so the network button opens its settings too (issue #292).
      */
@@ -265,6 +334,11 @@ object SystemProbe {
      * found in PR #85; MiTV-MFTP0, Mi TV 4A, #23, #130, #185), and MiTV-MFTR0 has the receiver too.
      */
     fun openPictureSettings(context: Context): Boolean {
+        // XGIMI Z7X (GMUI 6.11): the backlight is the DLP light-engine level, which no third-party
+        // app can set; its settings service opens the brightness page (issue #241).
+        xgimiSettingsIntent(context, XGIMI_BRIGHTNESS_PAGE)?.let { intent ->
+            if (runCatching { context.startService(intent) }.getOrNull() != null) return true
+        }
         val backlight = Intent("com.xiaomi.mitv.settings.BACKLIGHT_POPUP")
             .setComponent(ComponentName("com.xiaomi.mitv.settings", "com.xiaomi.mitv.settings.SettingsBroadcastReceiver"))
         if (context.packageManager.queryBroadcastReceivers(backlight, 0).any { it.activityInfo.exported }) {
@@ -299,6 +373,12 @@ object SystemProbe {
      */
     fun openInputPicker(context: Context): Boolean {
         val pm = context.packageManager
+        // XGIMI Z7X (GMUI 6.11): TvInputManager lists the inputs, but no activity answers the
+        // passthrough intent they carry, so switching goes through the source page of its settings
+        // service (issue #241).
+        xgimiSettingsIntent(context, XGIMI_SOURCE_PAGE)?.let { intent ->
+            if (runCatching { context.startService(intent) }.getOrNull() != null) return true
+        }
         // Hisense VIDAA_TV (MT9653, Android 11) lists no inputs either; its input panel is a
         // foreground service (issue #261, tried on the reporter's TV).
         val hisense = Intent("com.hisense.tv.start_inputs")

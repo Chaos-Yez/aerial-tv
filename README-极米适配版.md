@@ -6,6 +6,8 @@
 
 在官方 v1.48 之上，针对极米投影仪做了这些增强（上游自带功能全部保留）：
 
+**本次（相对 1.47-xgimi）优化：** 跟进上游 v1.48（控制中心缩小至 300dp、Motion 动画、Effects 等），并把控制中心默认焦点改为「随机一张」。
+
 ### 控制中心
 
 - **Wi-Fi 名称**能正常显示当前连接的名称
@@ -34,9 +36,9 @@
 # local.properties
 sdk.dir=C\:\\Users\\Administrator\\android-sdk
 
-# 构建（本机只编 debug）
+# 构建
 JAVA_HOME=C:/Users/Administrator/jdk-17.0.20.1+1 \
-  gradle --offline assembleStandardDebug
+  gradle --offline assembleStandardRelease
 ```
 
 调试签名 SHA-256 `5cae…7964`，与电视上已装版本一致，覆盖安装不会清除数据。

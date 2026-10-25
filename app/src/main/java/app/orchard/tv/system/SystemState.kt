@@ -57,7 +57,18 @@ object SystemProbe {
 
     fun network(context: Context): NetworkStatus {
         val cm = context.getSystemService<ConnectivityManager>() ?: return NetworkStatus()
-        val caps = cm.getNetworkCapabilities(cm.currentNetwork() ?: return NetworkStatus()) ?: return NetworkStatus()
+        var caps = cm.getNetworkCapabilities(cm.currentNetwork() ?: return NetworkStatus()) ?: return NetworkStatus()
+        // Under a VPN the default network is the VPN's, which carries no Wi-Fi or Ethernet
+        // transport on Android 8, and was shown as Ethernet over Wi-Fi (Hisense H55E9A, issue #435).
+        if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+            !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        ) {
+            caps = runCatching { cm.allNetworks.mapNotNull { cm.getNetworkCapabilities(it) } }.getOrDefault(emptyList())
+                .firstOrNull {
+                    !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                        (it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) || it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
+                } ?: caps
+        }
         return when {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkStatus(NetKind.Ethernet)
             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
@@ -327,8 +338,24 @@ object SystemProbe {
         get() = Intent(Intent.ACTION_MAIN).setComponent(ComponentName("com.helios.setting", "com.helios.activity.StartActivity"))
 
     /**
+     * Coocaa/Skyworth keep the panel level in their picture middleware and ignore the standard
+     * screen_brightness setting (75A7D, 8R134_A7D, Android 11, CCOS 9.0). Their picture page is a
+     * side panel the settings app opens by starting SkySetting's exported HalfScreenService with
+     * Key = "android.settings.PICTURE_SETTINGS"; the system display settings action resolves to
+     * nothing there. See swaiotos.sal.impl.ccos.setting.SettingImpl.startPictureSetting.
+     */
+    private val SKYWORTH_PICTURE_PANEL = ComponentName(
+        "com.skyworth.setting",
+        "com.skyworth.setting.service.HalfScreenService",
+    )
+
+    fun skyworthPicturePanel(context: Context): Boolean =
+        runCatching { context.packageManager.getServiceInfo(SKYWORTH_PICTURE_PANEL, 0) }.isSuccess
+
+    /**
      * Opens the TV's own picture settings where brightness lives, for TVs whose backlight Aerial
-     * cannot set itself. TCL keeps it in a side panel that its settings app shows as a service.
+     * cannot set itself. TCL keeps it in a side panel that its settings app shows as a service;
+     * Skyworth/Coocaa too (see [SKYWORTH_PICTURE_PANEL]).
      * Xiaomi's settings app shows its backlight slider on a broadcast: older Xiaomi TVs have no
      * picture_backlight setting and no display settings screen to open (MiTV-ASTP0, Android 9,
      * found in PR #85; MiTV-MFTP0, Mi TV 4A, #23, #130, #185), and MiTV-MFTR0 has the receiver too.
@@ -348,6 +375,15 @@ object SystemProbe {
         if (isInstalled(context, "com.tcl.settings")) {
             val shown = runCatching {
                 context.startService(Intent("com.tcl.settings.SHOW_WINDOW").setPackage("com.tcl.settings"))
+            }.getOrNull() != null
+            if (shown) return true
+        }
+        if (skyworthPicturePanel(context)) {
+            val shown = runCatching {
+                context.startService(
+                    Intent().setComponent(SKYWORTH_PICTURE_PANEL)
+                        .putExtra("Key", "android.settings.PICTURE_SETTINGS"),
+                )
             }.getOrNull() != null
             if (shown) return true
         }
@@ -389,8 +425,15 @@ object SystemProbe {
             }.getOrNull() != null
             if (shown) return true
         }
-        val intent = tclInputPanel(context) ?: return false
-        return runCatching { context.startService(intent) }.getOrNull() != null
+        tclInputPanel(context)?.let { intent ->
+            if (runCatching { context.startService(intent) }.getOrNull() != null) return true
+        }
+        // Older Coocaa firmware (Skyworth 5H51S_N6 and 8A20 V8E, Android 5.1) keeps its inputs in
+        // the TV middleware with no provider, but any app may open its source dialog, which the
+        // remote's input key also shows (issues #519, #582, tried by both reporters with adb).
+        val coocaa = Intent("coocaa.intent.action.SOURCE_DIALOG").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { pm.resolveActivity(coocaa, 0) }.getOrNull() == null) return false
+        return runCatching { context.startActivity(coocaa) }.isSuccess
     }
 
     /**
@@ -408,6 +451,21 @@ object SystemProbe {
         }
         return intent.takeIf { runCatching { pm.resolveService(it, 0) }.getOrNull() != null }
     }
+
+    /**
+     * Coocaa's Quick Panel (Skyworth 75A7D, 8R134_A7D, Android 11): the firmware opens its own
+     * signal-source panel on the remote's input key, from a window of com.coocaa.os.ccosservice,
+     * and lets the key through as well, so Aerial's Inputs page was drawn under it.
+     */
+    fun coocaaInputPanel(context: Context): Boolean = runCatching {
+        context.packageManager.getServiceInfo(
+            ComponentName(
+                "com.coocaa.os.ccosservice",
+                "com.coocaa.os.controlcenter.quicksettings.service.FeatureService",
+            ),
+            0,
+        )
+    }.isSuccess
 
     private fun firstResolvable(context: Context, vararg intents: Intent): Intent {
         val pm = context.packageManager
@@ -519,7 +577,27 @@ object SystemProbe {
                     intent = intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                 )
             }
+            .let { tunersApart(context, it) }
             .sortedWith(compareBy({ it.kind.ordinal }, { it.label }))
+    }
+
+    /**
+     * Two tuners under one name, told apart by their services: Sony BRAVIA 4K AE2 (Android 14) has
+     * a DVB tuner and MediaTek's analog one, both labelled 电视, and listed two the same (issue #433).
+     */
+    private fun tunersApart(context: Context, sources: List<TvSource>): List<TvSource> {
+        val shared = sources.filter { it.kind == SourceKind.Tuner }.groupBy { it.label }.filterValues { it.size > 1 }.keys
+        if (shared.isEmpty()) return sources
+        return sources.map { source ->
+            if (source.kind != SourceKind.Tuner || source.label !in shared) return@map source
+            val service = source.id.substringBefore("/HW").lowercase()
+            when {
+                "analog" in service || "atv" in service -> source.copy(label = context.getString(R.string.input_antenna))
+                "dvb" in service || "dtv" in service || "dtmb" in service || "digital" in service ->
+                    source.copy(label = context.getString(R.string.input_digital))
+                else -> source
+            }
+        }
     }
 
     /**
@@ -693,11 +771,16 @@ object SystemProbe {
     private fun xiaomiRoute(info: TvInputInfo, kind: SourceKind, label: String, profile: DeviceProfile): Intent? {
         val n = hw(info.id) ?: return null
         return when (kind) {
-            // MediaTek hardware ids HW5.. map onto Xiaomi's source ids 23.. for HDMI; models that
-            // number theirs otherwise have them in their profile (MiTV-ANTL0, #64).
+            // MediaTek hardware ids HW5.. map onto Xiaomi's source ids 23.. for HDMI. Models whose
+            // numbers were found on the TV have them in their profile (MiTV-ANTL0, #64); else the
+            // firmware's own hdmiN_order, where it has one, beats the general rule (PR #571).
             SourceKind.Hdmi -> Intent("com.xiaomi.mitv.tvplayer.EXTSRC_PLAY")
                 .setComponent(ComponentName(XIAOMI_PLAYER, "$XIAOMI_PLAYER.ExternalSourceActivity"))
-                .putExtra("input", profile.xiaomiSourceIds[n] ?: (n + 18))
+                .putExtra(
+                    "input",
+                    profile.xiaomiSourceIds[n] ?: xiaomiConfiguredSource(label)
+                        ?: profile.xiaomiFallbackSourceIds[n] ?: (n + 18),
+                )
             // DP and USB-C numbers do not follow the HDMI ones (#62), so only models whose numbers
             // are known get a route; the rest fall back to the generic intent.
             SourceKind.DisplayPort -> profile.xiaomiSourceIds[n]?.let {
@@ -718,6 +801,23 @@ object SystemProbe {
             }
             SourceKind.Usb, SourceKind.Other -> null
         }
+    }
+
+    /**
+     * Some Xiaomi firmwares number the sources by board, even within one model: their own player
+     * asks mitv.common.ConfigurationManager for hdmiN_order (MiTV4-ANSM0 8.9.19.854: hdmi3_order
+     * is 25, and source 25 opens HDMI 3; PR #571, #492). Read by reflection, so TVs without the
+     * vendor framework return null. [label] is the framework's own label, which names the port.
+     */
+    private fun xiaomiConfiguredSource(label: String): Int? {
+        val port = Regex("HDMI\\s*(\\d+)", RegexOption.IGNORE_CASE)
+            .find(label)?.groupValues?.get(1)?.toIntOrNull() ?: return null
+        return runCatching {
+            val configuration = Class.forName("mitv.common.ConfigurationManager")
+            val manager = configuration.getMethod("getInstance").invoke(null)
+            configuration.getMethod("queryTvConfigByKey", String::class.java)
+                .invoke(manager, "hdmi${port}_order") as? String
+        }.getOrNull()?.trim()?.toIntOrNull()?.takeIf { it > 0 }
     }
 
     private fun isDigitalTuner(label: String, hw: Int): Boolean = when {
@@ -745,9 +845,10 @@ object SystemProbe {
  * MiTV-ANTL0 (L42R7-RA, Amlogic, Android 5.1) registers only one HDMI input, HW6, labelled
  * HDMI2, but it is the HDMI 1 port and source 23 (#64, from the reporter's logcat).
  * MiTV4-ANSM0 (Mi TV 4, Amlogic, Android 6.0.1) registers an HDMI input only for a port with a
- * device in it; HW7 is source 23, not 25 (#191, the reporter scanned sources 1–32). Mi TV 4A
- * (MiTV4A, L32M5-AZ, same firmware) is the same: HW7 is 23 (#313, scanned likewise). Firmware
- * 22.x numbers the ports as the general rule does (#375).
+ * device in it. On older firmwares HW7 is source 23 on some boards (#191, the reporter scanned
+ * sources 1–32; Mi TV 4A, L32M5-AZ, #313) and 25 on others (#492), which the firmware's
+ * hdmi3_order tells apart; 23 stays the fallback. Firmware 22.x numbers the ports as the general
+ * rule does (#375).
  * MiTV-MFZP0 (77" OLED, mt9950, Android 9) registers HW4–HW7 as HDMI 1–4 but has three ports:
  * HW7 has none behind it, and its tvplayer numbers them hw + 19 (#311, the reporter's local build).
  */
@@ -756,9 +857,16 @@ private class DeviceProfile(
     val labels: Map<Int?, String> = emptyMap(),
     /** Xiaomi tvplayer source ids for inputs that have no rule or another one, by hardware id. */
     val xiaomiSourceIds: Map<Int, Int> = emptyMap(),
+    /** Like [xiaomiSourceIds], but only where the firmware has no hdmiN_order of its own. */
+    val xiaomiFallbackSourceIds: Map<Int, Int> = emptyMap(),
 ) {
     companion object {
         fun current(): DeviceProfile = when (Build.MODEL) {
+            // NSOP0 / Novatek, firmware 22.7.26.1365: real input sessions map 23/24/25 to HW6/5/4.
+            "MiTV_NSOP0", "MiTV-NSOP0" -> DeviceProfile(
+                labels = mapOf(6 to "HDMI 1", 5 to "HDMI 2", 4 to "HDMI 3", 3 to "TV", 1 to "DTMB", 0 to "AV"),
+                xiaomiSourceIds = mapOf(6 to 23, 5 to 24, 4 to 25),
+            )
             "MiTV_MFTR0", "MiTV-MFTR0" -> DeviceProfile(
                 hiddenHardware = setOf(8),
                 labels = mapOf(1 to "ATV", 0 to "DTMB", 2 to "AV", 6 to "HDMI 2 (eARC)"),
@@ -775,7 +883,7 @@ private class DeviceProfile(
             // general rule (MiTV4-ANSM0 22.4.15.3234, issue #375: 23/24/25 opened HDMI 1/2/3).
             "MiTV4-ANSM0", "MiTV4_ANSM0", "MiTV4A" ->
                 if (xiaomiFirmwareMajor() >= 22) DeviceProfile()
-                else DeviceProfile(xiaomiSourceIds = mapOf(7 to 23))
+                else DeviceProfile(xiaomiFallbackSourceIds = mapOf(7 to 23))
             "MiTV_MFZP0", "MiTV-MFZP0" -> DeviceProfile(
                 hiddenHardware = setOf(7),
                 xiaomiSourceIds = mapOf(4 to 23, 5 to 24, 6 to 25),

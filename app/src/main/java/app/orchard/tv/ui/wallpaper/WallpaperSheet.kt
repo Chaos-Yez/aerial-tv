@@ -3,6 +3,7 @@ package app.orchard.tv.ui.wallpaper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import app.orchard.tv.ui.components.focusRing
 import androidx.compose.animation.core.animateFloatAsState
@@ -43,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -50,19 +52,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.widthIn
+import android.view.KeyEvent as NativeKeyEvent
 import app.orchard.tv.R
 import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.settings.AerialSettings
@@ -71,6 +78,9 @@ import app.orchard.tv.settings.FocusStyle
 import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.settings.Effects
 import app.orchard.tv.settings.VideoMode
+import app.orchard.tv.settings.VIDEO_VOLUME_STEPS
+import app.orchard.tv.settings.GRID_COLUMNS_MAX
+import app.orchard.tv.settings.GRID_COLUMNS_MIN
 import app.orchard.tv.system.Sounds
 import app.orchard.tv.ui.components.Pressable
 import app.orchard.tv.ui.components.consumeTaps
@@ -109,6 +119,8 @@ fun WallpaperSheet(
     onHiddenApps: () -> Unit,
     onStartScreensaver: () -> Unit,
     onPin: (on: Boolean) -> Unit,
+    /** Draw the closed sheet once, nearly transparent, so that its first opening is not its first draw (HomeScreen). */
+    warm: Boolean = false,
 ) {
     val context = LocalContext.current
     var showAdbDialog by remember { mutableStateOf(false) }
@@ -121,8 +133,10 @@ fun WallpaperSheet(
     // The phone page listens for as long as the app runs (started in MainActivity); opening the
     // sheet only makes sure it is up and shows its address. There is no pairing code, so the
     // address stays usable after the sheet closes.
-    LaunchedEffect(visible) {
-        if (visible) {
+    // Also while the sheet is only being warmed: the address and its QR code are then ready, made
+    // off the main thread, before the sheet is first opened.
+    LaunchedEffect(visible, warm) {
+        if (visible || warm) {
             val url = withContext(Dispatchers.IO) { PhoneServer.start(context) }
             phoneUrl = url
             qr = url?.let { withContext(Dispatchers.Default) { PhoneServer.qr(it).asImageBitmap() } }
@@ -136,7 +150,10 @@ fun WallpaperSheet(
 
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
         AnimatedVisibility(
-            visible = visible,
+            // Drawn once more than it is opened: while Home is idle the closed sheet is composed
+            // and put on the screen at 1%, out of sight, so that the first opening is not the
+            // first time its rows, its glass and its pictures are made (see HomeScreen).
+            visible = visible || warm,
             enter = fadeIn(tween(200, easing = Motion.EaseOut)) + slideInVertically(tween(380, easing = Motion.Drawer)) { it / 3 },
             exit = fadeOut(tween(160, easing = Motion.EaseOut)) + slideOutVertically(tween(200, easing = Motion.EaseOut)) { it / 4 },
         ) {
@@ -144,7 +161,8 @@ fun WallpaperSheet(
                 Modifier
                     .fillMaxWidth()
                     .height(360.dp)
-                    .consumeTaps()
+                    // Nothing to consume while it is only being warmed: taps belong to Home.
+                    .then(if (warm && !visible) Modifier.graphicsLayer { alpha = 0.01f } else Modifier.consumeTaps())
                     // Glass made from the wallpaper itself, opaque: Home is not blurred behind
                     // this sheet, so the wallpaper above it stays sharp while you choose, and the
                     // app grid must not show through.
@@ -161,13 +179,39 @@ fun WallpaperSheet(
                     Spacer(Modifier.height(16.dp))
                     SectionTitle(R.string.wp_wallpaper)
                     WallpaperRows()
-
-                    // The owner's own films, if there are any, get their own group: how the film
-                    // plays, and whether it plays with its sound.
-                    if (Wallpapers.items.any { it.kind == WallpaperKind.Video }) {
-                        Spacer(Modifier.height(22.dp))
-                        SectionTitle(R.string.wp_video_title)
-                        VideoGroup()
+                    // Only for a wallpaper that moves: whether keys stop it. The owner's own videos
+                    // have three ways of playing and a sound of their own (issues #410, #583).
+                    if (Wallpapers.selectedId == Wallpapers.VIDEOS) Group { note ->
+                        Choices(
+                            R.string.st_play, stringResource(R.string.st_video_play_hint), note,
+                            listOf(
+                                VideoMode.PauseOnTiles to R.string.st_video_pause,
+                                VideoMode.Always to R.string.st_video_always,
+                                VideoMode.AfterIdle to R.string.st_video_idle,
+                            ),
+                            AerialSettings.videoMode, AerialSettings::chooseVideoMode, first = true,
+                        )
+                        Choices(
+                            R.string.st_video_sound, stringResource(R.string.st_video_sound_hint), note,
+                            listOf(false to R.string.st_off, true to R.string.st_on),
+                            AerialSettings.videoSound, AerialSettings::chooseVideoSound,
+                        )
+                        // How loud, once there is sound: ten steps, a tenth of it each.
+                        if (AerialSettings.videoSound) {
+                            VolumeBar(AerialSettings.videoVolume, AerialSettings::chooseVideoVolume, note)
+                        }
+                        // Whether the top row sinks to show more of the film, or Home sits as it does with aerial.
+                        Choices(
+                            R.string.st_video_sink, stringResource(R.string.st_video_sink_hint), note,
+                            listOf(true to R.string.st_yes, false to R.string.st_no),
+                            AerialSettings.videoSink, AerialSettings::chooseVideoSink,
+                        )
+                    } else if (Wallpapers.moves()) Group { note ->
+                        Choices(
+                            R.string.st_play, stringResource(R.string.st_play_hint), note,
+                            listOf(false to R.string.st_play_still, true to R.string.st_play_always),
+                            AerialSettings.wallpaperAlwaysMoves, AerialSettings::chooseWallpaperAlwaysMoves, first = true,
+                        )
                     }
 
                     Spacer(Modifier.height(12.dp))
@@ -189,6 +233,13 @@ fun WallpaperSheet(
                             R.string.st_plate, stringResource(R.string.st_plate_hint), note,
                             listOf(true to R.string.st_plate_glass, false to R.string.st_plate_none),
                             AerialSettings.homePlate, AerialSettings::chooseHomePlate,
+                        )
+                        // How many tiles the row holds: five, as tvOS has it, up to eight. More of
+                        // them, and they narrow to fit, the rows below following.
+                        Choices(
+                            R.string.st_columns, stringResource(R.string.st_columns_hint), note,
+                            (GRID_COLUMNS_MIN..GRID_COLUMNS_MAX).map { it to it.toString() },
+                            AerialSettings.gridColumns, AerialSettings::chooseGridColumns,
                         )
                         Choices(
                             R.string.st_names, stringResource(R.string.st_names_hint), note,
@@ -219,6 +270,11 @@ fun WallpaperSheet(
                             R.string.st_clock_size, stringResource(R.string.st_clock_size_hint), note,
                             listOf(false to R.string.st_clock_small, true to R.string.st_clock_large),
                             AerialSettings.largeClock, AerialSettings::chooseLargeClock,
+                        )
+                        Choices(
+                            R.string.wp_weather, null, note,
+                            listOf(true to R.string.st_on, false to R.string.st_off),
+                            AerialSettings.showWeather, AerialSettings::chooseShowWeather,
                         )
                     }
                     Spacer(Modifier.height(10.dp))
@@ -274,6 +330,12 @@ fun WallpaperSheet(
                                 AerialSettings.aerialQuality, AerialSettings::chooseAerialQuality,
                             )
                         }
+                        // The clock screensaver is its clock, and the others show none.
+                        if (Wallpapers.screensaver == ScreensaverMode.Aerial || Wallpapers.screensaver == ScreensaverMode.Photos) Choices(
+                            R.string.ss_show_time, stringResource(R.string.ss_show_time_hint), note,
+                            listOf(true to R.string.st_on, false to R.string.st_off),
+                            AerialSettings.screensaverClock, AerialSettings::chooseScreensaverClock,
+                        )
                         Choices(
                             R.string.ss_delay, null, note,
                             AerialSettings.screensaverChoices.map {
@@ -345,15 +407,13 @@ private fun WallpaperRows() {
     val rotateTitle = stringResource(R.string.wp_photos_rotate)
     val list = remember(items, selected, dailyTitle, rotateTitle) {
         buildList {
-            addAll(items.filter { it.kind == WallpaperKind.Live })
+            addAll(items.filter { it.kind == WallpaperKind.Live || it.kind == WallpaperKind.Video })
             if (items.any { it.kind == WallpaperKind.Daily && !Wallpapers.isRandom(it.id) }) {
                 add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
             }
             // The newest random photo is the card that fetches another; it is always there,
             // picture or not.
             addAll(items.filter { Wallpapers.isRandom(it.id) })
-            // The owner's own films, played behind Home; they sit right after the random photo.
-            addAll(items.filter { it.kind == WallpaperKind.Video })
             addAll(items.filter { it.kind == WallpaperKind.Daily && it.id == selected && !Wallpapers.isRandom(it.id) })
             // With two or more, one card takes turns through all of them, one a day (#27).
             items.filter { it.kind == WallpaperKind.Photo }.let { photos ->
@@ -362,6 +422,8 @@ private fun WallpaperRows() {
             }
             addAll(items.filter { it.kind == WallpaperKind.Builtin && (it.id in Wallpapers.FEATURED_BUILTINS || it.id == selected) })
             addAll(items.filter { it.kind == WallpaperKind.Auto })
+            // The inputs' pictures last: a choice for a home with a set-top box, not the usual one.
+            addAll(items.filter { it.kind == WallpaperKind.Source })
         }
     }
     var focusedId by remember { mutableStateOf<String?>(null) }
@@ -392,31 +454,6 @@ private fun WallpaperRows() {
     }
 }
 
-/**
- * How the owner's own film behind Home plays, and whether it plays with its sound. Laid out the
- * way every other group in this sheet is: a card of rows, each with its name on the left and its
- * choice on the right, and one note under the card.
- */
-@Composable
-private fun VideoGroup() {
-    Group { noteFn ->
-        Choices(
-            R.string.wp_video_mode, stringResource(R.string.wp_video_idle_hint), noteFn,
-            listOf(
-                VideoMode.PauseOnTiles to R.string.wp_video_pause,
-                VideoMode.Always to R.string.wp_video_always,
-                VideoMode.AfterIdle to R.string.wp_video_after_idle,
-            ),
-            AerialSettings.videoMode, AerialSettings::chooseVideoMode, first = true,
-        )
-        Choices(
-            R.string.wp_video_sound, null, noteFn,
-            listOf(false to R.string.wp_video_off, true to R.string.wp_video_on),
-            AerialSettings.videoSound, { AerialSettings.chooseVideoSound(it) },
-        )
-    }
-}
-
 /** What a wallpaper card is, for the note under the row; null where its picture says it all. */
 @Composable
 private fun wallpaperNote(wp: Wallpaper): String? = when {
@@ -427,7 +464,8 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
         else -> stringResource(R.string.wp_random_hint)
     }
     wp.kind == WallpaperKind.Live -> stringResource(R.string.wp_live)
-    wp.kind == WallpaperKind.Video -> stringResource(R.string.wp_video_note)
+    wp.kind == WallpaperKind.Video -> stringResource(R.string.wp_videos_note)
+    wp.kind == WallpaperKind.Source -> stringResource(R.string.wp_source_note)
     wp.id == Wallpapers.LATEST_DAILY -> stringResource(R.string.wp_daily_note)
     wp.id == Wallpapers.ROTATE_PHOTOS -> stringResource(R.string.wp_photos_rotate_note)
     wp.kind == WallpaperKind.Photo -> stringResource(R.string.wp_photo_note)
@@ -486,11 +524,7 @@ private fun WallpaperCard(
                     ) { GlyphIcon(Glyph.Check, Palette.OnFocus, 13.dp) }
                 }
                 // The aerial wallpaper moves; its card shows the last frame it stopped on.
-                if (wp.kind == WallpaperKind.Live) {
-                    GlyphIcon(Glyph.Play, Color.White, 22.dp, Modifier.align(Alignment.BottomStart).padding(7.dp))
-                }
-                // The owner's own film moves too; its card shows its first frame.
-                if (wp.kind == WallpaperKind.Video) {
+                if (wp.kind == WallpaperKind.Live || wp.kind == WallpaperKind.Video) {
                     GlyphIcon(Glyph.Play, Color.White, 22.dp, Modifier.align(Alignment.BottomStart).padding(7.dp))
                 }
                 // The random one before anything has been fetched: no picture yet, so it says what
@@ -503,6 +537,10 @@ private fun WallpaperCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.align(Alignment.Center).padding(horizontal = 10.dp),
                     )
+                }
+                // An input's picture cannot be copied for a card: its mark over the dark picture.
+                if (wp.kind == WallpaperKind.Source) {
+                    GlyphIcon(Glyph.Hdmi, Color.White, 34.dp, Modifier.align(Alignment.Center))
                 }
             }
             Spacer(Modifier.height(6.dp))
@@ -526,10 +564,7 @@ private fun SectionTitle(title: Int) {
  * sheet does not shift as focus moves.
  */
 @Composable
-private fun Group(
-    note: String? = null,
-    rows: @Composable ColumnScope.(note: (String?) -> Unit) -> Unit,
-) {
+private fun Group(note: String? = null, rows: @Composable ColumnScope.(note: (String?) -> Unit) -> Unit) {
     var focusedNote by remember { mutableStateOf<String?>(null) }
     var inside by remember { mutableStateOf(false) }
     Column(
@@ -548,13 +583,7 @@ private fun Group(
 
 /** One row: the setting's name on the left, its control on the right, a hairline above all but the first. */
 @Composable
-private fun SettingRow(
-    label: Int,
-    hint: String?,
-    note: (String?) -> Unit,
-    first: Boolean = false,
-    control: @Composable () -> Unit,
-) {
+private fun SettingRow(label: Int, hint: String?, note: (String?) -> Unit, first: Boolean = false, control: @Composable () -> Unit) {
     if (!first) Box(Modifier.padding(start = 18.dp).fillMaxWidth().height(1.dp).background(Palette.Hairline))
     Row(
         Modifier
@@ -583,10 +612,68 @@ private fun <T> Choices(
     SettingRow(label, hint, note, first) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             options.forEach { (value, text) ->
-                Chip(
-                    if (text is Int) stringResource(text) else text.toString(),
-                    on = current == value,
-                ) { choose(value) }
+                Chip(if (text is Int) stringResource(text) else text.toString(), on = current == value) { choose(value) }
+            }
+        }
+    }
+}
+
+/**
+ * How loud the owner's own videos are: the same level the Control Center's brightness is — a bar
+ * filled up to the step chosen, ten steps of a tenth each. Left and right take it a step, as they
+ * do there; pressing it takes it up a step and round again from the top.
+ */
+@Composable
+private fun VolumeBar(level: Int, choose: (Int) -> Unit, note: (String?) -> Unit) {
+    SettingRow(R.string.st_video_volume, stringResource(R.string.st_video_volume_hint), note) {
+        // Read through state: the step below is made once and outlives this composition's values.
+        val atLevel by rememberUpdatedState(level)
+        val doChoose by rememberUpdatedState(choose)
+        val steps = VIDEO_VOLUME_STEPS
+        val step = { by: Int ->
+            val next = (atLevel + by).coerceIn(1, steps)
+            if (next == atLevel) Sounds.limit() else { Sounds.step(); doChoose(next) }
+        }
+        Pressable(
+            // Up a step, and round again from the bottom: the ten steps are near enough to set it
+            // with the middle of the pad.
+            onClick = { step(if (atLevel >= steps) 1 - steps else 1) },
+            focusedScale = 1.03f,
+            onKey = { e ->
+                val code = e.nativeKeyEvent.keyCode
+                if (code != NativeKeyEvent.KEYCODE_DPAD_LEFT && code != NativeKeyEvent.KEYCODE_DPAD_RIGHT) return@Pressable false
+                if (e.type == KeyEventType.KeyDown) step(if (code == NativeKeyEvent.KEYCODE_DPAD_RIGHT) 1 else -1)
+                true
+            },
+        ) { state ->
+            val bg by animateColorAsState(
+                if (state.focused) Palette.Focus else Palette.Fill,
+                tween(140, easing = Motion.EaseOut), label = "volume-bg",
+            )
+            val fg = if (state.focused) Palette.OnFocus else Palette.Label
+            val fraction by animateFloatAsState(
+                atLevel.coerceIn(1, steps).toFloat() / steps,
+                spring(dampingRatio = 1f, stiffness = 700f), label = "volume-level",
+            )
+            Row(
+                Modifier
+                    .width(200.dp)
+                    .clip(RoundedCornerShape(14.dp)).background(bg).height(40.dp).padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                // The speaker itself says how much sound it is carrying, as in the Control Center.
+                GlyphIcon(Glyph.Speaker, fg, 18.dp, level = fraction)
+                Canvas(Modifier.weight(1f).height(6.dp)) {
+                    val r = CornerRadius(size.height / 2)
+                    drawRoundRect(fg.copy(alpha = 0.2f), cornerRadius = r)
+                    drawRoundRect(fg, size = Size(size.width * fraction, size.height), cornerRadius = r)
+                }
+                BasicText(
+                    (atLevel * (100 / steps)).toString(),
+                    style = Type.Headline.copy(color = fg, textAlign = TextAlign.End),
+                    modifier = Modifier.widthIn(min = 28.dp),
+                )
             }
         }
     }
@@ -631,13 +718,7 @@ private fun WeatherValue() {
 
 /** A pill to pick one of a few options: a check on the chosen one, white when focused. */
 @Composable
-private fun Chip(
-    label: String,
-    on: Boolean,
-    onFocused: (() -> Unit)? = null,
-    focusRequester: FocusRequester? = null,
-    onClick: () -> Unit,
-) {
+private fun Chip(label: String, on: Boolean, onFocused: (() -> Unit)? = null, focusRequester: FocusRequester? = null, onClick: () -> Unit) {
     Pressable(onClick = onClick, focusRequester = focusRequester, focusedScale = 1.06f) { state ->
         if (onFocused != null) LaunchedEffect(state.focused) { if (state.focused) onFocused() }
         val bg by animateColorAsState(

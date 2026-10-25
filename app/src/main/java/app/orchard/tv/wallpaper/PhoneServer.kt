@@ -19,7 +19,6 @@ import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.system.Diagnostics
 import app.orchard.tv.system.currentNetwork
 import app.orchard.tv.settings.FocusStyle
-import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.weather.Weather
 import androidx.core.graphics.createBitmap
 import com.google.zxing.BarcodeFormat
@@ -69,6 +68,18 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
                     onMain { Wallpapers.chooseScreensaver(mode) }
                     json(state())
                 }
+                session.method == Method.POST && path == "/api/setting" -> {
+                    // The few on/off settings the phone page shows, as Personalize does.
+                    val f = form(session)
+                    val on = f["on"] == "1"
+                    val known = when (f["key"]) {
+                        "wallpaperAlwaysMoves" -> { onMain { AerialSettings.chooseWallpaperAlwaysMoves(on) }; true }
+                        "showWeather" -> { onMain { AerialSettings.chooseShowWeather(on) }; true }
+                        "screensaverClock" -> { onMain { AerialSettings.chooseScreensaverClock(on) }; true }
+                        else -> false
+                    }
+                    json(state().put("saved", known))
+                }
                 session.method == Method.POST && path == "/api/focus" -> {
                     val style = FocusStyle.of(form(session)["style"])
                     onMain { AerialSettings.chooseFocusStyle(style) }
@@ -83,22 +94,8 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
                 session.method == Method.POST && path == "/api/videos/upload" -> video(session)
                 session.method == Method.POST && path == "/api/videos/delete" -> {
                     val removed = ScreensaverVideos.delete(context, form(session)["id"].orEmpty())
+                    if (removed) onMain { Wallpapers.videosChanged() }
                     json(state().put("removed", removed))
-                }
-                session.method == Method.POST && path == "/api/wallpaper/video" -> wallpaperVideo(session)
-                session.method == Method.POST && path == "/api/wallpaper/video/delete" -> {
-                    val id = form(session)["id"].orEmpty()
-                    val removed = LocalVideos.delete(context, id)
-                    if (removed) onMain { Wallpapers.localVideosChanged() }
-                    json(state().put("removed", removed))
-                }
-                session.method == Method.POST && path == "/api/wallpaper/video/options" -> {
-                    val f = form(session)
-                    onMain {
-                        f["mode"]?.let { key -> VideoMode.of(key)?.let { AerialSettings.chooseVideoMode(it) } }
-                        f["sound"]?.let { AerialSettings.chooseVideoSound(it == "1") }
-                    }
-                    json(state())
                 }
                 path.startsWith("/tile/") -> tile(java.net.URLDecoder.decode(path.removePrefix("/tile/"), "UTF-8"))
                 session.method == Method.POST && path == "/api/icon" -> icon(session)
@@ -188,11 +185,10 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
             .put("videos", JSONArray().apply {
                 ScreensaverVideos.all(context).forEach { put(JSONObject().put("id", it.id).put("name", it.name)) }
             })
-            // The owner's films for the desktop wallpaper, and how they play.
-            .put("videoMaxMB", LocalVideos.MAX_FILE_BYTES / 1024 / 1024)
-            .put("videoMode", AerialSettings.videoMode.key)
-            .put("videoSound", AerialSettings.videoSound)
             .put("focusStyle", AerialSettings.focusStyle.key)
+            .put("wallpaperAlwaysMoves", AerialSettings.wallpaperAlwaysMoves)
+            .put("showWeather", AerialSettings.showWeather)
+            .put("screensaverClock", AerialSettings.screensaverClock)
             .put("wallpapers", list)
             .put("apps", JSONArray().apply {
                 // Pinned inputs first, then apps by the name Home shows. [default] is the name a
@@ -349,29 +345,8 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
         val path = files["video"] ?: return text(Response.Status.BAD_REQUEST, "no video")
         val name = session.parameters["video"]?.firstOrNull().orEmpty()
         val saved = ScreensaverVideos.add(context, File(path), name) != null
+        if (saved) onMain { Wallpapers.videosChanged() }
         return json(state().put("saved", saved))
-    }
-
-    /**
-     * A film for the desktop wallpaper. One film per request: a batch would need twice its total
-     * size free on the TV. It goes on the wall at once, so the owner sees it play.
-     */
-    private fun wallpaperVideo(session: IHTTPSession): Response {
-        val length = session.headers["content-length"]?.toLongOrNull() ?: 0L
-        // Include room for multipart headers, but do not accept an unbounded chunked body.
-        if (length <= 0 || length > LocalVideos.MAX_FILE_BYTES + 1024 * 1024) return text(Response.Status.BAD_REQUEST, "too large")
-        val files = HashMap<String, String>()
-        session.parseBody(files)
-        val path = files["video"] ?: return text(Response.Status.BAD_REQUEST, "no video")
-        val name = session.parameters["video"]?.firstOrNull().orEmpty()
-        val saved = LocalVideos.add(context, File(path), name)
-        if (saved != null) {
-            onMain {
-                Wallpapers.localVideosChanged()
-                Wallpapers.select(Wallpapers.VIDEO_PREFIX + saved.id)
-            }
-        }
-        return json(state().put("saved", saved != null))
     }
 
     // NanoHTTPD writes the whole body to the cache before we see it; keep a stray or hostile

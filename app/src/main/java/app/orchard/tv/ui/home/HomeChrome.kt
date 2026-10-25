@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -182,6 +183,8 @@ fun HomeBackground(
     collapse: Float,
     /** How far the aerial wallpaper's film shows through (LiveWallpaper): picture and plate give way to it. */
     cover: () -> Float = { 0f },
+    /** Shade the film while it moves, as its picture would be shaded. */
+    shadeMoving: Boolean = false,
     /**
      * How far the film is stopped (0 to 1) with its glass ready ([frosted]) but its frame not yet
      * the picture, which takes a moment more where the frame is decoded again (Xiaomi
@@ -200,7 +203,7 @@ fun HomeBackground(
         // Over a paused film, under the pictures: the shading its picture will have. The picture
         // fades in over it as the film gives way, so the screen keeps the same light throughout.
         Canvas(Modifier.fillMaxSize()) {
-            val stopped = filmStopped()
+            val stopped = maxOf(filmStopped(), if (shadeMoving) cover() else 0f)
             // Deep in the grid its frosted background covers everything.
             if (stopped < 0.01f || cover() < 0.01f || scroll() > collapse * 0.7f) return@Canvas
             drawRect(Brush.verticalGradient(*Images.SHADE_AT.indices.map { Images.SHADE_AT[it] to Color.Black.copy(alpha = Images.SHADE[it]) }.toTypedArray()), alpha = stopped)
@@ -397,9 +400,9 @@ private fun darkened(src: ImageBitmap, alpha: Float): ImageBitmap {
 }
 
 /**
- * The large clock, as on the lock screen: the date over the time, and under it the weather, the
- * city it is for (issue #59) and today's high and low. Left or right, the three lines share one
- * edge, the tiles' edge. The digits stay proportional: tabular ones leave a narrow "1" short of
+ * The large clock, as on the lock screen: the date (in Chinese, with the lunar one) over the time,
+ * and under it the weather, the city it is for (issue #59) and today's high and low. Left or right,
+ * the three lines share one edge, the tiles' edge. The digits stay proportional: tabular ones leave a narrow "1" short of
  * that edge. A soft shadow keeps them readable on bright photos. The clock screensaver shows the same.
  */
 @Composable
@@ -409,20 +412,26 @@ fun ShelfClock(
     alignEnd: Boolean = false,
     /** How far the time has moved to the screensaver's place ([toSaverClock]); the date and weather go. */
     toSaver: () -> Float = { 0f },
+    /** The screensaver is up over Home, carrying this clock: it wanders as the screensaver's does. */
+    saving: Boolean = false,
 ) {
+    val drift = if (saving) saverDrift(now) else DpOffset.Zero
     val shadow = Shadow(Color.Black.copy(alpha = 0.28f), Offset(0f, 2f), blurRadius = 18f)
     val secondary = Color.White.copy(alpha = 0.78f)
     val aside = Modifier.graphicsLayer { alpha = 1f - (toSaver() * 2.5f).coerceIn(0f, 1f) }
     Column(modifier, horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
-        BasicText(dateText(now), style = Type.Title.copy(color = Color.White.copy(alpha = 0.9f), shadow = shadow), modifier = aside)
+        // On a TV set to Chinese, the Chinese calendar's date follows, as on the iPhone's lock screen.
+        val lunar = if (Locale.getDefault().language == "zh") Lunar.text(now.toLocalDate()) else null
+        val date = dateText(now).let { if (lunar != null) "$it  $lunar" else it }
+        BasicText(date, style = Type.Title.copy(color = Color.White.copy(alpha = 0.9f), shadow = shadow), modifier = aside)
         BasicText(
             timeText(now),
             style = Type.Clock.copy(shadow = shadow),
             // The digits' cap top, in the trimmed box: the 104sp line puts it 7.6dp down, less the trim.
-            modifier = Modifier.toSaverClock(toSaver, Type.Clock.fontSize, 7.6.dp - ClockTrimTop)
+            modifier = Modifier.toSaverClock(toSaver, Type.Clock.fontSize, 7.6.dp - ClockTrimTop, drift)
                 .trimmed(top = ClockTrimTop, bottom = ClockTrimBottom),
         )
-        Weather.now?.let { w ->
+        Weather.now?.takeIf { AerialSettings.showWeather }?.let { w ->
             Row(aside, verticalAlignment = Alignment.CenterVertically) {
                 GlyphIcon(glyphFor(w), Color.White, 22.dp, Modifier.padding(end = 8.dp))
                 BasicText("${w.celsius}°", style = Type.Title.copy(color = Color.White, shadow = shadow))
@@ -444,7 +453,7 @@ private const val CAP_TOP = 0.242f
  * becomes the screensaver's rather than one fading out and another in. [fontSize] is the time's
  * size on Home and [capTop] where its digits' cap top lies in this element's box.
  */
-private fun Modifier.toSaverClock(progress: () -> Float, fontSize: TextUnit, capTop: Dp): Modifier = composed {
+private fun Modifier.toSaverClock(progress: () -> Float, fontSize: TextUnit, capTop: Dp, drift: DpOffset = DpOffset.Zero): Modifier = composed {
     // Where Home lays the time out, read before this element's own transform.
     var placed by remember { mutableStateOf<Pair<Rect, Float>?>(null) }
     onGloballyPositioned { placed = it.boundsInRoot() to it.findRootCoordinates().size.width.toFloat() }
@@ -459,8 +468,10 @@ private fun Modifier.toSaverClock(progress: () -> Float, fontSize: TextUnit, cap
             scaleY = k
             val targetCapTop = SaverClockTop.toPx() + SaverClockStyle.fontSize.toPx() * CAP_TOP
             val targetLeft = if (AerialSettings.clockRight) rootW - SaverClockSide.toPx() - box.width * s else SaverClockSide.toPx()
-            translationX = p * (targetLeft - box.left)
-            translationY = p * (targetCapTop - s * capTop.toPx() - box.top)
+            translationX = p * (targetLeft - box.left + drift.x.toPx())
+            translationY = p * (targetCapTop - s * capTop.toPx() - box.top + drift.y.toPx())
+            // The screensaver shows no time: Home's goes as the screensaver comes.
+            if (!AerialSettings.screensaverClock) alpha = 1f - p
         }
 }
 
@@ -493,15 +504,16 @@ private fun conditionName(kind: WeatherKind): Int = when (kind) {
  * pill, so the wallpaper keeps the rest of the screen. A soft shadow keeps it readable on photos.
  */
 @Composable
-fun CornerClock(now: LocalDateTime, modifier: Modifier = Modifier, toSaver: () -> Float = { 0f }) {
+fun CornerClock(now: LocalDateTime, modifier: Modifier = Modifier, toSaver: () -> Float = { 0f }, saving: Boolean = false) {
+    val drift = if (saving) saverDrift(now) else DpOffset.Zero
     val dim = Color.White.copy(alpha = 0.92f)
     val shadow = Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 8f)
     Row(modifier.height(34.dp), verticalAlignment = Alignment.CenterVertically) {
         BasicText(
             timeText(now), style = Type.SmallClock.copy(fontSize = Type.Title.fontSize, color = dim, shadow = shadow),
-            modifier = Modifier.toSaverClock(toSaver, Type.Title.fontSize, Type.Title.fontSize.value.dp * CAP_TOP),
+            modifier = Modifier.toSaverClock(toSaver, Type.Title.fontSize, Type.Title.fontSize.value.dp * CAP_TOP, drift),
         )
-        Weather.now?.let { w ->
+        Weather.now?.takeIf { AerialSettings.showWeather }?.let { w ->
             val aside = Modifier.graphicsLayer { alpha = 1f - (toSaver() * 2.5f).coerceIn(0f, 1f) }
             GlyphIcon(glyphFor(w), dim, 18.dp, aside.padding(start = 16.dp, end = 6.dp))
             val place = Weather.place?.takeIf { it.length <= 12 }

@@ -29,6 +29,7 @@ import app.orchard.tv.system.Brightness
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.system.HomeStatus
 import app.orchard.tv.system.NetworkStatus
+import app.orchard.tv.system.SourceKind
 import app.orchard.tv.system.SystemProbe
 import app.orchard.tv.system.TvSource
 import app.orchard.tv.system.VolumeStatus
@@ -36,6 +37,7 @@ import app.orchard.tv.ui.home.PinMode
 import app.orchard.tv.ui.home.ScreensaverSkips
 import app.orchard.tv.ui.home.TileFaces
 import app.orchard.tv.ui.theme.canvasDensity
+import app.orchard.tv.wallpaper.Wallpapers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
@@ -253,9 +255,10 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
      * the main thread at once (see TileFaces). Then the top row's faces at the focused size, which a
      * tile otherwise makes the first time it is focused, on the main thread.
      */
-    private fun prepareFaces() {
+    /** Makes the faces again, e.g. after the row's count changed the tiles' size. */
+    internal fun prepareFaces() {
         val shown = apps + folderApps.values.flatten()
-        val row = apps.take(5)
+        val row = apps.take(AerialSettings.gridColumns)
         facesJob?.cancel()
         facesJob = viewModelScope.launch {
             val started = SystemClock.uptimeMillis()
@@ -293,6 +296,12 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         val pinned = sources.filter { it.id in AerialSettings.pinnedSources }.map { sourceEntry(context, it) }
         AppCatalog.pinnedSources = pinned
         AppCatalog.sources = sources
+        // The inputs Android itself lists can play behind Home through a TvView; the ones Aerial
+        // makes up for TCL, Skyworth and the like open only in the maker's own player.
+        Wallpapers.setSources(
+            sources.filter { (it.kind == SourceKind.Hdmi || it.kind == SourceKind.DisplayPort) && '/' in it.id }
+                .map { it.id to (it.deviceName?.let { d -> "${it.label} · $d" } ?: it.label) },
+        )
         // Names typed on the phone page stand in for the apps' own, everywhere Home shows one.
         val named = all.map { e -> AppNames.of(e.key)?.let { e.copy(label = it) } ?: e }
         val arrangement = store.arrange(named + pinned) { folder, inside ->

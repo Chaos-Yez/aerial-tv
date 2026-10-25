@@ -71,6 +71,7 @@ import app.orchard.tv.system.SystemScreensaver
 import app.orchard.tv.system.Diagnostics
 import app.orchard.tv.system.MissingClipboard
 import app.orchard.tv.system.Sounds
+import app.orchard.tv.system.NetKind
 import app.orchard.tv.system.SystemProbe
 import app.orchard.tv.system.LaunchFallback
 import app.orchard.tv.system.settingsLaunchIntent
@@ -369,6 +370,13 @@ class MainActivity : ComponentActivity() {
             } ?: run {
                 android.util.Log.w("Aerial", "$reason: ${id ?: pkg} not listed; not opening it")
                 return@launch
+            }
+            // A live TV app opened before the network is up shows an error and stays on it: a box
+            // that boots fast had no network yet (issue #553). Inputs need none.
+            if (id == null && SystemProbe.network(this@MainActivity).kind == NetKind.Offline) {
+                withTimeoutOrNull(BOOT_APP_NETWORK_WAIT_MS) {
+                    while (SystemProbe.network(this@MainActivity).kind == NetKind.Offline) delay(500)
+                }
             }
             android.util.Log.i("Aerial", "$reason: opening ${intent.first}, what the TV starts on")
             openedAppSinceHome = true
@@ -748,7 +756,13 @@ class MainActivity : ComponentActivity() {
         val options = bounds?.asFocusedTile()?.let {
             ActivityOptions.makeScaleUpAnimation(
                 window.decorView, it.left.toInt(), it.top.toInt(), it.width.toInt(), it.height.toInt(),
-            ).toBundle()
+            ).toBundle().apply {
+                // The options name Aerial's package, and on TCL 65C6 (MStar m7221, Android 8) the
+                // app opened with them ran as Aerial's: 云视听极光 failed its settings read for a
+                // package not its own and 凤凰秀's packer refused to load; both opened from adb
+                // (issue #590). A scale-up needs no package; not yet tried on that TV.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) remove("android:activity.packageName")
+            }
         }
         try {
             startActivity(settingsLaunchIntent(this, app.launchIntent()), options)
@@ -797,6 +811,9 @@ class MainActivity : ComponentActivity() {
 
         /** How often an open Control Center looks again at what it shows. */
         private const val PANEL_REFRESH_MS = 3_000L
+
+        /** How long the app the TV starts on waits for a network at most. */
+        private const val BOOT_APP_NETWORK_WAIT_MS = 20_000L
 
         /** `adb shell am start -a app.orchard.tv.PREVIEW_SCREENSAVER -n app.orchard.tv/.MainActivity` */
         const val ACTION_PREVIEW_SCREENSAVER = "app.orchard.tv.PREVIEW_SCREENSAVER"

@@ -54,21 +54,29 @@ enum class NameMode(val key: String) {
     }
 }
 
+/** Ten steps of the videos' sound, one tenth of it each. */
+const val VIDEO_VOLUME_STEPS = 10
+
+/** How many tiles a row may hold: five, as tvOS has it, up to eight. */
+const val GRID_COLUMNS_MIN = 5
+const val GRID_COLUMNS_MAX = 8
+const val GRID_COLUMNS_DEFAULT = GRID_COLUMNS_MIN
+
 /**
- * How the owner's own film behind Home plays.
+ * When the owner's own videos ("My videos") play behind Home.
  *
- * - [PauseOnTiles]: it stops when the focus moves off the top row onto the tiles, and goes on
- *   again when the top row has the focus back.
- * - [Always]: it plays on whatever is on screen, even over the Control Center.
- * - [AfterIdle]: like the aerial films (ui/home/LiveWallpaper): it starts after Home has sat
- *   still for a while and stops at the next key press, the frame it stopped on staying as the
- *   wallpaper.
+ * - [PauseOnTiles]: they play on the top row but stop as soon as the tiles are being worked with,
+ *   a moment after the last key.
+ * - [Always]: they play on whenever Home is on the top row, keys or not, as the aerial films do
+ *   when set to keep moving.
+ * - [AfterIdle]: like the aerial films: they start after Home has sat still for 10 seconds and
+ *   stop at the next key.
  */
 enum class VideoMode(val key: String) {
     PauseOnTiles("pause"), Always("always"), AfterIdle("idle");
 
     companion object {
-        fun of(key: String?) = entries.firstOrNull { it.key == key }
+        fun of(key: String?) = entries.firstOrNull { it.key == key } ?: AfterIdle
     }
 }
 
@@ -132,24 +140,55 @@ object AerialSettings {
     /** The Liquid Glass plate under the top row; some prefer the apps straight on the wallpaper (#151). */
     var homePlate by mutableStateOf(true); private set
 
+    /**
+     * How many tiles sit in the top row, and so in every row of the grid: five, six, seven or eight.
+     * Five is the size tvOS uses; more of them, and they narrow to fit — the row keeps its width and
+     * the tiles keep their shape, only smaller.
+     */
+    var gridColumns by mutableStateOf(GRID_COLUMNS_DEFAULT); private set
+
     /** The clock, with the date and weather, in the top right instead of the top left. */
     var clockRight by mutableStateOf(false); private set
 
     /** The date and weather over a big clock above the top row, instead of one small line in the corner. */
     var largeClock by mutableStateOf(false); private set
 
-    /**
-     * The owner's own film behind Home: how it plays (see [VideoMode]).
-     */
-    var videoMode by mutableStateOf(VideoMode.PauseOnTiles); private set
-
-    /** Whether the owner's film behind Home plays with its sound. */
-    var videoSound by mutableStateOf(false); private set
-
     /** Every app's name under its tile, or one big title above the grid (issue #28), the top row's on the glass plate too. */
     var nameMode by mutableStateOf(NameMode.Focused); private set
     /** True when [nameMode] is [NameMode.All]; kept for 1.48 diagnostics/UI parity. */
     val showAllNames: Boolean get() = nameMode == NameMode.All
+
+    /**
+     * The moving wallpaper (aerial films, the owner's own videos) plays on the top row whatever the
+     * keys do, under a little shade, rather than only once Home has sat still (issues #360, #456).
+     * The grid below and panels still stop it: they cover it.
+     */
+    var wallpaperAlwaysMoves by mutableStateOf(false); private set
+
+    /** When the owner's own videos play; [VideoMode.AfterIdle] is how the aerial films behave. */
+    var videoMode by mutableStateOf(VideoMode.AfterIdle); private set
+
+    /** The owner's own videos play with their sound, which fades in and out with them. Off by default. */
+    var videoSound by mutableStateOf(false); private set
+
+    /** How loud their sound is, in ten steps: 1 is a tenth of it, 10 all of it. */
+    var videoVolume by mutableStateOf(VIDEO_VOLUME_STEPS); private set
+
+    /**
+     * 极米: With the owner's own videos chosen, the top row sinks: half of it stays out of sight
+     * until the focus lands on a tile, which rises. Off, and Home is laid out as it is with the
+     * aerial films.
+     */
+    var videoSink by mutableStateOf(true); private set
+
+    /** The weather beside the clock; off for those who want the time alone (issue #472). */
+    var showWeather by mutableStateOf(true); private set
+
+    /**
+     * The time over Aerial's aerial and photo screensavers (issue #240: TCL's firmware puts its own
+     * clock over the system screensaver). The clock screensaver is the clock and keeps it.
+     */
+    var screensaverClock by mutableStateOf(true); private set
 
     /** Back on Home's top row starts the screensaver, as on tvOS; off for homes where it gets pressed by accident (issue #94). */
     var backStartsScreensaver by mutableStateOf(true); private set
@@ -208,14 +247,19 @@ object AerialSettings {
         peekNextRow = prefs.getBoolean("peek_next_row", true)
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", false)
-        videoMode = VideoMode.of(prefs.getString("video_mode", null))
-            ?: if (prefs.getBoolean("video_pause_on_focus", true)) VideoMode.PauseOnTiles else VideoMode.Always
-        videoSound = prefs.getBoolean("video_sound", false)
         homePlate = prefs.getBoolean("home_plate", true)
+        gridColumns = prefs.getInt("grid_columns", GRID_COLUMNS_DEFAULT).coerceIn(GRID_COLUMNS_MIN, GRID_COLUMNS_MAX)
         adbAccess = prefs.getBoolean("adb_access", false)
         // Before this setting had three modes it was a boolean "show every name"; keep old installs.
         nameMode = NameMode.of(prefs.getString("name_mode", null))
             ?: if (prefs.getBoolean("show_all_names", false)) NameMode.All else NameMode.Focused
+        wallpaperAlwaysMoves = prefs.getBoolean("wallpaper_always_moves", false)
+        videoMode = VideoMode.of(prefs.getString("video_mode", null))
+        videoSound = prefs.getBoolean("video_sound", false)
+        videoVolume = prefs.getInt("video_volume", VIDEO_VOLUME_STEPS).coerceIn(1, VIDEO_VOLUME_STEPS)
+        videoSink = prefs.getBoolean("video_sink", true)
+        showWeather = prefs.getBoolean("show_weather", true)
+        screensaverClock = prefs.getBoolean("screensaver_clock", true)
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
         uiSounds = UiSounds.of(prefs.getString("ui_sounds_kind", null)) ?: when {
             !prefs.getBoolean("ui_sounds", true) -> UiSounds.Off
@@ -292,6 +336,12 @@ object AerialSettings {
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("home_plate", on) }
     }
 
+    fun chooseGridColumns(count: Int) {
+        val n = count.coerceIn(GRID_COLUMNS_MIN, GRID_COLUMNS_MAX)
+        gridColumns = n
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putInt("grid_columns", n) }
+    }
+
     fun chooseClockRight(on: Boolean) {
         clockRight = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("clock_right", on) }
@@ -302,20 +352,6 @@ object AerialSettings {
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("large_clock", on) }
     }
 
-    fun chooseVideoMode(mode: VideoMode) {
-        videoMode = mode
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
-            putString("video_mode", mode.key)
-            // The old boolean is gone; it must not come back and overrule the mode.
-            remove("video_pause_on_focus")
-        }
-    }
-
-    fun chooseVideoSound(on: Boolean) {
-        videoSound = on
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_sound", on) }
-    }
-
     fun chooseNameMode(mode: NameMode) {
         nameMode = mode
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
@@ -323,6 +359,44 @@ object AerialSettings {
             // Drop the old boolean so a downgrade to an older build still reads the right mode.
             putBoolean("show_all_names", mode == NameMode.All)
         }
+    }
+
+    fun chooseWallpaperAlwaysMoves(on: Boolean) {
+        wallpaperAlwaysMoves = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("wallpaper_always_moves", on) }
+    }
+
+    fun chooseVideoMode(mode: VideoMode) {
+        videoMode = mode
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString("video_mode", mode.key) }
+    }
+
+    fun chooseVideoSound(on: Boolean) {
+        videoSound = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_sound", on) }
+    }
+
+    /** [level] is one of the ten steps: a tenth of the sound each. */
+    fun chooseVideoVolume(level: Int) {
+        val step = level.coerceIn(1, VIDEO_VOLUME_STEPS)
+        videoVolume = step
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putInt("video_volume", step) }
+    }
+
+    /** With the owner's own videos chosen, sink the top row (focused tile rises); off lays Home out as with aerial. */
+    fun chooseVideoSink(on: Boolean) {
+        videoSink = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_sink", on) }
+    }
+
+    fun chooseShowWeather(on: Boolean) {
+        showWeather = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("show_weather", on) }
+    }
+
+    fun chooseScreensaverClock(on: Boolean) {
+        screensaverClock = on
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("screensaver_clock", on) }
     }
 
     fun chooseBackStartsScreensaver(on: Boolean) {

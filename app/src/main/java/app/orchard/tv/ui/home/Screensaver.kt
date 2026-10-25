@@ -10,6 +10,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.orchard.tv.apps.AppEntry
@@ -107,6 +109,7 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
         if (visible) held.value = carry
         when (val carried = held.value) {
             is SaverCarry.Film -> { FilmCarry(carried.film, now, skips.steps); return@AnimatedVisibility }
+            is SaverCarry.Video -> { VideoCarry(skips.steps); return@AnimatedVisibility }
             is SaverCarry.Still -> { PhotoSaver(now, skips.steps, carried.wallpaper, carried); return@AnimatedVisibility }
             null -> Unit
         }
@@ -155,6 +158,13 @@ sealed interface SaverCarry {
     /** The aerial wallpaper's film, moving on behind Home. */
     class Film(val film: LiveFilm) : SaverCarry
 
+    /**
+     * The owner's own videos, moving on behind Home: the same shot from Home to screensaver as the
+     * aerial films get — Home's own player goes on where it is, so the film being watched is not
+     * begun again from its start, and only Home's parts around it fade, as they do over a film.
+     */
+    object Video : SaverCarry
+
     /** The wallpaper's picture, drawing in behind Home (HomeBackground) as the photos' first. */
     class Still(val wallpaper: app.orchard.tv.wallpaper.Wallpaper) : SaverCarry {
         /** The photos have moved on over it: Home's picture can stop. */
@@ -162,8 +172,12 @@ sealed interface SaverCarry {
     }
 }
 
-/** What a wallpaper's picture is, for the screensaver: where it was taken, else its name. */
-fun stillCaption(wp: app.orchard.tv.wallpaper.Wallpaper): String? = wp.caption?.takeIf { it.isNotBlank() } ?: wp.title
+/**
+ * What a wallpaper's picture is, for the screensaver: where it was taken, else its name. The owner's
+ * own photos have no name but "My Photo", which says nothing over the photo itself.
+ */
+fun stillCaption(wp: app.orchard.tv.wallpaper.Wallpaper): String? =
+    if (wp.kind == WallpaperKind.Photo) null else wp.caption?.takeIf { it.isNotBlank() } ?: wp.title
 
 /** How long one slow push in (or back out) of a still wallpaper takes. */
 private const val DRAW_IN_MS = 60_000
@@ -221,6 +235,16 @@ private fun FilmCarry(film: LiveFilm, now: LocalDateTime, steps: SharedFlow<Int>
     Labels(caption, now, showTime = false)
 }
 
+/**
+ * The screensaver over the owner's own videos, which are still Home's: their player is already
+ * moving behind Home and goes on, so this draws nothing over them. Only the keys are taken: left
+ * and right step to the previous or next film, as over the aerial ones.
+ */
+@Composable
+private fun VideoCarry(steps: SharedFlow<Int>) {
+    LaunchedEffect(steps) { steps.collect { HomeVideos.skip(it) } }
+}
+
 /** Place name bottom-left, time top-right: how tvOS labels its screensaver. */
 @Composable
 private fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = true) {
@@ -232,19 +256,25 @@ private fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = tru
             drawRect(Brush.verticalGradient(0.7f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.45f)))
             drawRect(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.3f), 0.18f to Color.Transparent))
         }
-        if (time > 0f) BasicText(
+        val drift = saverDrift(now)
+        if (time > 0f && AerialSettings.screensaverClock) BasicText(
             timeText(now),
             style = SaverClockStyle,
             modifier = Modifier
                 .align(if (AerialSettings.clockRight) Alignment.TopEnd else Alignment.TopStart)
                 .padding(top = SaverClockTop, start = SaverClockSide, end = SaverClockSide)
-                .graphicsLayer { alpha = time },
+                .graphicsLayer {
+                    alpha = time
+                    translationX = drift.x.toPx()
+                    translationY = drift.y.toPx()
+                },
         )
         AnimatedContent(
             targetState = caption.orEmpty(),
             // One after the other: two names fading across each other in the same place smeared.
             transitionSpec = { fadeIn(tween(600, delayMillis = 400, easing = Motion.EaseOut)) togetherWith fadeOut(tween(400, easing = Motion.EaseOut)) },
-            modifier = Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 44.dp),
+            modifier = Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 44.dp)
+                .graphicsLayer { translationX = drift.x.toPx(); translationY = -drift.y.toPx() },
             label = "caption",
         ) { text ->
             BasicText(
@@ -261,6 +291,24 @@ private fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = tru
  * here when the screensaver carries on its film, and from the left it crossed the whole screen to
  * the right, a long slide for a moment that should be quiet (issue #357).
  */
+/**
+ * How far the screensaver's words have wandered from their place: a little, somewhere new every
+ * two minutes and eased over seconds, so nothing sits on the same pixels all night (OLED panels,
+ * issue #416). Too little to read as movement; the clock screensaver moves its clock by itself.
+ */
+@Composable
+internal fun saverDrift(now: LocalDateTime): DpOffset {
+    val slot = now.toLocalDate().toEpochDay() * 720 + (now.hour * 60 + now.minute) / 2
+    val rnd = remember(slot) { Random(slot) }
+    val target = remember(slot) { DpOffset(SaverDriftX * (rnd.nextFloat() * 2 - 1), SaverDriftY * (rnd.nextFloat() * 2 - 1)) }
+    val x by animateDpAsState(target.x, tween(6000, easing = Motion.EaseInOut), label = "drift-x")
+    val y by animateDpAsState(target.y, tween(6000, easing = Motion.EaseInOut), label = "drift-y")
+    return DpOffset(x, y)
+}
+
+private val SaverDriftX = 24.dp
+private val SaverDriftY = 14.dp
+
 // The same style as the small clock, which grows into it, so the hand-off does not jump.
 internal val SaverClockStyle = Type.SmallClock.copy(fontSize = Type.LargeTitle.fontSize * 1.3f, color = Color.White.copy(alpha = 0.92f))
 internal val SaverClockTop = 40.dp

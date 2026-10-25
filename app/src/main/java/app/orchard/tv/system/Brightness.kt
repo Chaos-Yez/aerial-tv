@@ -26,6 +26,10 @@ import androidx.core.content.ContextCompat
  *   (com.xgimi.gmpf.api.DisplayManager, see SystemProbe.xgimiBrightnessLevel). Issue #241 had it
  *   read-only on a Z7X; on the GMUI 9 firmware of `pig_chivalrous` a plain app sets it too, so
  *   Control Center steps the light engine's own levels (1..10).
+ * - Skyworth/Coocaa: the panel is driven by the TV's picture middleware, and Settings.System
+ *   screen_brightness does not move it (75A7D, 8R134_A7D, Android 11, CCOS 9.0: the setting sat at
+ *   2/255 with the screen at full brightness). Control Center opens the firmware's picture panel
+ *   instead (SystemProbe.skyworthPicturePanel).
  * - Others: the standard Settings.System screen brightness, 0–255. Writing it needs the "modify
  *   system settings" app-op. Both are granted by tools/install.sh; without them Control Center
  *   opens the TV's own picture settings instead.
@@ -86,10 +90,11 @@ object Brightness {
             // A Xiaomi TV where neither place works: open the TV's own backlight slider rather than
             // show one that changes nothing (issue #346).
             isXiaomi(context) -> null
-            // TCL and Sony drive the backlight through their own TV services and ignore the system
-            // setting; Control Center opens their picture panels.
+            // TCL, Sony and Skyworth/Coocaa drive the backlight through their own TV services and
+            // ignore the system setting; Control Center opens their picture panels.
             // Before Android 6.0 WRITE_SETTINGS is granted at install.
-            isTcl(context) || isSony(context) || Build.VERSION.SDK_INT >= 23 && !Settings.System.canWrite(context) -> null
+            isTcl(context) || isSony(context) || SystemProbe.skyworthPicturePanel(context) ||
+                Build.VERSION.SDK_INT >= 23 && !Settings.System.canWrite(context) -> null
             else -> Settings.System.getInt(r, Settings.System.SCREEN_BRIGHTNESS, 128) / 255f
         }
     }

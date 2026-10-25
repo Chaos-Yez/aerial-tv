@@ -45,7 +45,6 @@
 
   /* Inset grouped list, as in iOS Settings. */
   .list { background: var(--card); border-radius: 12px; overflow: hidden; }
-  /* The crop sheet: the start and the end of the part that plays. */
   .item {
     position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 11px 16px;
     border: 0; background: none; text-align: left; transition: background-color .2s ease;
@@ -257,7 +256,10 @@
     <button class="item" role="radio" data-mode="videos"><span class="txt"><span data-i18n="ss_videos"></span><span class="sub" data-i18n="hint_videos"></span></span><svg class="tick" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
   </div>
   <p class="foot" id="ssFoot"></p>
-  <div id="videos" hidden>
+  <div class="list" id="ssTimeBox" style="margin-top:10px">
+    <label class="item"><span class="txt"><span data-i18n="sw_saver_time"></span><span class="sub" data-i18n="sw_saver_time_sub"></span></span><input class="switch" type="checkbox" id="swSaverTime" data-setting="screensaverClock"></label>
+  </div>
+  <div id="videos">
     <h2 data-i18n="videos_h"></h2>
     <div class="list" id="videoList"></div>
     <div class="list" style="margin-top:10px">
@@ -280,6 +282,7 @@
 
   <h2 data-i18n="weather"></h2>
   <div class="list">
+    <label class="item"><span class="txt" data-i18n="sw_weather"></span><input class="switch" type="checkbox" id="swWeather" data-setting="showWeather"></label>
     <div class="item wx"><b id="wxNow">—</b><span id="wxPlace"></span></div>
     <form class="item field" id="cityForm">
       <input id="city" type="text" data-i18n-placeholder="city_ph" enterkeyhint="done" autocomplete="off">
@@ -328,11 +331,9 @@ let state = null, stateJson = '';
 
 // The language: ?lang=ru in the address, else the one picked under More (kept on the phone), else the
 // first of the phone's preferred languages that has a table, else English. Keys are in KEYS, one array of texts per language.
-const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "random_title", "random_done", "g_video", "g_video_sub", "wp_video_upload", "wp_video_hint", "wp_video_empty", "toast_video_added", "wp_video_pause", "wp_video_sound", "wp_video_after_idle", "wp_video_mode_pause", "wp_video_mode_always", "wp_video_only_landscape", "wp_video_too_big"];
+const KEYS = ["screensaver", "screensaver_short", "ss_aerial", "ss_photos", "ss_clock", "focus", "focus_high", "focus_standard", "weather", "city_ph", "set", "upload_label", "feedback_h", "feedback_hint", "diag_show", "diag_copy", "diag_github", "hint_aerial", "hint_photos", "hint_clock", "g_live", "g_live_sub", "g_daily", "g_daily_sub", "g_photo", "g_builtin", "g_auto", "toast_wallpaper", "aria_delete", "confirm_delete", "wx_clear", "wx_partlycloudy", "wx_cloudy", "wx_fog", "wx_rain", "wx_snow", "wx_thunder", "wx_chosen", "wx_auto_btn", "toast_auto", "wx_guessed", "wx_none", "tag_source", "aria_rename", "toast_renamed", "toast_name_reset", "toast_rename_fail", "aria_reset_icon", "toast_icon_reset", "focus_hint_standard", "focus_hint_high", "daily_title", "daily_caption", "rotate_title", "rotate_caption", "empty_photos", "add_second", "toast_tv_updated", "sending_n", "toast_added", "toast_no_photos", "toast_send_fail", "toast_city_set", "toast_city_nf", "toast_set_fail", "toast_sending_icon", "toast_icon_set", "toast_icon_bad", "diag_collecting", "toast_diag_fail", "toast_copied", "toast_copy_manual", "language", "hint_follows", "ss_videos", "hint_videos", "videos_h", "videos_upload", "videos_hint", "videos_empty", "confirm_video_delete", "toast_videos_added", "toast_video_bad", "sending_video", "hint_system", "tab_home", "tab_more", "current_wp", "cancel", "save", "name_ph", "rename_hint", "change_icon", "this_tv", "folder_count", "folder_ph", "inputs_h", "inputs_hint", "rename_hint_app", "was_named", "arrange_hint", "arrange_unready", "hidden_h", "hidden_none", "hidden_locked", "show_app", "hide_app", "to_folder", "new_folder", "out_of_folder", "ungroup", "ungroup_confirm", "folder_hint", "toast_hidden", "toast_shown", "toast_in_folder", "toast_out_folder", "toast_ungrouped", "tab_looks", "looks_title", "show_on_home", "source_device", "source_plain", "source_device_hint", "tv_model", "sw_always", "sw_always_sub", "sw_weather", "sw_saver_time", "sw_saver_time_sub", "g_source_sub", "random_title", "random_done"];
 const TEXTS = {
  "zh": [
-
-
   "屏幕保护程序",
   "屏保",
   "航拍",
@@ -458,25 +459,16 @@ const TEXTS = {
   "默认",
   "选一个设备，电视上这个信号源的图标会换成它的样子，名字也跟着变；自己起的名字会被替换。",
   "型号",
-  "随机一张",
-  "已换上历史壁纸",
-  "动态壁纸",
-  "你自己上传的视频，在桌面后面循环播放",
-  "添加视频",
-  "从手机上传 MP4 或 MOV 视频作为动态壁纸，单个文件不超过 {mb}MB。",
-  "还没有视频",
-  "视频已上传：{n} 个成功，{failed} 个失败",
-  "切磁贴暂停",
-  "动态壁纸声音",
-  "静止10秒后播放",
-  "切磁贴暂停",
   "一直播放",
-  "只支持横屏视频",
-  "视频最大 200MB"
+  "按键也不停，背景压暗一点；进入下面的 App 时停下。",
+  "在主屏幕显示天气",
+  "屏保显示时间",
+  "航拍和照片屏保。时间和地名会不时挪一点位置，避免烧屏。",
+  "信号源的实时画面当背景，没有声音。往下选 App 时换成磨砂背景。",
+  "随机一张",
+  "已换上历史壁纸"
  ],
  "en": [
-
-
   "Screensaver",
   "Screensaver",
   "Aerial",
@@ -602,25 +594,16 @@ const TEXTS = {
   "Default",
   "Pick a device and the tile on the TV takes its look and its name; a name you typed is replaced.",
   "Model",
+  "Keep playing",
+  "Keys do not stop it, and it is shaded a little; it stops when you go down to the apps.",
+  "Weather on Home",
+  "Time on the screensaver",
+  "Aerial and photo screensavers. The time and place name move a little now and then, so nothing burns in.",
+  "An input's live picture behind Home, without sound. Going down to the apps, it gives way to a frosted background.",
   "Random Photo",
-  "A past wallpaper is now set",
-  "Dynamic Wallpaper",
-  "Your own films, played behind Home and repeated",
-  "Add Video",
-  "Send an MP4 or MOV film from your phone to play behind Home; one file up to {mb}MB.",
-  "No videos yet",
-  "Videos: {n} added, {failed} failed",
-  "Pause on tiles",
-  "Dynamic wallpaper sound",
-  "Play after 10s still",
-  "Pause on tiles",
-  "Always play",
-  "Landscape videos only",
-  "Videos up to 200MB"
+  "A past wallpaper is now set"
  ],
  "ru": [
-
-
   "Заставка",
   "Заставка",
   "Аэросъёмка",
@@ -746,25 +729,16 @@ const TEXTS = {
   "По умолчанию",
   "Выберите устройство — плитка на телевизоре примет его вид и название; введённое вами название заменится.",
   "Модель",
-  "Случайное фото",
-  "Установлено старое фото",
-  "Живые обои",
-  "Ваши собственные видео, играют за рабочим столом и повторяются",
-  "Добавить видео",
-  "Отправьте фильм MP4 или MOV с телефона, чтобы он играл за рабочим столом; один файл до {mb}MB.",
-  "Видео пока нет",
-  "Видео: {n} добавлено, {failed} не удалось",
-  "Пауза на плитках",
-  "Звук живых обоев",
-  "Запуск после 10 с покоя",
-  "Пауза на плитках",
   "Играть всегда",
-  "Только горизонтальные видео",
-  "Видео до 200 МБ"
+  "Кнопки не останавливают, фон чуть затемнён; останавливается у приложений ниже.",
+  "Погода на главном экране",
+  "Время на заставке",
+  "Заставки с аэросъёмкой и фото. Время и название места иногда слегка сдвигаются, чтобы экран не выгорал.",
+  "Живая картинка входа за главным экраном, без звука. Когда вы переходите к приложениям ниже, фон становится матовым.",
+  "Случайное фото",
+  "Установлено старое фото"
  ],
  "uk": [
-
-
   "Заставка",
   "Заставка",
   "Аерозйомка",
@@ -890,25 +864,16 @@ const TEXTS = {
   "Типово",
   "Виберіть пристрій — плитка на телевізорі набуде його вигляду й назви; введену вами назву буде замінено.",
   "Модель",
-  "Кездейсоқ фото",
-  "Ескі тлоскраг орнатылды",
-  "Живі шпалери",
-  "Ваші власні відео, грають за робочим столом і повторюються",
-  "Додати відео",
-  "Надішліть фільм MP4 або MOV з телефона, щоб він грав за робочим столом; один файл до {mb}MB.",
-  "Відео ще немає",
-  "Відео: {n} додано, {failed} не вдалося",
-  "Пауза на плитках",
-  "Звук живих шпалер",
-  "Запуск після 10 с спокою",
-  "Пауза на плитках",
   "Грати завжди",
-  "Тільки горизонтальні відео",
-  "Відео до 200 МБ"
+  "Кнопки не зупиняють, тло трохи затемнене; зупиняється біля застосунків нижче.",
+  "Погода на головному екрані",
+  "Час на заставці",
+  "Заставки з аерозйомкою і фото. Час і назва місця іноді трохи зсуваються, щоб екран не вигорав.",
+  "Жива картинка входу за головним екраном, без звуку. Коли ви переходите до застосунків нижче, тло стає матовим.",
+  "Кездейсоқ фото",
+  "Ескі түсқағаз орнатылды"
  ],
  "kk": [
-
-
   "Экран қорғаушы",
   "Экран қорғаушы",
   "Аэрожиын",
@@ -1034,21 +999,14 @@ const TEXTS = {
   "Әдепкі",
   "Құрылғыны таңдасаңыз, теледидардағы плитка оның түрі мен атауын алады; өзіңіз жазған атау ауыстырылады.",
   "Модель",
+  "Әрдайым ойнату",
+  "Түймелер тоқтатпайды, фон сәл күңгірт; төмендегі қолданбаларда тоқтайды.",
+  "Басты экранда ауа райы",
+  "Экран қорғауышта уақыт",
+  "Аэрожиын және фото қорғауыштары. Экран күймес үшін уақыт пен орын атауы анда-санда сәл жылжиды.",
+  "Кірістің тірі суреті басты экран артында, дыбыссыз. Төмендегі қолданбаларға өткенде күңгірт фонға ауысады.",
   "Випадкове фото",
-  "Встановлено старе фото",
-  "Тірші фотосурет",
-  "Сіздің өз бейнелеріңіз жұмыс үстелінің артында қайталанып ойнады",
-  "Бейне қосу",
-  "Телефоннан MP4 немесе MOV фильмін жіберіңіз, ол жұмыс үстелінің артында ойнайды; бір файл {mb}MB- дейін.",
-  "Бейне әлі жоқ",
-  "Бейнелер: {n} қосылды, {failed} сәтсіз",
-  "Плиткада күйгірту",
-  "Тірші фотосурет дыбысы",
-  "10 с тыныштықтан кейін ойнату",
-  "Плиткада күйгірту",
-  "Үнемі ойнату",
-  "Тек горизонталды бейнелер",
-  "200 МБ-қа дейін"
+  "Встановлено старе фото"
  ]
 };
 const LANGS = Object.keys(TEXTS);
@@ -1089,11 +1047,11 @@ function applyI18n() {
 const hints = { aerial: t('hint_aerial'), photos: t('hint_photos'), clock: t('hint_clock'), videos: t('hint_videos'), system: t('hint_system') };
 const groups = [
   ['live', t('g_live'), t('g_live_sub')],
-  ['video', t('g_video'), t('g_video_sub')],
   ['daily', t('g_daily'), t('g_daily_sub')],
   ['photo', t('g_photo'), ''],
   ['builtin', t('g_builtin'), ''],
-  ['auto', t('g_auto'), '']
+  ['auto', t('g_auto'), ''],
+  ['source', t('inputs_h'), t('g_source_sub')]
 ];
 const ICON = {
   check: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
@@ -1261,26 +1219,6 @@ function card(w) {
     };
     b.querySelector('.pic').appendChild(d);
   }
-  // A film of the owner's own can be taken away again.
-  if (w.kind === 'video') {
-    const d = el('button', 'badge'); d.innerHTML = ICON.close; d.setAttribute('aria-label', t('aria_delete'));
-    d.onclick = e => {
-      e.stopPropagation();
-      openSheet(body => {
-        const pic = el('div', 'pic'); const img = el('img'); img.src = `${base}thumb/${encodeURIComponent(w.id)}`; pic.appendChild(img); body.appendChild(pic);
-        body.appendChild(el('h3', '', t('confirm_delete')));
-        body.appendChild(el('p', 'meta', w.title));
-        const l = el('div', 'list'); body.appendChild(l);
-        action(l, t('aria_delete'), 'danger', async () => {
-          closeSheet();
-          try { take(await api('api/wallpaper/video/delete', { id: w.id.replace(/^video:/, '') })); } catch (err) { toast(t('toast_set_fail')); }
-        });
-        const c = el('div', 'list'); body.appendChild(c);
-        action(c, t('cancel'), 'tint', closeSheet).style.fontWeight = '600';
-      });
-    };
-    b.querySelector('.pic').appendChild(d);
-  }
   return b;
 }
 function renderWallpapers() {
@@ -1288,7 +1226,8 @@ function renderWallpapers() {
   $('#heroTitle').textContent = titleOf(state.selected);
   const root = $('#sections'); root.replaceChildren();
   for (const [kind, title, sub] of groups) {
-    let list = state.wallpapers.filter(w => w.kind === kind);
+    // Moving: the aerial films and the owner's videos.
+    let list = state.wallpapers.filter(w => w.kind === kind || (kind === 'live' && w.kind === 'video'));
     if (kind === 'daily') {
       // The random photo stays inside the daily group, as the last card after the daily items.
       const r = list.find(w => w.id === 'daily:random');
@@ -1299,37 +1238,6 @@ function renderWallpapers() {
     }
     // Two or more photos: one a day, as on the TV (#27, #194).
     if (kind === 'photo' && list.length > 1) list = [{ id: state.rotatePhotos, kind: 'photos', title: t('rotate_title'), caption: t('rotate_caption') }, ...list];
-    // The owner's own films, right after the aerial ones: the thumbnails first, then a line
-    // saying how to add one, then the button that does it.
-    if (kind === 'video') {
-      root.appendChild(el('h2', 'big', title));
-      if (list.length) {
-        const g = el('div', 'grid');
-        list.forEach(w => g.appendChild(card(w)));
-        root.appendChild(g);
-      }
-      // The limits, in one line under the thumbnails: what a wallpaper may be.
-      root.appendChild(el('p', 'foot', t('wp_video_hint', { mb: state.videoMaxMB || 200 })));
-      root.appendChild(el('p', 'foot', `${t('wp_video_only_landscape')} · ${t('wp_video_too_big')}`));
-      const up = el('label', 'btn add');
-      up.innerHTML = `${ICON.plus}<span id="wpVideoUploadLabel"></span><input id="wpVideoFile" type="file" accept=".mp4,.mov,video/mp4,video/quicktime" multiple hidden>`;
-      up.querySelector('span').textContent = sendingWallpaperVideo
-        ? t('sending_video', { n: sendingWallpaperVideo.n, total: sendingWallpaperVideo.total })
-        : t('wp_video_upload');
-      if (sendingWallpaperVideo) up.setAttribute('disabled', '');
-      up.querySelector('input').onchange = uploadWallpaperVideo;
-      root.appendChild(up);
-      if (!list.length) root.appendChild(el('p', 'empty', t('wp_video_empty')));
-      // How the film plays: it stops when the tiles take the focus, it goes on always, or it waits
-      // for the room to be still; and whether it plays with its sound.
-      const opts = el('div', 'list');
-      opts.appendChild(videoMode(t('wp_video_mode_pause'), 'pause'));
-      opts.appendChild(videoMode(t('wp_video_mode_always'), 'always'));
-      opts.appendChild(videoMode(t('wp_video_after_idle'), 'idle'));
-      opts.appendChild(videoSwitch(t('wp_video_sound'), !!state.videoSound, 'sound'));
-      root.appendChild(opts);
-      continue;
-    }
     if (!list.length && kind !== 'photo') continue;
     root.appendChild(el('h2', 'big', title));
     if (kind === 'photo') {
@@ -1345,81 +1253,19 @@ function renderWallpapers() {
     list.forEach(w => g.appendChild(card(w)));
     root.appendChild(g);
     if (sub) root.appendChild(el('p', 'foot', sub));
+    // Whether keys stop a moving wallpaper; only for one that moves, as on the TV.
+    if (kind === 'live' && (state.selected === 'aerial:live' || state.selected === 'videos:mine')) {
+      const l = el('div', 'list'); l.style.marginTop = '10px';
+      const row = el('label', 'item');
+      const txt = el('span', 'txt', t('sw_always')); txt.appendChild(el('span', 'sub', t('sw_always_sub')));
+      const sw = el('input', 'switch'); sw.type = 'checkbox'; sw.checked = !!state.wallpaperAlwaysMoves; sw.dataset.setting = 'wallpaperAlwaysMoves';
+      sw.onchange = () => setting(sw);
+      row.append(txt, sw); l.appendChild(row); root.appendChild(l);
+    }
     if (kind === 'photo' && list.length === 1) root.appendChild(el('p', 'foot', t('add_second')));
   }
 }
 let uploading = 0;
-/* The owner's own films for the desktop wallpaper. */
-let sendingWallpaperVideo = null;
-/* One switch for the film: "sound" is whether it plays with its voice. */
-function videoSwitch(label, on, key) {
-  const row = el('label', 'item');
-  row.appendChild(el('span', 'txt', label));
-  const sw = el('input', 'switch'); sw.type = 'checkbox'; sw.checked = !!on;
-  sw.onchange = async () => {
-    const want = sw.checked; sw.disabled = true;
-    try {
-      const next = await api('api/wallpaper/video/options', { [key]: want ? '1' : '0' });
-      take(next);
-    } catch (err) { sw.checked = !want; sw.disabled = false; toast(t('toast_set_fail')); }
-  };
-  row.appendChild(sw);
-  return row;
-}
-/* One of the ways the film plays; only one of them is on. */
-function videoMode(label, mode) {
-  const row = el('button', 'item');
-  row.setAttribute('role', 'radio');
-  row.appendChild(el('span', 'txt', label));
-  row.insertAdjacentHTML('beforeend', ICON.tick);
-  row.setAttribute('aria-checked', (state.videoMode || 'pause') === mode ? 'true' : 'false');
-  row.onclick = async () => {
-    try { take(await api('api/wallpaper/video/options', { mode })); }
-    catch (err) { toast(t('toast_set_fail')); }
-  };
-  return row;
-}
-
-/* What a film is, read in the browser: how wide it is. */
-function probeVideo(file) {
-  return new Promise(resolve => {
-    const url = URL.createObjectURL(file);
-    const v = el('video');
-    v.preload = 'metadata'; v.muted = true; v.src = url;
-    const done = ok => { URL.revokeObjectURL(url); resolve(ok ? v : null); };
-    v.onloadedmetadata = () => done(true);
-    v.onerror = () => done(false);
-    setTimeout(() => done(false), 6000);
-  });
-}
-
-async function uploadWallpaperVideo(e) {
-  const input = e.target; const files = [...input.files]; if (!files.length) return;
-  const max = (state.videoMaxMB || 200) * 1024 * 1024;
-  input.disabled = true;
-  let added = 0, skipped = 0;
-  for (const [i, file] of files.entries()) {
-    sendingWallpaperVideo = { n: i + 1, total: files.length };
-    const label = document.getElementById('wpVideoUploadLabel');
-    if (label) label.textContent = t('sending_video', { n: i + 1, total: files.length });
-    // The size and the shape are checked here, so the owner is told straight away instead of the
-    // film being refused on the TV.
-    if (!file.size || file.size > max) { skipped++; continue; }
-    const v = await probeVideo(file);
-    if (!v) { skipped++; continue; }
-    // Only a wide film: a film shot upright would stand on its side on the wall.
-    const w = v.videoWidth || 0, h = v.videoHeight || 0;
-    if (!w || !h || w <= h) { skipped++; continue; }
-    try {
-      const fd = new FormData(); fd.append('video', file, file.name);
-      const r = await fetch(base + 'api/wallpaper/video', { method: 'POST', body: fd });
-      if (!r.ok) throw new Error(r.status);
-      const next = await r.json(); if (next.saved) added++; else skipped++; take(next);
-    } catch (err) { skipped++; /* One film that will not go should not throw away the rest. */ }
-  }
-  sendingWallpaperVideo = null; input.disabled = false; input.value = ''; stateJson = ''; render();
-  toast(t('toast_video_added', { n: added, failed: files.length - added }));
-}
 async function uploadPhotos(e) {
   const files = [...e.target.files]; if (!files.length) return;
   uploading = files.length; stateJson = ''; render();
@@ -1438,7 +1284,9 @@ function renderScreensaver() {
   document.querySelectorAll('#ss [data-mode]').forEach(b => b.setAttribute('aria-checked', b.dataset.mode === state.screensaver ? 'true' : 'false'));
   $('#ssFoot').textContent = state.screensaverFollows ? t('hint_follows') : state.screensaver === 'system' ? hints.system : '';
   $('#ssFoot').hidden = !$('#ssFoot').textContent;
-  $('#videos').hidden = state.screensaver !== 'videos';
+  // The time only over the aerial and photo screensavers; the clock one is its clock.
+  $('#ssTimeBox').hidden = state.screensaver !== 'aerial' && state.screensaver !== 'photos';
+  $('#swSaverTime').checked = !!state.screensaverClock;
   const list = $('#videoList'); list.replaceChildren();
   const videos = state.videos || [];
   if (!videos.length) { const row = el('div', 'item'); row.appendChild(el('span', 'txt', t('videos_empty'))).style.color = 'var(--secondary)'; list.appendChild(row); }
@@ -1481,6 +1329,7 @@ $('#videoFile').onchange = async e => {
 /* More tab: focus style and weather. */
 const weatherNames = { clear: t('wx_clear'), partlycloudy: t('wx_partlycloudy'), cloudy: t('wx_cloudy'), fog: t('wx_fog'), rain: t('wx_rain'), snow: t('wx_snow'), thunder: t('wx_thunder') };
 function renderMore() {
+  $('#swWeather').checked = state.showWeather !== false;
   document.querySelectorAll('#focus [data-style]').forEach(b => b.setAttribute('aria-checked', b.dataset.style === state.focusStyle ? 'true' : 'false'));
   const w = state.weather || {};
   $('#wxNow').textContent = w.celsius !== undefined ? `${w.celsius}° ${weatherNames[w.kind] || ''}` : '—';
@@ -1514,6 +1363,17 @@ function renderInputs() {
     row.append(txt, sw); list.appendChild(row);
   }
 }
+/* On/off settings: data-setting is the key the TV knows it by. */
+async function setting(sw) {
+  const on = sw.checked; sw.disabled = true;
+  try {
+    const next = await api('api/setting', { key: sw.dataset.setting, on: on ? '1' : '0' });
+    if (!next.saved) throw new Error('not saved');
+    take(next); toast(t('toast_tv_updated'));
+  } catch (e) { sw.checked = !on; toast(t('toast_set_fail')); }
+  sw.disabled = false;
+}
+['#swSaverTime', '#swWeather'].forEach(id => $(id).onchange = () => setting($(id)));
 document.querySelectorAll('#focus [data-style]').forEach(b => b.onclick = async () => {
   if (b.dataset.style === state.focusStyle) return;
   try { take(await api('api/focus', { style: b.dataset.style })); toast(t('toast_tv_updated')); } catch (e) { toast(t('toast_set_fail')); }

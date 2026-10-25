@@ -4,9 +4,14 @@ import android.view.SurfaceView
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
@@ -27,9 +32,13 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.VIDEO_VOLUME_STEPS
 import app.orchard.tv.system.DiagLog
+import app.orchard.tv.ui.theme.Motion
 import app.orchard.tv.wallpaper.ScreensaverVideo
 import app.orchard.tv.wallpaper.ScreensaverVideos
+import app.orchard.tv.wallpaper.Wallpapers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
@@ -50,6 +59,13 @@ internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
     LocalFilms(loaded, steps, onUnavailable)
 }
 
+/**
+ * The sound the owner's own videos have in the screensaver: the very switch and the very level
+ * they have behind Home ([AerialSettings.videoSound], [AerialSettings.videoVolume]). Silent until
+ * the first frames are up, then it fades in, as it does on Home; going round the films again keeps
+ * the level as it is, no fade at the join.
+ */
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
@@ -59,8 +75,9 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
             DefaultLoadControl.Builder().setTargetBufferBytes(12 * 1024 * 1024)
                 .setBufferDurationsMs(5_000, 15_000, 500, 1_000).build(),
         ).build().apply {
-            volume = 0f
-            trackSelectionParameters = trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true).build()
+                volume = 0f
+                trackSelectionParameters = trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !AerialSettings.videoSound).build()
             repeatMode = Player.REPEAT_MODE_ALL
             videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         }
@@ -68,6 +85,12 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
     var attempt by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) }
     var aspect by remember { mutableFloatStateOf(16f / 9f) }
+    // The sound, as loud as the wallpaper's own switch and level say: it comes in behind the
+    // picture, which is already moving.
+    val sound = AerialSettings.videoSound
+    val level = AerialSettings.videoVolume.coerceIn(1, VIDEO_VOLUME_STEPS).toFloat() / VIDEO_VOLUME_STEPS
+    val volume = remember { Animatable(0f) }
+    val levelNow by rememberUpdatedState(level)
 
     fun skip(step: Int) {
         if (player.mediaItemCount == 0) return
@@ -106,9 +129,34 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
         }
         player.addListener(listener)
         player.setMediaItems(films.map { MediaItem.Builder().setUri(it.file.toUri()).setMediaId(it.id).build() })
+        // Where Home's own playing of them stopped, when it is not carried on: the film being
+        // watched goes on from there rather than from its beginning.
+        Wallpapers.videoSpot()?.let { spot ->
+            val index = films.indexOfFirst { it.id == spot.first }
+            if (index >= 0) player.seekTo(index, spot.second)
+        }
         player.prepare()
         player.playWhenReady = true
         onDispose { player.removeListener(listener); player.release() }
+    }
+    // The sound's fade, every step of it, and the track itself when the owner turns it on or off.
+    LaunchedEffect(player) { snapshotFlow { volume.value }.collect { player.volume = it } }
+    LaunchedEffect(player, sound) {
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !sound).build()
+        // Off: silent at once, whatever the fade was doing.
+        if (!sound) volume.snapTo(0f)
+    }
+    // In once the picture is there. Going round the films again leaves the level alone: no fade at
+    // the join either.
+    LaunchedEffect(player, playing, sound) {
+        if (!playing || !sound) return@LaunchedEffect
+        volume.animateTo(levelNow, tween(900, easing = Motion.EaseOut))
+    }
+    // A step of the level is heard at once: the ten steps are for setting, not for a fade.
+    LaunchedEffect(level) {
+        if (!playing || !sound || volume.value <= 0f) return@LaunchedEffect
+        volume.snapTo(level)
     }
     LaunchedEffect(steps) { steps.collect { skip(it) } }
     LaunchedEffect(attempt, playing) {

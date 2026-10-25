@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -40,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,6 +71,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -81,6 +84,7 @@ import app.orchard.tv.HomeViewModel
 import app.orchard.tv.Overlay
 import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.settings.GRID_COLUMNS_DEFAULT
 import app.orchard.tv.settings.NameMode
 import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.apps.AppDetails
@@ -108,7 +112,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private const val COLUMNS = 5
 
 /** The plate's distance from the bottom edge with no second row peeking: as from the sides. */
 private val PlateMarginBottom = 30.dp
@@ -119,31 +122,75 @@ private val PlateNameRoom = 28.dp
 /** 极米: 显示所有应用名时，名字占用的额外高度。 */
 private val NameRoom = 22.dp
 
-/** Control Center has been drawn once in this process (HomeScreen's warm-up). */
-private object ControlCenterWarmed { var done = false }
+/** 极米: 选了「我的视频」当壁纸时，第一排沉下去只露出顶端这么多（其余的在屏幕外）。 */
+private const val VIDEO_SINK_SHOWN = 0.5f
 
-private const val CC_WARM_AFTER_MS = 3_000L
+/** 极米: 焦点所在的那个磁贴升起来露出这么多，同排其它的留在 [VIDEO_SINK_SHOWN]。 */
+private const val VIDEO_SINK_RAISED = 0.9f
+
+/** 极米: 视频壁纸时，焦点磁贴的大名字与磁贴顶边的距离（沿用大名字原来的挂法）。 */
+private val HeroNameAbove = 62.dp
+
+/** The panels have been drawn once in this process (HomeScreen's warm-up). */
+private object ControlCenterWarmed { var controlCenter = false; var personalize = false }
+
+/** How long Home must be still before a panel is drawn once to warm it up. */
+private const val PANEL_WARM_IDLE_MS = 1_500L
 
 private val GridMargin = 56.dp
 private val GridGap = 28.dp
 
-/** A tile's width at rest on a screen [screenW] wide; TileFaces works out the same size. */
-internal fun restTileWidth(screenW: Dp): Dp = (screenW - GridMargin * 2 - GridGap * (COLUMNS - 1)) / COLUMNS
+/**
+ * A tile's width at rest on a screen [screenW] wide, with [columns] of them in a row; TileFaces
+ * works out the same size. More columns, narrower tiles: the row keeps its width.
+ */
+internal fun restTileWidth(screenW: Dp, columns: Int = AerialSettings.gridColumns): Dp =
+    (screenW - GridMargin * 2 - GridGap * (columns - 1)) / columns
+
+/**
+ * A tile's height at rest: the one it has at the count the row comes with, and it keeps it however
+ * many tiles the row is given. Only the width narrows, so the row and its plate stay as they are.
+ */
+internal fun restTileHeight(screenW: Dp): Dp = restTileWidth(screenW, GRID_COLUMNS_DEFAULT) * 9f / 16f
 
 /** Grid geometry for the screen at hand. On a 1080p TV this is a 960×540 dp canvas. */
-private class GridMetrics(screenW: Dp, screenH: Dp, oneRow: Boolean, plateNames: Boolean, peek: Boolean, plate: Boolean) {
+private class GridMetrics(
+    screenW: Dp,
+    screenH: Dp,
+    oneRow: Boolean,
+    plateNames: Boolean,
+    peek: Boolean,
+    plate: Boolean,
+    /** How many tiles a row holds: the top row's count, and every row below it. */
+    val columns: Int = AerialSettings.gridColumns,
+) {
     val margin = GridMargin
     val gap = GridGap
-    val tileW = restTileWidth(screenW)
-    val tileH = tileW * 9f / 16f
+    val tileW = restTileWidth(screenW, columns)
+    val tileH = restTileHeight(screenW)
     val pitchX = tileW + gap
     val pitchY = tileH + 50.dp
+
+    /**
+     * What a tile measures at the count the row comes with ([GRID_COLUMNS_DEFAULT]). The glass plate
+     * is cut for that row and keeps it: more tiles narrow inside it, while the plate itself keeps
+     * its width, its height and its place. The tile keeps that height too, so the plate needs no
+     * more room than at the default count whatever the row is given.
+     */
+    val baseTileW = restTileWidth(screenW, GRID_COLUMNS_DEFAULT)
+    val baseTileH = restTileHeight(screenW)
 
     /**
      * Extra room under the top row while it is the one in focus, for names on a plate grown to
      * hold them. Down in the grid the plate is gone and the rows close up to even spacing.
      */
     val firstGap = if (plateNames) PlateNameRoom else 0.dp
+
+    /** The plate's own box: the same whoever many tiles the row holds, and in the same place. */
+    val plateTop = screenH - PlateMarginBottom - (PlatePadV * 2 + baseTileH + firstGap)
+    val plateBottom = screenH - PlateMarginBottom
+    val plateLeft = margin - PlatePadH
+    val plateRight = margin + baseTileW * GRID_COLUMNS_DEFAULT + gap * (GRID_COLUMNS_DEFAULT - 1) + PlatePadH
 
     /**
      * The top row sits a little past the middle, under the shelf, as on tvOS. In one-row mode, or
@@ -157,7 +204,9 @@ private class GridMetrics(screenW: Dp, screenH: Dp, oneRow: Boolean, plateNames:
         peek -> screenH - pitchY - 12.dp - firstGap
         // Nothing peeks under the row, so it goes as low as it fits: the plate as far from the
         // bottom edge as from the sides, or without a plate, room for the focused app's name.
-        plate -> screenH - tileH - (PlateMarginBottom + PlatePadV) - firstGap
+        // The plate keeps the size and the place it has at the default count; the row of tiles,
+        // narrower with more of them, sits centred in it.
+        plate -> plateTop + PlatePadV + (baseTileH - tileH) / 2
         else -> screenH - tileH - 70.dp
     }
 
@@ -171,10 +220,18 @@ private class GridMetrics(screenW: Dp, screenH: Dp, oneRow: Boolean, plateNames:
     /** Where a row rests once you go down into the grid: the row above stays in view. */
     val restY = screenH * 0.37f
     val screenH = screenH
+    val screenW = screenW
+
+    /**
+     * 极米: 选了「我的视频」当壁纸时，第一排沉到只露出顶端 [VIDEO_SINK_SHOWN]；焦点落在磁贴上
+     * 时升到露出 [VIDEO_SINK_RAISED]。两者都是相对 [topRowY] 的下移量，磁贴本身不变形。
+     */
+    val sinkRest = screenH - tileH * VIDEO_SINK_SHOWN - topRowY
+    val sinkRaised = screenH - tileH * VIDEO_SINK_RAISED - topRowY
 
     fun slot(index: Int, onTop: Boolean): Pair<Dp, Dp> {
-        val row = index / COLUMNS
-        return Pair(margin + pitchX * (index % COLUMNS), topRowY + pitchY * row + if (row > 0 && onTop) firstGap else 0.dp)
+        val row = index / columns
+        return Pair(margin + pitchX * (index % columns), topRowY + pitchY * row + if (row > 0 && onTop) firstGap else 0.dp)
     }
 
     fun scrollFor(row: Int, rows: Int): Dp {
@@ -194,18 +251,6 @@ private const val HOME_SHOT_AFTER_MS = 450L
 /** How often that picture is taken again while Control Center stays open, for the clock. */
 private const val HOME_SHOT_EVERY_MS = 30_000L
 
-/**
- * How long nothing may be pressed before the owner's film behind Home goes on again, when it is
- * set to pause while the tiles are worked with.
- */
-private const val VIDEO_IDLE_MS = 2_500L
-
-/**
- * How long Home sits still before the owner's film starts, in "after idle" mode: like the aerial
- * films, which start after ten seconds on the top row.
- */
-private const val VIDEO_START_AFTER_MS = 10_000L
-
 @Composable
 fun HomeScreen(
     vm: HomeViewModel,
@@ -220,6 +265,10 @@ fun HomeScreen(
     val apps = vm.apps
     val overlay = vm.overlay
     val moving = vm.movingKey
+    // How many tiles a row holds, chosen in Personalize: five, as tvOS has it, or up to eight, the
+    // tiles narrowing to fit. Every row of the grid has the same count, so the rows below the top
+    // one follow it too.
+    val columns = AerialSettings.gridColumns
     val reduced = LocalReducedMotion.current
     val density = LocalDensity.current
     val now by rememberNow()
@@ -229,7 +278,9 @@ fun HomeScreen(
     fun requester(key: String) = requesters.getOrPut(key) { FocusRequester() }
     val pillRequester = remember { FocusRequester() }
     val appContext = LocalContext.current
-    val firmwareInputPanel = remember { SystemProbe.tclInputPanel(appContext) != null }
+    val firmwareInputPanel = remember {
+        SystemProbe.tclInputPanel(appContext) != null || SystemProbe.coocaaInputPanel(appContext)
+    }
 
     var focusedKey by remember { mutableStateOf<String?>(null) }
     // Where focus goes when the overlay closes, when that is not the tile it was on. Kept apart
@@ -239,7 +290,7 @@ fun HomeScreen(
     var pillFocused by remember { mutableStateOf(false) }
     var lastFocusedIndex by remember { mutableStateOf(0) }
     val focusedIndex = apps.indexOfFirst { it.key == focusedKey }
-    val focusedRow = if (pillFocused || focusedIndex < 0) 0 else focusedIndex / COLUMNS
+    val focusedRow = if (pillFocused || focusedIndex < 0) 0 else focusedIndex / columns
     val gridEnabled = overlay == Overlay.None
 
     // The aerial wallpaper's film, and how far it shows through.
@@ -249,36 +300,6 @@ fun HomeScreen(
         LiveFilm.onHome = liveFilm
         onDispose { if (LiveFilm.onHome === liveFilm) LiveFilm.onHome = null }
     }
-    // The owner's own film behind Home, and whether it moves now. How it plays is the owner's
-    // choice (AerialSettings.videoMode): it stops while the tiles are being worked with, or it
-    // goes on whatever is on screen, or — like the aerial films — it waits for Home to sit still
-    // and stops at the next key press.
-    val videoWallpaper = Wallpapers.selectedVideo
-    // Nothing pressed for a moment: the film goes on again by itself.
-    var videoIdle by remember { mutableStateOf(false) }
-    LaunchedEffect(vm.lastInputAt) {
-        videoIdle = false
-        delay(if (AerialSettings.videoMode == VideoMode.AfterIdle) VIDEO_START_AFTER_MS else VIDEO_IDLE_MS)
-        videoIdle = true
-    }
-    val videoPlaying = videoWallpaper != null && vm.resumed && !vm.screensaverVisible &&
-        when (AerialSettings.videoMode) {
-            // Pause on tiles: it stops while the tiles are being worked with, and goes on again
-            // once nothing has been pressed for a moment and the top row has the focus.
-            VideoMode.PauseOnTiles -> videoIdle && focusedRow == 0 && (overlay == Overlay.None || overlay is Overlay.Wallpaper)
-            // Always: it plays on, even with the Control Center or the Personalize sheet open
-            // over it.
-            VideoMode.Always -> overlay == Overlay.None || overlay is Overlay.ControlCenter || overlay is Overlay.Wallpaper
-            // After idle: like the aerial films, it starts only once Home has sat still, and any
-            // key press stops it again.
-            VideoMode.AfterIdle -> videoIdle && focusedRow == 0 && (overlay == Overlay.None || overlay is Overlay.Wallpaper)
-        }
-    // The glass over the top row goes with the film, as with the aerial ones: while the film
-    // moves there is no plate, and when it stops the plate is back.
-    val videoStopped by animateFloatAsState(
-        if (videoWallpaper != null && !videoPlaying) 1f else 0f,
-        tween(320, easing = Motion.EaseOut), label = "video-stopped",
-    )
     // A screensaver of aerials over the aerial wallpaper carries the wallpaper's film on, one shot
     // from Home to screensaver: the apps fade, the clock moves to the corner. Whether the film is
     // moving already or still on its frame (Back on the top row), as long as Home shows it: on the
@@ -290,6 +311,14 @@ fun HomeScreen(
             (filmCover.value > 0.5f || focusedRow == 0 && overlay == Overlay.None && moving == null)
     }
     val filmSaver = filmSaverChosen && !filmFailed
+    // And the owner's own videos: a screensaver of them over them carries Home's own player on the
+    // same way, so the film being watched goes on from where it is instead of beginning again. What
+    // fades is Home around it, as over an aerial film. Nothing to carry when they are not moving
+    // (or there is nothing on screen): the screensaver then plays its own, from where Home stopped.
+    val videoSaver = remember(vm.screensaverVisible) {
+        vm.screensaverVisible && Wallpapers.selectedId == Wallpapers.VIDEOS &&
+            Wallpapers.screensaver == ScreensaverMode.Videos && videosPlaying
+    }
     LaunchedEffect(filmSaverChosen) {
         if (!filmSaverChosen) return@LaunchedEffect
         val moved = withTimeoutOrNull(FILM_SAVER_WAIT_MS) { snapshotFlow { filmCover.value > 0.99f }.first { it } }
@@ -339,7 +368,7 @@ fun HomeScreen(
             saverImage = null
         }
     }
-    val carrying = filmSaver || stillSaver != null
+    val carrying = filmSaver || stillSaver != null || videoSaver
     val toSaver = remember { Animatable(0f) }
     LaunchedEffect(carrying) {
         when {
@@ -411,7 +440,7 @@ fun HomeScreen(
         val scrolled = dragged && scroll.value > 1f
         dragged = false
         // Handled even when that is turned off: unhandled, Back would close Home itself.
-        if (focusedRow > 0 || scrolled) focusApp(focusedIndex.coerceAtLeast(0) % COLUMNS)
+        if (focusedRow > 0 || scrolled) focusApp(focusedIndex.coerceAtLeast(0) % columns)
         else if (AerialSettings.backStartsScreensaver) onStartScreensaver()
     }
 
@@ -432,8 +461,8 @@ fun HomeScreen(
                     when (code) {
                         NativeKeyEvent.KEYCODE_DPAD_LEFT -> vm.moveBy(-1)
                         NativeKeyEvent.KEYCODE_DPAD_RIGHT -> vm.moveBy(1)
-                        NativeKeyEvent.KEYCODE_DPAD_UP -> vm.moveBy(-COLUMNS)
-                        NativeKeyEvent.KEYCODE_DPAD_DOWN -> vm.moveBy(COLUMNS)
+                        NativeKeyEvent.KEYCODE_DPAD_UP -> vm.moveBy(-columns)
+                        NativeKeyEvent.KEYCODE_DPAD_DOWN -> vm.moveBy(columns)
                         NativeKeyEvent.KEYCODE_BACK, NativeKeyEvent.KEYCODE_DPAD_CENTER,
                         NativeKeyEvent.KEYCODE_ENTER, NativeKeyEvent.KEYCODE_NUMPAD_ENTER -> vm.endMove()
                         else -> return@onPreviewKeyEvent false
@@ -463,7 +492,7 @@ fun HomeScreen(
                 }
             },
     ) {
-        val rows = (apps.size + COLUMNS - 1) / COLUMNS
+        val rows = (apps.size + columns - 1) / columns
         // With a single row of apps the two-row layout would leave the bottom of the screen empty.
         val oneRow = AerialSettings.oneRowHome || rows <= 1
         val nameRoom = if (AerialSettings.nameMode == NameMode.All) NameRoom else 0.dp
@@ -471,8 +500,19 @@ fun HomeScreen(
         val plateNames = AerialSettings.nameMode == NameMode.All && AerialSettings.homePlate
         val peek = AerialSettings.peekNextRow
         val hasPlate = AerialSettings.homePlate
-        val metrics = remember(maxWidth, maxHeight, oneRow, plateNames, peek, hasPlate) {
-            GridMetrics(maxWidth, maxHeight, oneRow, plateNames, peek, hasPlate)
+        // The count is a key: chosen in Personalize, the grid takes its new shape at once, without
+        // waiting for Home to be opened again.
+        val metrics = remember(maxWidth, maxHeight, oneRow, plateNames, peek, hasPlate, columns) {
+            GridMetrics(maxWidth, maxHeight, oneRow, plateNames, peek, hasPlate, columns)
+        }
+        // The tiles' faces are made for the size they are drawn at: made again, off the main thread,
+        // when the count changes it.
+        var facesFor by remember { mutableIntStateOf(columns) }
+        LaunchedEffect(columns) {
+            if (facesFor != columns) {
+                facesFor = columns
+                vm.prepareFaces()
+            }
         }
         val collapsePx = with(density) { (metrics.topRowY - metrics.restY).toPx() }
 
@@ -509,12 +549,23 @@ fun HomeScreen(
         // Taken again now and then for the clock.
         // Control Center shows the live wallpaper behind the glass instead of a frozen snapshot of
         // Home, so picking "random one" (or any new picture) swaps the backdrop instantly — exactly
-        // like the Personalize sheet. No toImageBitmap, no 30s re-shot wait. The owner's own film
-        // keeps moving behind it, so it is left out of the snapshot as well.
+        // like the Personalize sheet. No toImageBitmap, no 30s re-shot wait.
         var homeShot by remember { mutableStateOf<ImageBitmap?>(null) }
-        LaunchedEffect(ccOpen, Wallpapers.backdrop, videoWallpaper) {
-            homeShot = if (ccOpen && videoWallpaper == null) Wallpapers.backdrop else null
+        // A video wallpaper is a plane of its own under Home: a frozen shot of Home would cover it,
+        // so with videos chosen Control Center keeps Home drawn, and the film going, behind its
+        // glass instead (as the Personalize sheet does).
+        val videosChosen = Wallpapers.selectedId == Wallpapers.VIDEOS
+        LaunchedEffect(ccOpen, Wallpapers.backdrop, videosChosen) {
+            homeShot = if (ccOpen && !videosChosen) Wallpapers.backdrop else null
         }
+        // 极米: 选了「我的视频」当壁纸，第一排沉下去只露出顶端一点，让画面留出来；焦点所在的
+        // 那一个磁贴升起来，同排其它的留在沉下去的位置。往下按进到下面的行，第一排回到原处照常滚动。
+        val sinkOnTop = videosChosen && AerialSettings.videoSink && focusedRow <= 0 && !vm.screensaverVisible && moving == null
+        val tileFocused = focusedIndex >= 0 && !pillFocused
+        val sink: Dp = if (sinkOnTop) metrics.sinkRest else 0.dp
+        // 焦点不在磁贴上时（按上键到了状态药丸），那一个也跟着沉下去：焦点离开后它不再是「升起的
+        // 那个」，留它在原处会看着像回到老位置。
+        val sinkUp: Dp = if (sinkOnTop) (if (tileFocused) metrics.sinkRaised else metrics.sinkRest) else 0.dp
 
         val ambientApp = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
 
@@ -546,18 +597,40 @@ fun HomeScreen(
             // The glass plate under the top row (tvOS 26), the row's full width however few apps
             // there are, which sit at its left: sized to three apps it read as a stray panel (#284).
             val plate = if (apps.isEmpty() || !AerialSettings.homePlate) null else with(density) {
+                // 极米: 底板跟着第一排一起沉下去，别让磁贴跑到板子外面去。
                 Rect(
-                    (metrics.margin - PlatePadH).toPx(),
-                    (metrics.topRowY - PlatePadV).toPx(),
-                    (metrics.margin + metrics.pitchX * (COLUMNS - 1) + metrics.tileW + PlatePadH).toPx(),
-                    (metrics.topRowY + metrics.tileH + PlatePadV + metrics.firstGap).toPx(),
+                    metrics.plateLeft.toPx(),
+                    (metrics.plateTop + sink).toPx(),
+                    metrics.plateRight.toPx(),
+                    (metrics.plateBottom + sink).toPx(),
                 )
             }
-            // The aerial wallpaper's film, under everything; it moves only on a still top row.
-            if (Wallpapers.selectedId == Wallpapers.LIVE) {
-                LiveWallpaper(
-                    moving = vm.resumed && overlay == Overlay.None && !vm.screensaverVisible && !pastShelf &&
-                        focusedRow == 0 && moving == null,
+            // A moving wallpaper's film, under everything; it moves only on the top row with
+            // nothing over it, and there only once Home is still unless set to keep moving.
+            val filmMoves = vm.resumed && overlay == Overlay.None && !vm.screensaverVisible && !pastShelf &&
+                focusedRow == 0 && moving == null
+            // While the owner's own videos move there is no glass plate over the top row, as with
+            // the aerial films: one layer less to mix over every frame of the film.
+            val videoStopped by animateFloatAsState(
+                if (videosChosen && !videosPlaying) 1f else 0f,
+                tween(320, easing = Motion.EaseOut), label = "video-stopped",
+            )
+            // The owner's own videos go on behind the Personalize sheet, so it can be opened over
+            // them without cutting them short, and behind Control Center too when they are set to
+            // play on whatever is on screen.
+            val videoMoves = vm.resumed && !pastShelf && moving == null &&
+                // Carried into the screensaver: they go on playing where they are, while Home
+                // around them fades away, as the aerial wallpaper's film does.
+                if (videoSaver) true else !vm.screensaverVisible &&
+                    if (AerialSettings.videoMode == VideoMode.Always) {
+                        overlay == Overlay.None || overlay is Overlay.ControlCenter || overlay is Overlay.Wallpaper
+                    } else {
+                        focusedRow == 0 && (overlay == Overlay.None || overlay is Overlay.Wallpaper)
+                    }
+            val sourceInput = Wallpapers.sourceInput
+            when {
+                Wallpapers.selectedId == Wallpapers.LIVE -> LiveWallpaper(
+                    moving = filmMoves,
                     keep = vm.resumed && (!vm.screensaverVisible || filmSaver),
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
@@ -565,11 +638,17 @@ fun HomeScreen(
                     standIn = overlay == Overlay.None,
                     live = liveFilm,
                 )
+                Wallpapers.selectedId == Wallpapers.VIDEOS -> VideoWallpaper(
+                    moving = videoMoves,
+                    // Carried on into the screensaver: the decoder stays, the film goes on.
+                    keep = vm.resumed && (!vm.screensaverVisible || videoSaver),
+                    lastInputAt = vm.lastInputAt,
+                    cover = filmCover,
+                )
+                sourceInput != null -> SourceWallpaper(sourceInput, show = vm.resumed && !vm.screensaverVisible, cover = filmCover)
             }
-            // The owner's own film behind Home, in the same place as the aerial one.
-            videoWallpaper?.let { film ->
-                VideoWallpaper(film, videoPlaying, AerialSettings.videoSound)
-            }
+            // Another wallpaper chosen: nothing shows through until the new one has a frame.
+            LaunchedEffect(Wallpapers.selectedId) { filmCover.snapTo(0f) }
             HomeBackground(
                 // The chosen wallpaper; in "Follow App" mode, light from the focused app.
                 backdrop = Wallpapers.backdrop ?: ambientApp?.art?.backdrop,
@@ -577,12 +656,16 @@ fun HomeScreen(
                 plate = plate,
                 scroll = { scroll.value },
                 collapse = collapsePx,
-                // The owner's film is the picture itself: Compose draws neither picture nor plate
-                // over it, and the grid's glass is made from its first frame.
-                cover = { if (videoWallpaper != null) 1f else filmCover.value },
-                // The glass over the top row goes with the film, as with the aerial one: while the
-                // film moves there is no plate, and when it stops the plate is back.
-                filmStopped = { if (videoWallpaper != null) videoStopped else filmStopped },
+                cover = { filmCover.value },
+                // A film kept moving, or an input's picture, gets the shade a picture has, so the
+                // top row reads over it without the plate. In the grid both give way to the
+                // frosted picture, as any wallpaper does (an input's picture cannot be blurred).
+                // The owner's own videos are left as they are: a shade over them is blended again
+                // over every frame of the film, which is what makes a film stutter.
+                shadeMoving = (!videosChosen && AerialSettings.wallpaperAlwaysMoves) || sourceInput != null,
+                // The glass over the top row goes with the owner's videos as it does with the
+                // aerial ones: while they move there is no plate, and when they stop it is back.
+                filmStopped = { if (videosChosen) videoStopped else filmStopped },
                 toSaver = { toSaver.value },
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
@@ -617,6 +700,7 @@ fun HomeScreen(
                             .padding(top = metrics.clockY)
                             .graphicsLayer { alpha = 1f - (scroll.value / collapsePx * 1.6f).coerceIn(0f, 1f) },
                         toSaver = { toSaver.value },
+                        saving = vm.screensaverVisible,
                     )
                 } else if (!clockRight) {
                     CornerClock(
@@ -625,6 +709,7 @@ fun HomeScreen(
                             .padding(start = metrics.margin, top = 28.dp)
                             .graphicsLayer { alpha = 1f - (scroll.value / collapsePx * 1.6f).coerceIn(0f, 1f) },
                         toSaver = { toSaver.value },
+                        saving = vm.screensaverVisible,
                     )
                 }
 
@@ -635,22 +720,50 @@ fun HomeScreen(
                 // row; down in the grid the focused app names itself under its tile instead, so the
                 // name follows the focus wherever it goes.
                 val heroMode = AerialSettings.nameMode == NameMode.HeroTitle
-                if (heroMode) {
-                    val hero = apps.getOrNull(focusedIndex) ?: apps.firstOrNull()
+                // 极米: 视频壁纸 + 磁贴下沉开启时，名字跟着焦点磁贴走；关了下沉就退回航拍的正常显示。
+                if (heroMode || (videosChosen && AerialSettings.videoSink)) {
+                    val heroIndex = focusedIndex.coerceAtLeast(0)
+                    val hero = apps.getOrNull(heroIndex) ?: apps.firstOrNull()
+                    val heroVisible = if (videosChosen && AerialSettings.videoSink)
+                        focusedRow <= 0 && !vm.screensaverVisible && tileFocused
+                    else
+                        focusedRow <= 0 && !vm.screensaverVisible
                     val heroHere by animateFloatAsState(
-                        if (focusedRow <= 0 && !vm.screensaverVisible) 1f else 0f,
+                        if (heroVisible) 1f else 0f,
                         tween(160, easing = Motion.EaseOut),
                         label = "hero-name",
                     )
                     if (hero != null) {
+                        // 极米: 大字居中在焦点磁贴上：左右以磁贴中心为准，比磁贴宽一点好放下长名字。
+                        val heroW = metrics.tileW + 72.dp
+                        val (heroX, heroY) = with(density) {
+                            val (hx, hy) = metrics.slot(heroIndex, onTop = true)
+                            val up = if (heroIndex < columns) if (heroIndex == focusedIndex) sinkUp else sink else 0.dp
+                            Pair(hx - (heroW - metrics.tileW) / 2, hy + up - HeroNameAbove)
+                        }
+                        val heroAt = with(density) { IntOffset(heroX.roundToPx(), heroY.roundToPx()) }
+                        val heroPos = animateIntOffsetAsState(
+                            heroAt,
+                            spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
+                            label = "hero-pos",
+                        )
                         BasicText(
                             text = hero.label,
-                            style = Type.Title.copy(fontSize = 42.sp, letterSpacing = (-0.02).em),
+                            style = Type.Title.copy(
+                                fontSize = 42.sp,
+                                letterSpacing = (-0.02).em,
+                                textAlign = if (videosChosen && AerialSettings.videoSink) TextAlign.Center else TextAlign.Unspecified,
+                            ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
                                 .align(Alignment.TopStart)
-                                .padding(start = metrics.margin, top = metrics.topRowY - 74.dp)
+                                .then(
+                                    if (videosChosen && AerialSettings.videoSink) Modifier
+                                        .offset { heroPos.value }
+                                        .width(heroW)
+                                    else Modifier.padding(start = metrics.margin, top = metrics.topRowY - 74.dp),
+                                )
                                 .graphicsLayer {
                                     alpha = heroHere * (1f - (scroll.value / collapsePx * 1.6f).coerceIn(0f, 1f))
                                 },
@@ -660,8 +773,10 @@ fun HomeScreen(
 
                 apps.forEachIndexed { index, app ->
                     key(app.key) {
-                        val (x, y) = metrics.slot(index, onTop = focusedRow <= 0)
-                        val slotPx = with(density) { IntOffset(x.roundToPx(), y.roundToPx()) }
+                    val (x, y0) = metrics.slot(index, onTop = focusedRow <= 0)
+                    // 极米: 视频壁纸时第一排沉下去，只有焦点所在的那个升起来；下面的行照旧。
+                    val y = if (index < columns) y0 + (if (index == focusedIndex) sinkUp else sink) else y0
+                    val slotPx = with(density) { IntOffset(x.roundToPx(), y.roundToPx()) }
                         val slot = animateIntOffsetAsState(
                             slotPx,
                             spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
@@ -710,7 +825,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .offset { slot.value }
                                 .then(
-                                    if (hideBelow && index >= COLUMNS) Modifier.graphicsLayer {
+                                    if (hideBelow && index >= columns) Modifier.graphicsLayer {
                                         alpha = (scroll.value / collapsePx * 2.5f).coerceIn(0f, 1f)
                                         // No offscreen buffer: it would clip the focus frame to the tile.
                                         compositingStrategy = CompositingStrategy.ModulateAlpha
@@ -718,21 +833,21 @@ fun HomeScreen(
                                 )
                                 // Into the screensaver, the apps go left to right, sinking a little.
                                 .graphicsLayer {
-                                    val f = ((toSaver.value - 0.05f * (index % COLUMNS)) / 0.6f).coerceIn(0f, 1f)
+                                    val f = ((toSaver.value - 0.05f * (index % columns)) / 0.6f).coerceIn(0f, 1f)
                                     if (f > 0f) {
                                         alpha = 1f - f
                                         translationY = f * 18.dp.toPx()
                                         compositingStrategy = CompositingStrategy.ModulateAlpha
                                     }
                                 },
-                            rowEnd = index % COLUMNS == COLUMNS - 1 || index == apps.lastIndex,
+                            rowEnd = index % columns == columns - 1 || index == apps.lastIndex,
                             // On the glass plate only with every name shown (an earlier build showed
                             // the focused one alone there, but it sat oddly on the glass). In
                             // HeroTitle mode only the top row's are held back: the big name above
                             // stands in for those, while the rows below name the focused app.
-                            showName = if (heroMode) index >= COLUMNS else plate == null || index >= COLUMNS || plateNames,
-                            nameOnPlate = plate != null && index < COLUMNS,
-                            topRow = index < COLUMNS,
+                            showName = if (heroMode) index >= columns else plate == null || index >= columns || plateNames,
+                            nameOnPlate = plate != null && index < columns,
+                            topRow = index < columns,
                         )
                     }
                 }
@@ -776,6 +891,7 @@ fun HomeScreen(
                         .padding(end = 14.dp)
                         .graphicsLayer { alpha = 1f - (scroll.value / collapsePx * 1.6f).coerceIn(0f, 1f) },
                     toSaver = { toSaver.value },
+                    saving = vm.screensaverVisible,
                 )
             }
             StatusPill(
@@ -826,20 +942,37 @@ fun HomeScreen(
             )
         }
 
-        // Once per process, while Home is idle: Control Center drawn for a few frames, nearly
-        // transparent, so that its first opening is not its first draw (see ControlCenter).
+        // Once per process, while Home is idle: Control Center and Personalize are each drawn for a
+        // few frames, nearly transparent and out of the way, so that opening either one is never the
+        // first time its rows, its glass and its pictures are made (see ControlCenter, WallpaperSheet).
         var ccWarm by remember { mutableStateOf(false) }
+        var sheetWarm by remember { mutableStateOf(false) }
         LaunchedEffect(vm.loaded) {
-            if (!vm.loaded || ControlCenterWarmed.done) return@LaunchedEffect
-            while (true) {
-                delay(CC_WARM_AFTER_MS)
-                val idle = SystemClock.uptimeMillis() - vm.lastInputAt > CC_WARM_AFTER_MS
-                if (idle && vm.overlay == Overlay.None && !vm.screensaverVisible && vm.resumed) break
+            if (!vm.loaded) return@LaunchedEffect
+            // Waits for Home to have settled and the remote to be still: the warm-up costs a few
+            // frames of its own and must never be felt.
+            suspend fun waitUntilIdle() {
+                while (true) {
+                    delay(PANEL_WARM_IDLE_MS)
+                    val idle = SystemClock.uptimeMillis() - vm.lastInputAt > PANEL_WARM_IDLE_MS
+                    if (idle && vm.overlay == Overlay.None && !vm.screensaverVisible && vm.resumed) return
+                }
             }
-            ControlCenterWarmed.done = true
-            ccWarm = true
-            repeat(3) { withFrameNanos { } }
-            ccWarm = false
+            suspend fun draw(panel: String, on: (Boolean) -> Unit) {
+                waitUntilIdle()
+                DiagLog.i("warming $panel")
+                on(true)
+                repeat(3) { withFrameNanos { } }
+                on(false)
+            }
+            if (!ControlCenterWarmed.controlCenter) {
+                ControlCenterWarmed.controlCenter = true
+                draw("control center") { ccWarm = it }
+            }
+            if (!ControlCenterWarmed.personalize) {
+                ControlCenterWarmed.personalize = true
+                draw("personalize") { sheetWarm = it }
+            }
         }
         ControlCenter(
             visible = overlay is Overlay.ControlCenter,
@@ -858,7 +991,7 @@ fun HomeScreen(
             enabled = overlay is Overlay.Folder,
             tileW = metrics.tileW,
             tileH = metrics.tileH,
-            columns = COLUMNS,
+            columns = columns,
             onLaunch = onLaunch,
             onLongPress = { app, bounds -> vm.overlay = Overlay.AppMenu(app.key, bounds ?: Rect.Zero, inFolder = openFolder) },
             onDismiss = { vm.overlay = Overlay.None },
@@ -955,6 +1088,7 @@ fun HomeScreen(
 
         WallpaperSheet(
             visible = overlay is Overlay.Wallpaper,
+            warm = sheetWarm,
             onDismiss = { vm.overlay = Overlay.ControlCenter() },
             hiddenCount = vm.hiddenApps.size,
             onHiddenApps = { vm.whenUnlocked { vm.overlay = Overlay.HiddenApps } },
@@ -980,6 +1114,7 @@ fun HomeScreen(
 
         Screensaver(visible = vm.screensaverVisible, apps = apps, now = now, skips = vm.screensaverSkips, carry = when {
                 filmSaver -> SaverCarry.Film(liveFilm)
+                videoSaver -> SaverCarry.Video
                 stillCarry != null -> stillCarry
                 else -> null
             },

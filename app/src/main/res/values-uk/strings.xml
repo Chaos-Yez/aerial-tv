@@ -90,7 +90,7 @@
     <string name="ss_photos">Фото</string>
     <string name="ss_clock">Годинник</string>
     <string name="wp_phone_title">Налаштування з телефона</string>
-    <string name="wp_phone_body">Відскануйте код, щоб надсилати фото як шпалери, відео як динамічні шпалери, змінювати значки застосунків і вибирати місто для погоди з телефона. Телефон і телевізор мають бути в одній мережі.</string>
+    <string name="wp_phone_body">Відскануйте код, щоб надсилати фото як шпалери, змінювати значки застосунків і вибирати місто для погоди з телефона. Телефон і телевізор мають бути в одній мережі.</string>
     <string name="wp_phone_offline">Підключіть телевізор до мережі, щоб налаштувати його з телефона.</string>
     <string name="ss_start">Запустити зараз</string>
     <string name="ss_delay">Запускати через</string>
@@ -130,6 +130,9 @@
     <string name="st_home_layout_hint">«Один ряд» показує на екрані лише верхній ряд, нижче, щоб було видно більше шпалер, наприклад родинного фото. «Два ряди» показує ще верх другого ряду. Натисніть вниз, щоб побачити решту.</string>
     <string name="st_plate">Верхній ряд</string>
     <string name="st_plate_hint">Підкладка з матового скла під верхнім рядом, як на Apple TV, або застосунки просто на шпалерах.</string>
+
+    <string name="st_columns">Плиток у ряду</string>
+    <string name="st_columns_hint">Пʼять, як у tvOS, або шість, сім чи вісім: ряд зберігає свою ширину, а плитки звужуються; ряди нижче йдуть за ним.</string>
     <string name="st_plate_glass">Скло</string>
     <string name="st_plate_none">Немає</string>
     <string name="st_sounds">Звуки</string>
@@ -139,6 +142,8 @@
     <string name="st_sounds_aerial">Aerial</string>
     <string name="st_on">Увімк.</string>
     <string name="st_off">Вимк.</string>
+    <string name="st_yes">Так</string>
+    <string name="st_no">Ні</string>
     <string name="st_hidden_apps">Приховані застосунки</string>
     <string name="st_hidden_apps_hint">Застосунки, приховані з головного екрана, зберігаються тут, щоб їх можна було повернути. Якщо задано батьківський PIN-код, спочатку його буде запитано.</string>
     <string name="st_hidden_none">Немає</string>
@@ -260,16 +265,24 @@
     <string name="ss_videos_hint">Додайте MP4 або MOV зі сторінки на телефоні. Перегляд без мережі; якщо відео недоступні, показуються фото.</string>
     <string name="ss_system">Системна</string>
     <string name="ss_system_hint">Заставка самого телевізора, як задумав виробник (наприклад, картини Xiaomi). Aerial свою не показує.</string>
-    <string name="wp_video_title">Динамічні шпалери</string>
-    <string name="wp_video_after_idle">Запуск після 10 с спокою</string>
-    <string name="wp_video_idle_hint">Як повітряні фільми: шпалери починаються після десяти секунд спокою і зупиняються на наступному натисканні.</string>
-    <string name="wp_video_note">Ваше власне відео грає за робочим столом і повторюється. Відскануйте код праворуч, щоб надіслати його з телефона.</string>
-    <string name="wp_video_mode">Відтворення</string>
-    <string name="wp_video_sound">Звук</string>
-    <string name="wp_video_on">Увімк.</string>
-    <string name="wp_video_off">Вимк.</string>
-    <string name="wp_video_pause">Пауза на плитках</string>
-    <string name="wp_video_always">Грати завжди</string>
-    <string name="wp_video_sound_on">Звук увімк.</string>
-    <string name="wp_video_sound_off">Звук вимк.</string>
+    <string name="wp_videos_note">Ваші відео, надіслані з телефона: без звуку, одне за одним. Рухаються як аерозйомка і зупиняються на поточному кадрі.</string>
+    <string name="wp_source_note">Жива картинка цього входу за головним екраном, без звуку; звук є, якщо відкрити сам вхід. Біля застосунків нижче тло стає матовим. Поки картинки немає, видно темне тло.</string>
+    <string name="st_play">Відтворення</string>
+    <string name="st_play_still">У спокої</string>
+    <string name="st_play_always">Завжди</string>
+    <string name="st_play_hint">У спокої: через 10 секунд на верхньому ряду; будь-яка кнопка зупиняє. Завжди: кнопки не зупиняють, тло трохи затемнене; зупиняється, коли ви переходите до застосунків нижче.</string>
+
+    <string name="st_video_pause">Пауза на плитках</string>
+    <string name="st_video_always">Завжди</string>
+    <string name="st_video_idle">Через 10 с спокою</string>
+    <string name="st_video_play_hint">Пауза на плитках: відео зупиняється, щойно ви переходите до плиток, і продовжується через мить після останнього натискання. Завжди: клавіші не зупиняють. Через 10 с спокою: як аерозйомка, починається після 10 секунд спокою і зупиняється при натисканні.</string>
+    <string name="st_video_sound">Звук</string>
+    <string name="st_video_sound_hint">Звук самих відео. Він плавно з’являється при запуску і затихає при зупинці; при повторі звук не змінюється. Відео зі звуком потребує більше сил, ніж беззвучне.</string>
+
+    <string name="st_video_volume">Гучність шпалер</string>
+    <string name="st_video_volume_hint">Наскільки гучно: десять кроків, кожен — десята частина звуку. Клавіші вліво і вправо змінюють на один крок, натискання підвищує на крок і йде по колу.</string>
+    <string name="st_video_sink">Опускання плиток</string>
+    <string name="st_video_sink_hint">Коли шпалерами вибрано ваші відео, верхній ряд опускається, відкриваючи більше кадру; сфокусована плитка піднімається. Вимк. — Home як з аерозйомкою.</string>
+    <string name="ss_show_time">Час</string>
+    <string name="ss_show_time_hint">Час на заставках з аерозйомкою і фото. Час і назва місця час від часу трохи зсуваються, щоб екран не вигорав.</string>
 </resources>

@@ -90,7 +90,7 @@
     <string name="ss_photos">Фотолар</string>
     <string name="ss_clock">Сағат</string>
     <string name="wp_phone_title">Телефоннан баптау</string>
-    <string name="wp_phone_body">Фотоларды түсқағаз ретінде, бейнелерді динамикалық түсқағаз ретінде жіберу, қолданба белгішелерін өзгерту және ауа райына арналған қаланы телефоннан орнату үшін кодты сканерлеңіз. Телефон мен теледидар бір желіде болуы керек.</string>
+    <string name="wp_phone_body">Фотоларды түсқағаз ретінде жіберу, қолданба белгішелерін өзгерту және ауа райына арналған қаланы телефоннан орнату үшін кодты сканерлеңіз. Телефон мен теледидар бір желіде болуы керек.</string>
     <string name="wp_phone_offline">Телефоннан баптау үшін теледидарды желіге қосыңыз.</string>
     <string name="ss_start">Қазір бастау</string>
     <string name="ss_delay">Бастау уақыты</string>
@@ -130,6 +130,9 @@
     <string name="st_home_layout_hint">«Бір қатар» экранда тек жоғарғы қатарды төменірек көрсетеді, сонда түсқағаздың, мысалы отбасылық фотоның, көбірек бөлігі көрінеді. «Екі қатар» екінші қатардың жоғарғы жағын да көрсетеді. Қалғанын көру үшін төмен басыңыз.</string>
     <string name="st_plate">Жоғарғы қатар</string>
     <string name="st_plate_hint">Жоғарғы қатардың астындағы күңгірт шыны тақта, Apple TV сияқты, немесе қолданбалар тікелей түсқағазда.</string>
+
+    <string name="st_columns">Қатардағы плиткалар</string>
+    <string name="st_columns_hint">tvOS-тегідей бес, немесе алты, жеті не сегіз: қатар енін сақтайды, плиткалар тарылады, төменгі қатарлар да соған ілеседі.</string>
     <string name="st_plate_glass">Шыны</string>
     <string name="st_plate_none">Жоқ</string>
     <string name="st_sounds">Дыбыстар</string>
@@ -139,6 +142,8 @@
     <string name="st_sounds_aerial">Aerial</string>
     <string name="st_on">Қосулы</string>
     <string name="st_off">Өшірулі</string>
+    <string name="st_yes">Иә</string>
+    <string name="st_no">Жоқ</string>
     <string name="st_hidden_apps">Жасырын қолданбалар</string>
     <string name="st_hidden_apps_hint">Басты экраннан жасырылған қолданбалар қайтару үшін осында сақталады. Ата-аналық PIN-код орнатылған болса, алдымен сол сұралады.</string>
     <string name="st_hidden_none">Жоқ</string>
@@ -260,16 +265,24 @@
     <string name="ss_videos_hint">Телефон бетінен MP4 немесе MOV қосыңыз. Интернетсіз ойнатылады; бейне болмаса, фотолар көрсетіледі.</string>
     <string name="ss_system">Жүйелік</string>
     <string name="ss_system_hint">Теледидардың өз экран сақтағышы (мысалы, Xiaomi суреттері). Aerial өзінікін көрсетпейді.</string>
-    <string name="wp_video_title">Динамикалық тіндер</string>
-    <string name="wp_video_after_idle">10 с тыныштықтан кейін ойнату</string>
-    <string name="wp_video_idle_hint">Ауа фильмдері сияқты: тіндер он секунд тыныштықтан кейін басталады және келесі басуда тоқтайды.</string>
-    <string name="wp_video_note">Сіздің өз бейнеңіз жұмыс үстелінің артында қайталанып ойнады. Оң жақтағы кодты сканерлеп, телефоннан жіберіңіз.</string>
-    <string name="wp_video_mode">Ойнату</string>
-    <string name="wp_video_sound">Дыбыс</string>
-    <string name="wp_video_on">Қосу</string>
-    <string name="wp_video_off">Өшіру</string>
-    <string name="wp_video_pause">Плиткада күйгірту</string>
-    <string name="wp_video_always">Үнемі ойнату</string>
-    <string name="wp_video_sound_on">Дыбыс қосулы</string>
-    <string name="wp_video_sound_off">Дыбыс өшірулі</string>
+    <string name="wp_videos_note">Телефоннан жіберілген өз бейнелеріңіз: дыбыссыз, бірінен соң бірі. Аэрожиын сияқты қозғалады және ағымдағы кадрда тоқтайды.</string>
+    <string name="wp_source_note">Осы кірістің басты экран артындағы тірі суреті, дыбыссыз; дыбыс үшін кірістің өзін ашыңыз. Төмендегі қолданбаларда күңгірт фонға ауысады. Сурет жоқ кезде қараңғы фон көрінеді.</string>
+    <string name="st_play">Ойнату</string>
+    <string name="st_play_still">Тыныштықта</string>
+    <string name="st_play_always">Әрдайым</string>
+    <string name="st_play_hint">Тыныштықта: жоғарғы қатарда 10 секундтан кейін; кез келген түйме тоқтатады. Әрдайым: түймелер тоқтатпайды, фон сәл күңгірттенеді; төмендегі қолданбаларға өткенде тоқтайды.</string>
+
+    <string name="st_video_pause">Плиткаларда кідірту</string>
+    <string name="st_video_always">Әрдайым</string>
+    <string name="st_video_idle">10 с тыныштықтан кейін</string>
+    <string name="st_video_play_hint">Плиткаларда кідірту: плиткаларға өткенде видео тоқтайды да, соңғы пернеден кейін біраз уақыттан соң жалғасады. Әрдайым: пернелер тоқтатпайды. 10 с тыныштықтан кейін: аэротүсірілім сияқты, 10 секунд тыныштықтан кейін басталып, перне басқанда тоқтайды.</string>
+    <string name="st_video_sound">Дыбыс</string>
+    <string name="st_video_sound_hint">Видеоның өз дыбысы. Қосылғанда біртіндеп естіліп, тоқтағанда біртіндеп өшеді; қайталағанда дыбыс өзгермейді. Дыбысы бар видео дыбыссыздан көбірек күш қажет етеді.</string>
+
+    <string name="st_video_volume">Тұсқағаз дыбысы</string>
+    <string name="st_video_volume_hint">Қаншалықты қатты: он қадам, әрқайсысы дыбыстың оннан бір бөлігі. Солға және оңға пернелері бір қадамға өзгертеді, басу бір қадамға арттырып, шеңбер бойымен жалғастырады.</string>
+    <string name="st_video_sink">Плиткаларды төмендету</string>
+    <string name="st_video_sink_hint">Өз видеоларыңыз тұсқағаз ретінде таңдалса, жоғарғы қатар төмендеп, көбірек кадр көрсетеді; фокусталған плитка көтеріледі. Өшірулі — Home әуе түсірілімі сияқты.</string>
+    <string name="ss_show_time">Уақыт</string>
+    <string name="ss_show_time_hint">Аэрожиын және фото экран қорғауыштарындағы уақыт. Экран күйіп қалмас үшін уақыт пен орын атауы анда-санда сәл жылжиды.</string>
 </resources>

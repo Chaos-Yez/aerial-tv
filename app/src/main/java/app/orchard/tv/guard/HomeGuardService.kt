@@ -44,12 +44,13 @@ import app.orchard.tv.system.SystemProbe
  * press on the TV detours through this service; some apps then see a press as held and move twice
  * (云视听小电视 on Xiaomi MiTV-MFTR0, reported by a user and gone once Aerial was uninstalled).
  *
- * Up to Android 6, where Xiaomi's PatchWall raises no accessibility event at all, the app in front
- * is also read from usage stats once a second (see foregroundCheck).
+ * Where the stock launcher raises no accessibility event at all (Xiaomi's PatchWall up to Android
+ * 6, Hisense VIDAA's 聚好看), the app in front is also read from usage stats once a second (see
+ * foregroundCheck).
  *
  * Both only act while Aerial is not the resolved HOME app; once it is, the system does the work.
- * The service reads window-change events and, up to Android 6, which app is in front; it never
- * reads screen content.
+ * The service reads window-change events and, on those TVs, which app is in front; it never reads
+ * screen content.
  */
 class HomeGuardService : AccessibilityService() {
 
@@ -332,8 +333,13 @@ class HomeGuardService : AccessibilityService() {
         GuardSetup.ensureAdb(this)
         // Not only at boot: a guard switched on later was just as deaf, for good, until Aerial was
         // stopped or accessibility switched off and on (MiTV4-ANSM0, issue #381).
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
-            handler.postDelayed(deafCheck, DEAF_AFTER_MS)
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) handler.postDelayed(deafCheck, DEAF_AFTER_MS)
+        // Hisense VIDAA's own launcher (聚好看, com.jamdeo.tv.vod) raises no window change to
+        // third-party services on any version seen, while other apps' events arrive; usage stats
+        // record its moves to the front as on PatchWall (Vidda C1S, MT9669, Android 9, PR #545,
+        // checked by the author with a local build). Only where that launcher is a stock home, so
+        // other TVs past Android 6 are not polled.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M || VIDAA_LAUNCHER in stockHomes) {
             handler.removeCallbacks(foregroundCheck)
             if (usageStatsAllowed(this)) handler.post(foregroundCheck)
             else Log.i(TAG, "usage stats not allowed; not watching the front by them")
@@ -532,7 +538,7 @@ class HomeGuardService : AccessibilityService() {
                 homeHeld = true
                 lastHomeUpAt = Long.MIN_VALUE / 2
                 Log.i(TAG, "Home pressed twice; opening recent apps")
-                performGlobalAction(GLOBAL_ACTION_RECENTS)
+                openRecents()
                 return true
             }
             handler.postDelayed(homeHold, ViewConfiguration.getLongPressTimeout().toLong())
@@ -702,6 +708,21 @@ class HomeGuardService : AccessibilityService() {
     private val homeHold = Runnable {
         homeHeld = true
         Log.i(TAG, "Home held; opening recent apps")
+        openRecents()
+    }
+
+    /**
+     * The task centre Home opens. Dangbei OS (D5X Pro, Android 9) keeps its own recents app for the
+     * remote's D-pad and leaves SystemUI's in place behind it, so the global action still opens the one
+     * the remote cannot drive: start the vendor activity when the set has one, else the system's.
+     */
+    private fun openRecents() {
+        for (action in TASK_CENTRE_ACTIONS) {
+            val intent = Intent(action)
+                .addCategory(Intent.CATEGORY_DEFAULT)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (runCatching { startActivity(intent) }.isSuccess) return
+        }
         performGlobalAction(GLOBAL_ACTION_RECENTS)
     }
 
@@ -744,7 +765,15 @@ class HomeGuardService : AccessibilityService() {
                 return
             }
             // One Home press shows two window changes 0.2 s apart (MiTV-MFTR0); one start will do.
-            if (SystemClock.uptimeMillis() - broughtBackAt < 1_000) return
+            // Yet a second press can come that soon, and then no window changes again: look once
+            // more after the second (Coocaa C10, Android 9: Home pressed 0.39 s after Aerial was
+            // back left the stock launcher in front for good, issue #487).
+            val since = SystemClock.uptimeMillis() - broughtBackAt
+            if (since < 1_000) {
+                handler.removeCallbacks(stockHomeRecheck)
+                handler.postDelayed(stockHomeRecheck, 1_000 - since + 300)
+                return
+            }
             Log.i(TAG, "stock home $pkg came to the front; bringing Aerial back")
             // Shortly after the screen lit, this is the wake itself (issue #111).
             goHome(woke = SystemClock.elapsedRealtime() - screenOnAt < WAKE_WINDOW_MS)
@@ -830,6 +859,26 @@ class HomeGuardService : AccessibilityService() {
     /** When goHome last started Aerial. */
     private var broughtBackAt = Long.MIN_VALUE / 2
 
+    /** The stock launcher's home screen came up just after Aerial was brought back; is it still there? */
+    private val stockHomeRecheck: Runnable = Runnable {
+        // Whether Aerial is in front, from Aerial itself: the window changes of the two starts can
+        // arrive in either order, and Aerial's came last with PatchWall on top (MiTV-MFTR0).
+        if (aerialResumed || SystemClock.uptimeMillis() < allowStockUntil) return@Runnable
+        val since = SystemClock.uptimeMillis() - broughtBackAt
+        if (since < 1_000) return@Runnable
+        // Unless the viewer has opened an app since.
+        val front = lastWindow?.first
+        if (front != null && front != packageName && front !in stockHomes) return@Runnable
+        // Up to Android 11, a Home the system handled itself holds app starts back for 5 s, and the
+        // start is still to come (TCL MT5879): look once more after that rather than start twice.
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R && aerialResumedAt < broughtBackAt && since < APP_SWITCH_HOLD_MS) {
+            handler.postDelayed(stockHomeRecheck, APP_SWITCH_HOLD_MS - since)
+            return@Runnable
+        }
+        Log.i(TAG, "the stock launcher came back just after Aerial did; bringing Aerial back again")
+        goHome()
+    }
+
     private fun goHome(woke: Boolean = false) {
         if (!GuardSetup.isUserUnlocked(this)) return
         // Starting an activity can light the screen: on OPPO K9 the TV came back on by itself a few
@@ -863,6 +912,12 @@ class HomeGuardService : AccessibilityService() {
         /** How far back to look for the front when no window has been seen; see frontByUsage. */
         private const val UNKNOWN_FRONT_LOOKBACK_MS = 6 * 60 * 60 * 1000L
         private const val DOUBLE_HOME_MS = 400L
+        /** Android's hold on app starts after Home (stopAppSwitches), with a margin. */
+        private const val APP_SWITCH_HOLD_MS = 5_500L
+        /** Hisense VIDAA's launcher, invisible to window changes; see foregroundCheck. */
+        private const val VIDAA_LAUNCHER = "com.jamdeo.tv.vod"
+        /** Actions the firmware's own task centre answers, tried in order before SystemUI's recents. */
+        private val TASK_CENTRE_ACTIONS = listOf("com.dangbei.recentstask.action.SHOW_RECENTS_FOR_USER")
         private const val VOLUME_REPEAT_MAX_MS = 8_000L
         private val VOLUME_KEYS = setOf(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE)
 
@@ -983,9 +1038,14 @@ class HomeGuardService : AccessibilityService() {
         @Volatile
         private var aerialResumed = false
 
+        /** When Aerial last came to the front, in uptime. */
+        @Volatile
+        private var aerialResumedAt = Long.MIN_VALUE / 2
+
         /** Called when Aerial comes back to the front: the stock launcher is fair game again. */
         fun onAerialResumed() {
             aerialResumed = true
+            aerialResumedAt = SystemClock.uptimeMillis()
             val s = instance ?: return
             // Back in Aerial: an installer opened from Control Center was left without updating.
             GuardSetup.installerJustClosed(s)

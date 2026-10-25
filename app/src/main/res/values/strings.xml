@@ -103,7 +103,7 @@
     <string name="ss_photos">Photos</string>
     <string name="ss_clock">Clock</string>
     <string name="wp_phone_title">Set up with your phone</string>
-    <string name="wp_phone_body">Scan to send photos as wallpapers, videos as dynamic wallpapers, change app icons and set the weather\'s city from your phone. Phone and TV must be on the same network.</string>
+    <string name="wp_phone_body">Scan to send photos as wallpapers, change app icons and set the weather\'s city from your phone. Phone and TV must be on the same network.</string>
     <string name="wp_phone_offline">Connect the TV to a network to set up with your phone.</string>
     <string name="ss_start">Start Now</string>
     <string name="ss_delay">Start after</string>
@@ -143,6 +143,9 @@
     <string name="st_home_layout_hint">One Row puts only the top row on screen, low down, so more of the wallpaper shows, a family photo say. Two Rows shows the top of the second row too. Press down for the rest.</string>
     <string name="st_plate">Top Row</string>
     <string name="st_plate_hint">A plate of frosted glass under the top row, as on Apple TV, or the apps straight on the wallpaper.</string>
+
+    <string name="st_columns">Tiles in a row</string>
+    <string name="st_columns_hint">Five, as tvOS has it, or six, seven or eight: the row keeps its width and the tiles narrow to fit, and the rows below follow.</string>
     <string name="st_plate_glass">Glass</string>
     <string name="st_plate_none">None</string>
     <string name="st_sounds">Sounds</string>
@@ -152,6 +155,8 @@
     <string name="st_sounds_aerial">Aerial</string>
     <string name="st_on">On</string>
     <string name="st_off">Off</string>
+    <string name="st_yes">Yes</string>
+    <string name="st_no">No</string>
     <string name="st_hidden_apps">Hidden Apps</string>
     <string name="st_hidden_apps_hint">Apps hidden from Home are kept here, to put back. With a parental PIN set, it asks for the PIN first.</string>
     <string name="st_hidden_none">None</string>
@@ -273,16 +278,24 @@
     <string name="ss_videos_hint">Add MP4 or MOV films from the phone page. Plays offline; photos are shown when no film can play.</string>
     <string name="ss_system">System</string>
     <string name="ss_system_hint">The TV\'s own screensaver, as it came with the TV: XGIMI\'s scenes on a projector, Xiaomi\'s pictures on a Mi TV. Aerial shows none of its own.</string>
-    <string name="wp_video_title">Dynamic wallpaper</string>
-    <string name="wp_video_after_idle">Play after 10s still</string>
-    <string name="wp_video_idle_hint">Like the aerial films: the wallpaper starts after Home has sat still for ten seconds, and stops at the next key press.</string>
-    <string name="wp_video_note">Your own film, played behind Home and repeated. Scan the code on the right to send one from your phone.</string>
-    <string name="wp_video_mode">Playback</string>
-    <string name="wp_video_sound">Sound</string>
-    <string name="wp_video_on">On</string>
-    <string name="wp_video_off">Off</string>
-    <string name="wp_video_pause">Pause on tiles</string>
-    <string name="wp_video_always">Always play</string>
-    <string name="wp_video_sound_on">Sound on</string>
-    <string name="wp_video_sound_off">Sound off</string>
+    <string name="wp_videos_note">Your own videos, sent from the phone, silent and one after another. They move like the aerial films and stop on the frame showing.</string>
+    <string name="wp_source_note">This input\'s live picture behind Home, without sound; open the input for sound. Going down to the apps, it gives way to a frosted background. A dark picture shows while the input has nothing to show.</string>
+    <string name="st_play">Playing</string>
+    <string name="st_play_still">When still</string>
+    <string name="st_play_always">Always</string>
+    <string name="st_play_hint">When still: after 10 seconds on the top row; a key stops it. Always: keys do not stop it, and it is shaded a little; it stops when you go down to the apps.</string>
+
+    <string name="st_video_pause">Pause on tiles</string>
+    <string name="st_video_always">Always</string>
+    <string name="st_video_idle">After 10 s still</string>
+    <string name="st_video_play_hint">Pause on tiles: they stop as soon as the tiles are being worked with, and start again a moment after the last key. Always: keys do not stop them. After 10 s still: as the aerial films, they start once Home has sat still for 10 seconds and stop at the next key.</string>
+    <string name="st_video_sound">Sound</string>
+    <string name="st_video_sound_hint">Your own videos’ sound. It fades in as they start and out as they stop; going round again keeps it as it is. A film with its sound costs more than a silent one.</string>
+
+    <string name="st_video_volume">Wallpaper volume</string>
+    <string name="st_video_volume_hint">How loud they are, in ten steps: a tenth of their sound each. Left and right take it a step; pressing it takes it up a step and round again.</string>
+    <string name="st_video_sink">Tile sink</string>
+    <string name="st_video_sink_hint">When your own videos are the wallpaper, the top row sinks so more of the film shows; the focused tile rises. Off, and Home sits as it does with the aerial films.</string>
+    <string name="ss_show_time">Time</string>
+    <string name="ss_show_time_hint">The time over the aerial and photo screensavers. The time and place name move a little now and then, so nothing stays on the same pixels.</string>
 </resources>

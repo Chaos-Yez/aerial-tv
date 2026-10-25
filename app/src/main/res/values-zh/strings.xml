@@ -102,7 +102,7 @@
     <string name="ss_photos">照片</string>
     <string name="ss_clock">时钟</string>
     <string name="wp_phone_title">用手机设置</string>
-    <string name="wp_phone_body">扫码后在手机上发照片当壁纸、发视频当动态壁纸、更换 App 图标、设置天气城市。手机和电视需连接同一网络。</string>
+    <string name="wp_phone_body">扫码后在手机上发照片当壁纸、更换 App 图标、设置天气城市。手机和电视需连接同一网络。</string>
     <string name="wp_phone_offline">电视联网后即可用手机设置。</string>
     <string name="ss_start">立即开始</string>
     <string name="ss_delay">开始时间</string>
@@ -142,6 +142,9 @@
     <string name="st_home_layout_hint">单排：只显示第一排，放在屏幕下方，露出更多壁纸，比如家庭合照。双排：下面露出第二排。按下键看其余 App。</string>
     <string name="st_plate">第一排底板</string>
     <string name="st_plate_hint">第一排下面垫一块磨砂玻璃，像 Apple TV 一样；或者让 App 直接放在壁纸上。</string>
+
+    <string name="st_columns">第一排磁贴数量</string>
+    <string name="st_columns_hint">5 个（和 Apple TV 一样）、6、7 或 8 个：一排的宽度不变，磁贴按比例缩窄，下面几排的列数也跟着变。</string>
     <string name="st_plate_glass">玻璃</string>
     <string name="st_plate_none">不显示</string>
     <string name="st_sounds">按键声音</string>
@@ -151,6 +154,8 @@
     <string name="st_sounds_aerial">Aerial</string>
     <string name="st_on">开</string>
     <string name="st_off">关</string>
+    <string name="st_yes">是</string>
+    <string name="st_no">否</string>
     <string name="st_hidden_apps">隐藏的 App</string>
     <string name="st_hidden_apps_hint">从主屏幕隐藏的 App 在这里，可以放回主屏幕。设了家长密码时要先输入密码。</string>
     <string name="st_hidden_none">没有</string>
@@ -272,16 +277,24 @@
     <string name="ss_videos_hint">扫码从手机添加 MP4 或 MOV 视频，离线轮播；没有可播放的视频时显示照片。</string>
     <string name="ss_system">系统内置</string>
     <string name="ss_system_hint">用电视自带的屏保：极米的动态屏保、小米的画面等；Aerial 不再显示自己的屏保。</string>
-    <string name="wp_video_title">动态壁纸</string>
-    <string name="wp_video_after_idle">静止10秒后播放</string>
-    <string name="wp_video_idle_hint">和航拍壁纸一样：主屏静止 10 秒后开始播放，按任意键停下。</string>
-    <string name="wp_video_note">你自己上传的视频，在桌面后面循环播放。扫码从手机发送一个。</string>
-    <string name="wp_video_mode">播放方式</string>
-    <string name="wp_video_sound">声音</string>
-    <string name="wp_video_on">开</string>
-    <string name="wp_video_off">关</string>
-    <string name="wp_video_pause">切磁贴暂停</string>
-    <string name="wp_video_always">一直播放</string>
-    <string name="wp_video_sound_on">声音 开</string>
-    <string name="wp_video_sound_off">声音 关</string>
+    <string name="wp_videos_note">你从手机发来的视频，静音、一个接一个播放。和航拍一样会动，按键时停在当前画面。</string>
+    <string name="wp_source_note">这个信号源的实时画面，没有声音，打开这个信号源才有声音。往下选 App 时换成磨砂背景；没有画面时显示深色背景。</string>
+    <string name="st_play">播放</string>
+    <string name="st_play_still">静止时</string>
+    <string name="st_play_always">一直</string>
+    <string name="st_play_hint">静止时：在第一排停 10 秒后播放，按键停下。一直：按键不停，背景压暗一点；进入下面的 App 时停下。</string>
+
+    <string name="st_video_pause">切磁贴暂停</string>
+    <string name="st_video_always">一直播放</string>
+    <string name="st_video_idle">静止 10 秒后播放</string>
+    <string name="st_video_play_hint">切磁贴暂停：一动磁贴就停，停手片刻后继续。一直播放：按键不停。静止 10 秒后播放：跟航拍壁纸一样，静止 10 秒后开始，按键停下。</string>
+    <string name="st_video_sound">声音</string>
+    <string name="st_video_sound_hint">视频自己的声音。开始播放时淡入，停止时淡出；循环回到开头时不淡入也不淡出。带声音播放比静音更占性能。</string>
+
+    <string name="st_video_volume">壁纸音量</string>
+    <string name="st_video_volume_hint">声音大小，共 10 档，一档 10%。左右键调一档，按中间键往上加一档，到顶后回到第一档。</string>
+    <string name="st_video_sink">磁贴下沉</string>
+    <string name="st_video_sink_hint">选用「我的视频」当壁纸时，第一排磁贴下沉以露出更多画面，焦点磁贴升起。选「否」则与航拍壁纸一样正常显示。</string>
+    <string name="ss_show_time">时间</string>
+    <string name="ss_show_time_hint">航拍和照片屏保上的时间。时间和地名会不时挪一点位置，避免烧屏。</string>
 </resources>

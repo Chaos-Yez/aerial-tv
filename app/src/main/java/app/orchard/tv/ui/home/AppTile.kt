@@ -105,6 +105,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 // D-pad remotes give no tilt to follow, so the lift itself has to read from across the room.
@@ -441,16 +442,38 @@ fun AppTile(
                     scale(size.width / pw, size.height / ph, pivot = Offset.Zero) {
                         val made = face(pw, ph)
                         if (made != null) drawImage(made)
-                        else drawImage(art.back, dstSize = IntSize(pw, ph), filterQuality = FilterQuality.Medium)
+                        else {
+                            // The artwork keeps its shape: it fills the tile by its height and is
+                            // cut to the tile's width, the middle of it kept, so a narrower tile
+                            // shows less of the picture rather than a squashed one.
+                            val s = max(pw / art.back.width.toFloat(), ph / art.back.height.toFloat())
+                            val sw = (pw / s).roundToInt().coerceAtMost(art.back.width)
+                            val sh = (ph / s).roundToInt().coerceAtMost(art.back.height)
+                            drawImage(
+                                art.back,
+                                srcOffset = IntOffset((art.back.width - sw) / 2, (art.back.height - sh) / 2),
+                                srcSize = IntSize(sw, sh),
+                                dstSize = IntSize(pw, ph),
+                                filterQuality = FilterQuality.Medium,
+                            )
+                        }
                         art.fore?.let { fore ->
                             val at = art.foreAt
                             // Parallax: the logo travels further than the plate when the tile leans.
                             val px = if (lite) 0f else leanY.value / 7f * pw * 0.035f
                             val py = if (lite) 0f else -leanX.value / 7f * ph * 0.035f
+                            // The logo is its own layer, and it keeps its shape and its size: it
+                            // goes by the tile's height, which the row's count never changes, and
+                            // sits in the middle of the tile however narrow the row makes it. It
+                            // went by the width too before, which squashed it at six, seven or
+                            // eight in a row.
+                            val lh = at.height * ph
+                            val lw = (at.width * ph * art.back.width.toFloat() / art.back.height.toFloat())
+                                .coerceAtMost(pw.toFloat())
                             drawImage(
                                 fore,
-                                dstOffset = IntOffset((at.left * pw + px).roundToInt(), (at.top * ph + py).roundToInt()),
-                                dstSize = IntSize((at.width * pw).roundToInt(), (at.height * ph).roundToInt()),
+                                dstOffset = IntOffset(((pw - lw) / 2 + px).roundToInt(), (at.top * ph + py).roundToInt()),
+                                dstSize = IntSize(lw.roundToInt(), lh.roundToInt()),
                                 filterQuality = FilterQuality.Medium,
                             )
                         }
@@ -603,7 +626,8 @@ object TileFaces {
      */
     suspend fun prepare(arts: List<TileArt>, screenW: Int, density: Float, focused: Boolean = false) = coroutineScope {
         val tileW = restTileWidth((screenW / density).dp).value * density
-        val tileH = tileW * 9f / 16f
+        // The row's count narrows the tiles; their height is the one the row comes with, always.
+        val tileH = restTileHeight((screenW / density).dp).value * density
         val w = tileW.roundToInt()
         val h = tileH.roundToInt()
         val fw = if (focused) focusedPx(tileW) else w
@@ -636,7 +660,15 @@ private fun tileFace(back: ImageBitmap, w: Int, h: Int, radius: Float, rimWidth:
     android.graphics.Canvas(bitmap).apply {
         val fill = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
             shader = BitmapShader(src, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
-                .apply { setLocalMatrix(Matrix().apply { setScale(w.toFloat() / src.width, h.toFloat() / src.height) }) }
+                .apply {
+                    setLocalMatrix(Matrix().apply {
+                        // Kept in shape, as AppTile draws it: filled by height and cut to the width,
+                        // the middle kept. A tile narrowed by the row's count crops, never squashes.
+                        val s = max(w.toFloat() / src.width, h.toFloat() / src.height)
+                        setScale(s, s)
+                        postTranslate((w.toFloat() - src.width * s) / 2f, (h.toFloat() - src.height * s) / 2f)
+                    })
+                }
         }
         drawPath(smoothRectPath(Rect(0f, 0f, w.toFloat(), h.toFloat()), radius).asAndroidPath(), fill)
         drawBitmap(tileRim(w, h, radius, rimWidth, RIM_AT_REST).asAndroidBitmap(), 0f, 0f, null)

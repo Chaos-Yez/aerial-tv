@@ -251,6 +251,7 @@ fun WallpaperSheet(
                             listOf(
                                 PlateMode.Live to R.string.st_plate_live,
                                 PlateMode.Still to R.string.st_plate_still,
+                                PlateMode.All to R.string.st_plate_all,
                                 PlateMode.None to R.string.st_plate_none,
                             ),
                             AerialSettings.plateMode, AerialSettings::choosePlateMode,

@@ -99,6 +99,7 @@ import app.orchard.tv.ui.theme.Palette
 import app.orchard.tv.ui.theme.Type
 import app.orchard.tv.update.Updates
 import app.orchard.tv.wallpaper.PhoneServer
+import app.orchard.tv.wallpaper.Wallpapers
 import java.time.LocalDateTime
 
 /**
@@ -246,6 +247,8 @@ private fun MainPage(vm: HomeViewModel, now: LocalDateTime, takeFocus: Boolean, 
                     onOpen(pages.first())
                 }
             }
+            // 随机一张：从必应历史图库随机取一张老照片设为壁纸（与「个性化」里的随机一张同一逻辑）。
+            RoundButton(Glyph.Photo, stringResource(R.string.wp_random), focusRequester = first) { Wallpapers.fetchRandomDailyNow() }
             RoundButton(Glyph.Gear, stringResource(R.string.cc_settings)) { vm.whenUnlocked { onOpen(SystemProbe.settingsIntent(context)) } }
         }
 

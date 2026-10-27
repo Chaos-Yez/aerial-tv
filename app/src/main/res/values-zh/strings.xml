@@ -101,13 +101,16 @@
     <string name="ss_aerial">航拍</string>
     <string name="ss_photos">照片</string>
     <string name="ss_clock">时钟</string>
-    <string name="wp_phone_title">用手机设置</string>
-    <string name="wp_phone_body">扫码后在手机上发照片当壁纸、更换 App 图标、设置天气城市。手机和电视需连接同一网络。</string>
-    <string name="wp_phone_offline">电视联网后即可用手机设置。</string>
+    <string name="wp_phone_title">用手机或电脑设置</string>
+    <string name="wp_phone_body">扫码，或在电脑浏览器打开下面的地址，可以发照片和视频、更换 App 图标、设置天气城市。需要和电视连接同一网络。</string>
+    <string name="wp_phone_offline">电视联网后即可用手机或电脑设置。</string>
     <string name="ss_start">立即开始</string>
     <string name="ss_delay">开始时间</string>
     <string name="ss_minutes">%d 分钟</string>
     <string name="ss_never">从不</string>
+    <string name="ss_delay_system">跟随系统</string>
+    <string name="ss_delay_system_off">跟随系统 · 已关闭</string>
+    <string name="ss_delay_system_minutes">跟随系统 · %d 分钟</string>
     <string name="ss_back_hint">提示：在主页第一行按返回键，也可以立即开始屏保。</string>
     <string name="ss_back">返回键</string>
     <string name="ss_back_on">开始屏保</string>
@@ -278,11 +281,13 @@
     <string name="ss_system">系统内置</string>
     <string name="ss_system_hint">用电视自带的屏保：极米的动态屏保、小米的画面等；Aerial 不再显示自己的屏保。</string>
     <string name="wp_videos_note">你从手机发来的视频，静音、一个接一个播放。和航拍一样会动，按键时停在当前画面。</string>
-    <string name="wp_source_note">这个信号源的实时画面，没有声音，打开这个信号源才有声音。往下选 App 时换成磨砂背景；没有画面时显示深色背景。</string>
+    <string name="wp_source_note">这个信号源的画面，全屏、一直播放，按键不再打断。进入屏保时停下，屏保结束后 3 秒自动接回；没有画面时显示深色背景。</string>
     <string name="st_play">播放</string>
     <string name="st_play_still">静止时</string>
     <string name="st_play_always">一直</string>
     <string name="st_play_hint">静止时：在第一排停 10 秒后播放，按键停下。一直：按键不停，背景压暗一点；进入下面的 App 时停下。</string>
+    <string name="st_source_play_hint">信号源的画面一直播放，按键不会打断。进入屏保时停下，屏保结束后 3 秒自动接回。</string>
+    <string name="st_source_sink_hint">用信号源的画面当壁纸时，第一排磁贴下沉以露出更多画面，焦点磁贴升起。选「否」则与航拍壁纸一样正常显示。</string>
 
     <string name="st_video_pause">切磁贴暂停</string>
     <string name="st_video_always">一直播放</string>

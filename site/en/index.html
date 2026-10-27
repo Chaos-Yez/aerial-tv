@@ -13,7 +13,7 @@
   })();
 </script>
 <title>Aerial · A calm home screen for Android TV</title>
-<meta name="description" content="An open-source, tvOS-style home screen for Android TV. No ads, no recommendation feeds. Just your apps, your wallpaper and Apple TV's aerial screensavers. Built for Xiaomi, TCL and other TVs sold in China.">
+<meta name="description" content="An open-source, tvOS-style home screen for Android TV. No ads, no recommendation feeds. Just your apps, your wallpaper and Apple TV's aerial screensavers. Built for Xiaomi, TCL, Skyworth, Sony and other TVs and boxes sold in China.">
 <meta property="og:title" content="Aerial · A calm home screen for Android TV">
 <meta property="og:description" content="An open-source, tvOS-style home screen for Android TV. No ads, and it stays your home screen.">
 <meta property="og:image" content="../img/home.jpg?v=147">
@@ -22,7 +22,7 @@
 <link rel="alternate" hreflang="en" href="https://aerial.qust.me/en/">
 <link rel="alternate" hreflang="x-default" href="https://aerial.qust.me/en/">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="../style.css?v=10">
+<link rel="stylesheet" href="../style.css?v=12">
 </head>
 <body>
 
@@ -176,11 +176,15 @@
       </div>
     </div>
     <div class="devices reveal">
-      <span class="chip"><b>Xiaomi / Redmi</b> · HyperOS TV</span>
-      <span class="chip"><b>TCL</b> · Android 11</span>
+      <span class="chip"><b>Xiaomi / Redmi</b> · Android 6–14</span>
+      <span class="chip"><b>TCL</b> · Android 8–11</span>
+      <span class="chip"><b>Skyworth / Coocaa</b> · Android 11</span>
       <span class="chip"><b>Sony BRAVIA</b> · Android 10–12</span>
-      <a class="chip chip-link" href="https://github.com/pengchujin/aerial-tv/issues">Other brands: <b>tell us</b> ›</a>
+      <span class="chip"><b>Konka</b> · Android 9</span>
+      <span class="chip"><b>Boxes and projectors</b> · XGIMI, OBE, Aurora</span>
+      <a class="chip chip-link" href="https://github.com/pengchujin/aerial-tv/blob/main/README.en.md#supported-tvs">Full <b>list</b> ›</a>
     </div>
+    <p class="note devices-note reveal">Hisense / Vidda and some Coocaa sets boot into their own home first; FFALCON MT9655 models can't be taken over yet.</p>
   </div>
 </section>
 
@@ -309,8 +313,8 @@
         <p>They stream straight from Apple's servers in 1080p, at about 15–20 Mbps. If they can't load, Aerial switches to the photo screensaver.</p>
       </details>
       <details>
-        <summary>My TV isn't listed. Will it work?</summary>
-        <p>Probably. Stock Android TV and Google TV are the easiest. LG webOS, Samsung Tizen and Huawei Vision (HarmonyOS) run different systems and can't take Aerial; Android 4.4 or older can't either (Aerial needs Android 5.0). Some TVs can't open ADB at all, such as XGIMI H3, old LeTV sets, Honor Vision and old Konka models (no version number to tap). If something goes wrong, tell us with the <a href="https://github.com/pengchujin/aerial-tv/issues/new?template=device.yml">device support form</a> and its diagnostics: run <code>curl -fsSL https://aerial.qust.me/tools/report.sh | TV=&lt;tv-ip&gt; bash</code> on a computer, or copy them from More → Report a Problem on the phone page.</p>
+        <summary>Will it work on my TV?</summary>
+        <p>Check the <a href="https://github.com/pengchujin/aerial-tv/blob/main/README.en.md#supported-tvs">list</a>. If yours isn't there, probably. Stock Android TV and Google TV are the easiest. LG webOS, Samsung Tizen and Huawei Vision (HarmonyOS) run different systems and can't take Aerial; Android 4.4 or older can't either (Aerial needs Android 5.0). Some TVs can't open ADB at all, such as XGIMI H3, old LeTV sets, Honor Vision and old Konka models (no version number to tap). Slow or low-memory TVs pick Lite effects on their own; you can also choose it in Personalize → Effects. If something goes wrong, tell us with the <a href="https://github.com/pengchujin/aerial-tv/issues/new?template=device.yml">device support form</a> and its diagnostics: run <code>curl -fsSL https://aerial.qust.me/tools/report.sh | TV=&lt;tv-ip&gt; bash</code> on a computer, or copy them from More → Report a Problem on the phone page.</p>
       </details>
     </div>
   </div>

@@ -502,6 +502,7 @@ object SystemProbe {
      * generic passthrough intent has no handler (Xiaomi's China firmware).
      */
     fun sources(context: Context): List<TvSource> = frameworkSources(context)
+        .ifEmpty { xiaomiSources(context) }
         .ifEmpty { KonkaSources.load(context) }
         .ifEmpty { tclSources(context) }
         .ifEmpty { whaleySources(context) }
@@ -670,6 +671,32 @@ object SystemProbe {
             source("DTV", 2, SourceKind.Tuner, context.getString(R.string.input_live_tv)),
             source("AV1", 3, SourceKind.Av, context.getString(R.string.input_av)),
         )
+    }
+
+    /**
+     * Old Xiaomi firmwares with no tv_input service at all (MiTV4C / L32M5-AD, MStar "mainz",
+     * Android 6, issue #665): TvInputManager refuses the list, and the firmware's own player is the
+     * only way to switch. Its source ids there are 23 = HDMI 1 and 24 = HDMI 2, as the reporter
+     * found port by port; not tried here, and other models may have other ports, so only that one.
+     * CLEAR_TOP: a player task left in the background is otherwise only brought to the front, and
+     * the new `input` is dropped, so going from one port to the other seemed to do nothing.
+     */
+    private fun xiaomiSources(context: Context): List<TvSource> {
+        if (Build.MODEL != "MiTV4C" || !isInstalled(context, XIAOMI_PLAYER)) return emptyList()
+        val tim = context.getSystemService<TvInputManager>()
+        if (tim != null && runCatching { tim.tvInputList }.isSuccess) return emptyList()
+        fun source(id: Int, label: String, kind: SourceKind) = TvSource(
+            id = "xiaomi:$id",
+            label = label,
+            kind = kind,
+            connected = false,
+            deviceName = null,
+            intent = Intent("com.xiaomi.mitv.tvplayer.EXTSRC_PLAY")
+                .setComponent(ComponentName(XIAOMI_PLAYER, "$XIAOMI_PLAYER.ExternalSourceActivity"))
+                .putExtra("input", id)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        )
+        return listOf(source(23, "HDMI 1", SourceKind.Hdmi), source(24, "HDMI 2", SourceKind.Hdmi))
     }
 
     private const val WHALEY_PLAYER = "com.whaley.tv.tvplayer.ui"

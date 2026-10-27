@@ -84,8 +84,11 @@ object GuardSetup {
      * kills the process in standby, the next start (the notification listener's rebind, the sync
      * adapter) comes through ensureEnabled, which registers it again while the screen is off.
      */
+    @Volatile
     private var screenOnWatch: BroadcastReceiver? = null
 
+    // Synchronized: BootReceiver calls ensureEnabled off the main thread.
+    @Synchronized
     private fun watchScreenOn(context: Context) {
         if (screenOnWatch != null) return
         val app = context.applicationContext

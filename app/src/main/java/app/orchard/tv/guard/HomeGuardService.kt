@@ -228,6 +228,7 @@ class HomeGuardService : AccessibilityService() {
             // Android 6) answers the Home key by starting its own launcher by component, and Home
             // resolution never happens.
             if (intent.getStringExtra("reason") != "homekey") return
+            if (backOnPause) noteHomeInAerial()
             val front = lastWindow?.first
             if (front != null && front !in stockHomes) return
             // The stock launcher's window change usually comes first and already brought Aerial
@@ -496,7 +497,8 @@ class HomeGuardService : AccessibilityService() {
         // In front means resumed, not the last window change: an app brought back to its task
         // sends none the guard takes for an activity, and keys stayed filtered in it, two or three
         // places a press again (云视听极光 on MiTV-MFTR0, Android 14; issue #475).
-        val aerialInFront = aerialResumed
+        // Not on Xiaomi, which answers Home in Aerial another way: see backOnPause.
+        val aerialInFront = aerialResumed && !backOnPause
         val wanted = !keysPassThrough && !screenOff && (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R || aerialInFront)
         val homeWanted = wanted && !isDefaultHome()
         val cecWanted = !screenOff && CecHome.active(this, lastWindow?.first)
@@ -879,6 +881,52 @@ class HomeGuardService : AccessibilityService() {
         goHome()
     }
 
+    /**
+     * Xiaomi from Android 12: Aerial in front filters no keys either, and Home there is answered
+     * when Aerial pauses for it. The filter took Home before the system saw it, so PatchWall never
+     * came up (1.42), but Xiaomi then made no repeats for a held volume key: the filter drops a key
+     * the firmware has already acted on, and repeats are made only after it (MiTV-MFTR0, Android 14,
+     * issue #632). Unfiltered, Home starts PatchWall and pauses Aerial 30-80 ms after the key comes
+     * up, before PatchWall's task is put over Aerial's; starting Aerial again right then kept
+     * PatchWall from the screen in five presses out of five, and Aerial was back in 120-290 ms.
+     * Waiting for PatchWall's window instead showed it for 220-370 ms. A timer after the "homekey"
+     * broadcast is no good: one that fires before PatchWall starts leaves PatchWall on top.
+     * An overlay hiding the bounce is no good either: Xiaomi force-stopped Aerial whenever one was
+     * up as PatchWall came. Up to Android 11 Home holds app starts back for five seconds, so the
+     * filter stays there (MiTV-MFTP0, issue #460).
+     */
+    private val backOnPause by lazy {
+        Build.VERSION.SDK_INT > Build.VERSION_CODES.R &&
+            runCatching { packageManager.getPackageInfo("com.mitv.tvhome", 0) }.isSuccess
+    }
+
+    /** When a "homekey" broadcast came with Aerial in front; see backOnPause. */
+    private var homeInAerialAt = Long.MIN_VALUE / 2
+
+    /** The Home before it, for a second press: the recent apps once Aerial is back. */
+    private var lastHomeInAerialAt = Long.MIN_VALUE / 2
+    private var recentsWhenBackAt = Long.MIN_VALUE / 2
+
+    /**
+     * Also just after Aerial was brought back for the press before, still on its way to the front:
+     * a quick second press pauses it again. Pressed twice, Home opens the recent apps, as the
+     * filter did here up to 1.52 (issue #335); MiTV-MFTR0 has no double press of its own, and
+     * holding Home is still Xiaomi's task center. Timed by the broadcasts, which come later than
+     * the keys while Aerial is on its way back: presses 120 ms apart came 350 ms apart or more.
+     */
+    private fun noteHomeInAerial() {
+        val now = SystemClock.uptimeMillis()
+        if (!aerialResumed && now - broughtBackAt > 1_000) return
+        if (now - lastHomeInAerialAt < DOUBLE_HOME_BROADCAST_MS) {
+            lastHomeInAerialAt = Long.MIN_VALUE / 2
+            recentsWhenBackAt = now
+            Log.i(TAG, "Home pressed twice; recent apps once Aerial is back")
+        } else {
+            lastHomeInAerialAt = now
+        }
+        homeInAerialAt = now
+    }
+
     private fun goHome(woke: Boolean = false) {
         if (!GuardSetup.isUserUnlocked(this)) return
         // Starting an activity can light the screen: on OPPO K9 the TV came back on by itself a few
@@ -919,6 +967,8 @@ class HomeGuardService : AccessibilityService() {
         /** Actions the firmware's own task centre answers, tried in order before SystemUI's recents. */
         private val TASK_CENTRE_ACTIONS = listOf("com.dangbei.recentstask.action.SHOW_RECENTS_FOR_USER")
         private const val VOLUME_REPEAT_MAX_MS = 8_000L
+        private const val HOME_PAUSE_MS = 400L
+        private const val DOUBLE_HOME_BROADCAST_MS = 600L
         private val VOLUME_KEYS = setOf(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE)
 
         @Volatile
@@ -1051,12 +1101,23 @@ class HomeGuardService : AccessibilityService() {
             GuardSetup.installerJustClosed(s)
             s.allowStockUntil = 0L
             s.updateKeyFilter()
+            if (SystemClock.uptimeMillis() - s.recentsWhenBackAt < 2_000) {
+                s.recentsWhenBackAt = Long.MIN_VALUE / 2
+                s.openRecents()
+            }
         }
 
         /** Called when Aerial leaves the front: keys are no longer filtered from Android 12 on. */
         fun onAerialPaused() {
             aerialResumed = false
-            instance?.updateKeyFilter()
+            val s = instance ?: return
+            s.updateKeyFilter()
+            // Within the pause Home itself makes, not one the viewer makes after it by opening an app.
+            if (s.backOnPause && SystemClock.uptimeMillis() - s.homeInAerialAt < HOME_PAUSE_MS) {
+                s.homeInAerialAt = Long.MIN_VALUE / 2
+                Log.i(TAG, "Aerial paused for Home; bringing it back before the stock launcher shows")
+                s.goHome()
+            }
         }
     }
 }

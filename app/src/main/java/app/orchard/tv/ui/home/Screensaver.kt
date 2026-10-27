@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import app.orchard.tv.ui.components.FilmSlot
 import app.orchard.tv.apps.AppEntry
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.ui.components.Dissolve
@@ -472,16 +473,16 @@ private fun AerialSaver(
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { ctx ->
-            SurfaceView(ctx).also {
-                it.holder.addCallback(object : SurfaceHolder.Callback {
+            FilmSlot(ctx).also {
+                it.surface.holder.addCallback(object : SurfaceHolder.Callback {
                     override fun surfaceCreated(holder: SurfaceHolder) = DiagLog.i("film surface created")
                     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
                     override fun surfaceDestroyed(holder: SurfaceHolder) = DiagLog.i("film surface destroyed")
                 })
-                player.setVideoSurfaceView(it)
+                player.setVideoSurfaceView(it.surface)
             }
         },
-        onRelease = { player.clearVideoSurfaceView(it) },
+        onRelease = { player.clearVideoSurfaceView(it.surface) },
     )
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = veil }.background(Color.Black))
     Labels(if (playing) caption ?: film.captionAt(((if (index == 0) firstAtMs else 0L) / 1000).toInt()) else null, now)

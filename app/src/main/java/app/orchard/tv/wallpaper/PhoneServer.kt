@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.util.Log
 import androidx.core.content.getSystemService
@@ -12,6 +13,7 @@ import app.orchard.tv.apps.FOLDER_KEY_PREFIX
 import app.orchard.tv.apps.AppEntry
 import app.orchard.tv.apps.AppNames
 import app.orchard.tv.apps.CustomIcons
+import app.orchard.tv.apps.IconLibrary
 import app.orchard.tv.apps.SourceDevice
 import app.orchard.tv.apps.SourceLooks
 import app.orchard.tv.apps.TileArtFactory
@@ -34,22 +36,24 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.Inet4Address
+import java.security.SecureRandom
 
 /**
  * The page a phone opens to choose a wallpaper and the screensaver, send photos, give an app's
  * tile a picture of one's own, and name the weather's city. Choosing pictures or typing a place
  * with a remote is slow; with a phone it is not.
  *
- * It listens on the local network for as long as the app runs (started with MainActivity), and
- * the address is the plain http://<tv-ip>:8790/ — there is no pairing code to scan or type, so
- * the page can be opened at any time from any device on the network.
+ * It listens on the local network while Aerial runs (see [listen]), and every address carries a
+ * random token shown only on the TV (the QR code and the address under it), so another device on
+ * the network cannot use it by guessing. The token stays the same from one start to the next.
  */
-class PhoneServer private constructor(private val context: Context) : NanoHTTPD(PORT) {
+class PhoneServer private constructor(private val context: Context, private val token: String) : NanoHTTPD(PORT) {
 
     override fun serve(session: IHTTPSession): Response {
-        // No pairing code: the bare address serves the page, and so does any path a device may
-        // still hold from an older build (its token prefix simply becomes part of the path).
-        val path = session.uri.ifEmpty { "/" }
+        val prefix = "/$token"
+        val uri = session.uri
+        if (!uri.startsWith(prefix)) return text(Response.Status.NOT_FOUND, "Not found")
+        val path = uri.removePrefix(prefix).ifEmpty { "/" }
         return runCatching {
             when {
                 path == "/" -> newFixedLengthResponse(Response.Status.OK, "text/html; charset=utf-8", page())
@@ -97,7 +101,8 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
                     if (removed) onMain { Wallpapers.videosChanged() }
                     json(state().put("removed", removed))
                 }
-                path.startsWith("/tile/") -> tile(java.net.URLDecoder.decode(path.removePrefix("/tile/"), "UTF-8"))
+                path.startsWith("/tile/") -> tile(java.net.URLDecoder.decode(path.removePrefix("/tile/"), "UTF-8"), own = session.parameters["art"]?.firstOrNull() == "own")
+                path.startsWith("/library/") -> libraryPicture(java.net.URLDecoder.decode(path.removePrefix("/library/"), "UTF-8"))
                 session.method == Method.POST && path == "/api/icon" -> icon(session)
                 session.method == Method.POST && path == "/api/source/name" -> {
                     val f = form(session)
@@ -143,6 +148,25 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
                     // On the main thread before answering, so the state sent back has the new name.
                     if (known && name.isNotEmpty() && rename != null) runBlocking(Dispatchers.Main) { rename(id, name) }
                     json(state().put("saved", known && name.isNotEmpty() && rename != null))
+                }
+                session.method == Method.POST && path == "/api/icon/pick" -> {
+                    // The library's picture or the app's own art for one app; either replaces a
+                    // picture sent from the phone.
+                    val f = form(session)
+                    val pkg = f["app"].orEmpty()
+                    val pick = when (f["pick"]) {
+                        "library" -> IconLibrary.Pick.Library
+                        "own" -> IconLibrary.Pick.Own
+                        else -> null
+                    }
+                    val ok = installed(pkg) && pick != null && (pick != IconLibrary.Pick.Library || IconLibrary.has(pkg))
+                    if (ok) {
+                        CustomIcons.clear(pkg)
+                        // The library is what every app uses anyway: kept as no pick.
+                        IconLibrary.choose(pkg, pick.takeIf { it != IconLibrary.Pick.Library })
+                        runBlocking(Dispatchers.Main) { CustomIcons.changed(); IconLibrary.changed() }
+                    }
+                    json(state().put("saved", ok))
                 }
                 session.method == Method.POST && path == "/api/icon/reset" -> {
                     val pkg = form(session)["app"].orEmpty()
@@ -204,8 +228,16 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
                         .put("source", true).put("port", src.label).put("name", look?.name ?: "").put("device", look?.device?.key ?: "").put("look", look.hashCode()))
                 }
                 apps.forEach { (a, label) ->
+                    // [icon] is where the tile's picture comes from now; [library] whether the icon
+                    // library has one for this app, which the phone can pick instead.
+                    val icon = when {
+                        CustomIcons.has(a.key) -> "custom"
+                        IconLibrary.has(a.key) && IconLibrary.uses(a.key) -> "library"
+                        else -> "own"
+                    }
                     put(JSONObject().put("key", a.key).put("label", label).put("default", a.label).put("name", AppNames.of(a.key) ?: "")
-                        .put("custom", CustomIcons.has(a.key)).put("stamp", CustomIcons.stamp(a.key)))
+                        .put("custom", CustomIcons.has(a.key)).put("library", IconLibrary.has(a.key)).put("icon", icon)
+                        .put("stamp", CustomIcons.stamp(a.key) + IconLibrary.stamp(a.key) + icon.hashCode()))
                 }
             })
             .put("layout", layoutState())
@@ -236,8 +268,9 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
     private fun layoutState(): JSONObject {
         fun tile(e: AppEntry) = JSONObject().put("key", e.key).put("label", e.label)
             .put("kind", when { e.folder != null -> "folder"; e.source != null -> "source"; else -> "app" })
-            // Folder and input art changes without a picture from the phone (contents, chosen device).
-            .put("stamp", if (e.folder != null || e.source != null) e.art.hashCode().toLong() else CustomIcons.stamp(e.key))
+            // Folder and input art changes without a picture from the phone (contents, chosen
+            // device), an app's with the icon library too.
+            .put("stamp", if (e.folder != null || e.source != null) e.art.hashCode().toLong() else CustomIcons.stamp(e.key) + IconLibrary.stamp(e.key))
             .apply { e.folder?.let { put("id", it.id) }; e.source?.let { put("port", it.label) } }
         val folders = JSONObject()
         AppCatalog.folderApps.forEach { (id, apps) -> folders.put(id, JSONArray().apply { apps.forEach { put(tile(it)) } }) }
@@ -282,14 +315,25 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
     private fun installed(pkg: String) =
         pkg.isNotEmpty() && (AppCatalog.loaded.any { it.key == pkg } || AppCatalog.pinnedSources.any { it.key == pkg })
 
-    private fun tile(pkg: String): Response {
+    /** The tile as Home shows it; with [own], as the app's own art would draw it. */
+    private fun tile(pkg: String, own: Boolean = false): Response {
         val app = (AppCatalog.pinnedSources + AppCatalog.loaded + AppCatalog.folders).firstOrNull { it.key == pkg } ?: return text(Response.Status.NOT_FOUND, "")
-        val bmp = TileArtFactory.flatten(app.art)
+        val art = if (own && app.source == null && app.folder == null) AppCatalog.ownArt(context, app) ?: app.art else app.art
+        val bmp = TileArtFactory.flatten(art)
         val out = ByteArrayOutputStream()
         bmp.compress(Bitmap.CompressFormat.JPEG, 85, out)
         bmp.recycle()
         val bytes = out.toByteArray()
         return newFixedLengthResponse(Response.Status.OK, "image/jpeg", ByteArrayInputStream(bytes), bytes.size.toLong()).apply {
+            addHeader("Cache-Control", "max-age=600")
+        }
+    }
+
+    /** The icon library's picture of an app, as downloaded. */
+    private fun libraryPicture(pkg: String): Response {
+        val f = IconLibrary.file(pkg) ?: return text(Response.Status.NOT_FOUND, "")
+        val type = if (f.name.endsWith(".png")) "image/png" else "image/jpeg"
+        return newFixedLengthResponse(Response.Status.OK, type, f.inputStream(), f.length()).apply {
             addHeader("Cache-Control", "max-age=600")
         }
     }
@@ -377,30 +421,66 @@ class PhoneServer private constructor(private val context: Context) : NanoHTTPD(
         private var running: PhoneServer? = null
 
         /**
-         * Starts the server if needed and returns the address to show in the QR code, or null when
-         * the TV has no LAN address yet. The server keeps listening either way, so a network that
-         * comes up later is served too.
+         * Listens for as long as Aerial runs, from Home's start (MainActivity.startWork), so a
+         * computer can open the page at any time without Personalize open on the TV. On every
+         * interface: the address the TV has may change, the page stays the same.
          */
         @Synchronized
-        fun start(context: Context): String? {
-            if (running == null) {
-                val server = PhoneServer(context.applicationContext)
-                if (!runCatching { server.start(SOCKET_READ_TIMEOUT, true) }.isSuccess) return null
-                running = server
-            }
-            return lanAddress(context)?.let { "http://$it:$PORT/" }
+        fun listen(context: Context): PhoneServer? {
+            running?.let { if (it.isAlive) return it }
+            return runCatching {
+                PhoneServer(context.applicationContext, token(context)).also {
+                    it.start(SOCKET_READ_TIMEOUT, true)
+                    running = it
+                }
+            }.onFailure { Log.w(TAG, "could not listen", it) }.getOrNull()
         }
 
-        @Synchronized
-        fun stop() {
-            running?.stop()
-            running = null
+        /** The address to put in the QR code, listening first if need be, or null offline. */
+        fun start(context: Context): String? {
+            val ip = lanAddress(context) ?: return null
+            val server = listen(context) ?: return null
+            return "http://$ip:$PORT/${server.token}/"
+        }
+
+        /**
+         * Kept from one start to the next, so the address can be bookmarked on a computer and the
+         * phone's tab still works the next day.
+         */
+        private fun token(context: Context): String {
+            val prefs = context.getSharedPreferences("phone_page", Context.MODE_PRIVATE)
+            prefs.getString("token", null)?.takeIf { it.length == 8 }?.let { return it }
+            return newToken().also { prefs.edit().putString("token", it).apply() }
+        }
+
+        private fun newToken(): String {
+            val alphabet = "abcdefghjkmnpqrstuvwxyz23456789"
+            val rnd = SecureRandom()
+            return (1..8).map { alphabet[rnd.nextInt(alphabet.length)] }.joinToString("")
         }
 
         fun lanAddress(context: Context): String? {
             val cm = context.getSystemService<ConnectivityManager>() ?: return null
-            val props = cm.getLinkProperties(cm.currentNetwork() ?: return null) ?: return null
-            return props.linkAddresses.map { it.address }.firstOrNull { it is Inet4Address && !it.isLoopbackAddress }?.hostAddress
+            val current = cm.currentNetwork()
+            // Under a proxy app's VPN the default network is the tunnel, whose address the phone
+            // cannot reach (Clash and the like use 198.18.0.1; Xiaomi S55, issue #667). The Wi-Fi
+            // or Ethernet network under it is still in allNetworks: take its address first.
+            val networks = runCatching { cm.allNetworks.toList() }.getOrDefault(emptyList())
+            val lan = networks.filter { n ->
+                val caps = runCatching { cm.getNetworkCapabilities(n) }.getOrNull() ?: return@filter false
+                !caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                    (caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
+            }.sortedByDescending { it == current }
+            return (lan + listOfNotNull(current)).firstNotNullOfOrNull { n ->
+                runCatching { cm.getLinkProperties(n) }.getOrNull()?.linkAddresses?.map { it.address }
+                    ?.firstOrNull { it is Inet4Address && !it.isLoopbackAddress && !it.isLinkLocalAddress && !isBenchmark(it) }
+            }?.hostAddress
+        }
+
+        /** 198.18.0.0/15, the range proxy apps put their tunnel in; never a home network. */
+        private fun isBenchmark(address: java.net.InetAddress): Boolean {
+            val b = address.address
+            return b.size == 4 && (b[0].toInt() and 0xff) == 198 && (b[1].toInt() and 0xfe) == 18
         }
 
         /** A QR code, dark modules on white, each module [scale] pixels square. */

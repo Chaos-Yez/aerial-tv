@@ -102,13 +102,16 @@
     <string name="ss_aerial">Aerial</string>
     <string name="ss_photos">Photos</string>
     <string name="ss_clock">Clock</string>
-    <string name="wp_phone_title">Set up with your phone</string>
-    <string name="wp_phone_body">Scan to send photos as wallpapers, change app icons and set the weather\'s city from your phone. Phone and TV must be on the same network.</string>
-    <string name="wp_phone_offline">Connect the TV to a network to set up with your phone.</string>
+    <string name="wp_phone_title">Set up from a phone or computer</string>
+    <string name="wp_phone_body">Scan the code, or open the address below in a computer\'s browser, to send photos and videos, change app icons and set the weather\'s city. It must be on the same network as the TV.</string>
+    <string name="wp_phone_offline">Connect the TV to a network to set it up from a phone or computer.</string>
     <string name="ss_start">Start Now</string>
     <string name="ss_delay">Start after</string>
     <string name="ss_minutes">%d min</string>
     <string name="ss_never">Never</string>
+    <string name="ss_delay_system">Follows the TV</string>
+    <string name="ss_delay_system_off">Follows the TV · off</string>
+    <string name="ss_delay_system_minutes">Follows the TV · %d min</string>
     <string name="ss_back_hint">Tip: press Back on the top row of Home to start the screensaver.</string>
     <string name="ss_back">Back Button</string>
     <string name="ss_back_on">Starts It</string>
@@ -279,11 +282,13 @@
     <string name="ss_system">System</string>
     <string name="ss_system_hint">The TV\'s own screensaver, as it came with the TV: XGIMI\'s scenes on a projector, Xiaomi\'s pictures on a Mi TV. Aerial shows none of its own.</string>
     <string name="wp_videos_note">Your own videos, sent from the phone, silent and one after another. They move like the aerial films and stop on the frame showing.</string>
-    <string name="wp_source_note">This input\'s live picture behind Home, without sound; open the input for sound. Going down to the apps, it gives way to a frosted background. A dark picture shows while the input has nothing to show.</string>
+    <string name="wp_source_note">This input\'s picture, full screen and always on: no key stops it now. It stops for the screensaver and is taken up again three seconds after. A dark picture shows while the input has nothing to show.</string>
     <string name="st_play">Playing</string>
     <string name="st_play_still">When still</string>
     <string name="st_play_always">Always</string>
     <string name="st_play_hint">When still: after 10 seconds on the top row; a key stops it. Always: keys do not stop it, and it is shaded a little; it stops when you go down to the apps.</string>
+    <string name="st_source_play_hint">An input\'s picture always plays and no key stops it. The screensaver stops it, and three seconds after that it is taken up again.</string>
+    <string name="st_source_sink_hint">With an input\'s picture, the top row sinks so more of it shows and the focused tile rises. Off, and Home sits as it does with the aerial films.</string>
 
     <string name="st_video_pause">Pause on tiles</string>
     <string name="st_video_always">Always</string>

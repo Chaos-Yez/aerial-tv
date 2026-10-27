@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import android.os.SystemClock
 import android.provider.Settings
+import app.orchard.tv.apps.IconLibrary
 import app.orchard.tv.guard.GuardSetup
 import app.orchard.tv.system.AdbShell
 import app.orchard.tv.system.DeviceClass

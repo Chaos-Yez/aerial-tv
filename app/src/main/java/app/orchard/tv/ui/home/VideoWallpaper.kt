@@ -36,6 +36,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import app.orchard.tv.ui.components.FilmSlot
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.system.DiagLog
@@ -138,6 +139,7 @@ fun VideoWallpaper(
         player = null
         HomeVideos.player = null
         showing = false
+        Wallpapers.dropFilmFrost()
         videosPlaying = false
     }
 
@@ -212,12 +214,20 @@ fun VideoWallpaper(
         }
     }
 
+    // The plate's glass over the moving video, where PixelCopy reads it. Not from the file: an
+    // owner's video may be 4K HEVC, and a second decoder beside the player's may not be there.
+    LaunchedEffect(play, showing) {
+        if (!play || !showing) return@LaunchedEffect
+        sampleGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyGlass(it) } }
+    }
+
     LaunchedEffect(play, sound, scaled) {
         // The size the films are made at changed: the decoder is made again for it.
         if (player != null && playerScaled != scaled) release()
         if (play) {
             val p = player ?: open()?.also { player = it; playerScaled = scaled } ?: return@LaunchedEffect
             DiagLog.i("video wallpaper starts (${p.currentMediaItem?.mediaId} at ${p.currentPosition} ms, idle $idle)")
+            Wallpapers.dropFilmFrost()
             if (p.playbackState == Player.STATE_IDLE) p.prepare()
             p.playWhenReady = true
             videosPlaying = true
@@ -289,7 +299,8 @@ fun VideoWallpaper(
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
                 factory = { ctx ->
-                    SurfaceView(ctx).also { sv ->
+                    FilmSlot(ctx).also { slot ->
+                        val sv = slot.surface
                         // Made at 720p and stretched to the panel: two thirds less for the chip to
                         // mix with the window over. Asked for before the surface is made, so the
                         // very first buffer is already that size.
@@ -307,7 +318,7 @@ fun VideoWallpaper(
                         player?.setVideoSurfaceView(sv)
                     }
                 },
-                onRelease = { player?.clearVideoSurfaceView(it); if (surface === it) surface = null },
+                onRelease = { player?.clearVideoSurfaceView(it.surface); if (surface === it.surface) surface = null },
             )
         }
         // A little shade over the film, top and bottom: the clock and the tiles' names sit there,

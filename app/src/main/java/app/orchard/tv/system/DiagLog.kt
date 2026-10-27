@@ -49,6 +49,13 @@ object DiagLog {
      */
     fun modeSwitch(context: Context): Boolean = prefs(context).getBoolean("mode_switch", !BuildConfig.DIAG)
     fun softLayer(context: Context): Boolean = prefs(context).getBoolean("soft_layer", false)
+
+    /**
+     * An experiment for issue #654 (Redmi X50, MiTV-NSOP0, Novatek): the apps fading into the
+     * screensaver each in a buffer of their own rather than with their alpha laid on every drawing.
+     * Their frame and shadow are cut to the tile while they fade.
+     */
+    fun saverFadeOffscreen(context: Context): Boolean = prefs(context).getBoolean("saver_fade_offscreen", false)
     fun setOption(context: Context, key: String, on: Boolean) = prefs(context).edit().putBoolean(key, on).apply()
     private fun prefs(context: Context) = context.getSharedPreferences("system", Context.MODE_PRIVATE)
 

@@ -3,7 +3,10 @@ package app.orchard.tv.guard
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.SystemClock
 import app.orchard.tv.MainActivity
+import app.orchard.tv.system.DiagLog
+import kotlin.concurrent.thread
 
 /**
  * After a real reboot: restore Home Guard, and if the firmware still hands Home to its own
@@ -13,9 +16,29 @@ import app.orchard.tv.MainActivity
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         // Exported for the boot broadcasts only; anything else could use it to pull Aerial forward.
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_LOCKED_BOOT_COMPLETED) return
+        val action = intent.action
+        if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_LOCKED_BOOT_COMPLETED) return
+        // Off the main thread: putting the guard back is settings, AccountManager and sync calls
+        // into system_server, and the broadcast's timeout counts every one. XGIMI Z6X (Android 8)
+        // sends LOCKED_BOOT_COMPLETED again when the screen locks, while the screensaver's film
+        // decodes and the system answers slowly; the receiver ran out of time there and the TV
+        // reported Aerial as not responding (issue #614).
+        val pending = goAsync()
+        val start = SystemClock.elapsedRealtime()
+        thread(name = "AerialBoot") {
+            try {
+                onBoot(context, action)
+            } finally {
+                pending.finish()
+                // In the diagnostics: how long the slow side of #614 takes on the TV at hand.
+                DiagLog.i("${action.substringAfterLast('.')} handled in ${SystemClock.elapsedRealtime() - start} ms")
+            }
+        }
+    }
+
+    private fun onBoot(context: Context, action: String) {
         GuardSetup.ensureEnabled(context)
-        if (intent.action == Intent.ACTION_LOCKED_BOOT_COMPLETED) return
+        if (action == Intent.ACTION_LOCKED_BOOT_COMPLETED) return
         // Also when Aerial is the default Home: some firmwares start their own launcher at boot
         // regardless (Skyworth/Coolita 8R145, issue #43).
         // A guard that is already running looks at what is in front before taking Home: by the time

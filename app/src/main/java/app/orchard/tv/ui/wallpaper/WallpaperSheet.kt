@@ -95,13 +95,13 @@ import app.orchard.tv.wallpaper.PhoneServer
 import app.orchard.tv.wallpaper.AerialFormats
 import app.orchard.tv.wallpaper.AerialQuality
 import app.orchard.tv.wallpaper.ScreensaverMode
+import app.orchard.tv.system.SystemScreensaver
 import app.orchard.tv.wallpaper.Wallpaper
 import app.orchard.tv.wallpaper.WallpaperKind
 import app.orchard.tv.wallpaper.Wallpapers
 import app.orchard.tv.weather.Weather
 import app.orchard.tv.weather.WeatherKind
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
@@ -130,11 +130,9 @@ fun WallpaperSheet(
 
     BackHandler(enabled = visible, onBack = onDismiss)
 
-    // The phone page listens for as long as the app runs (started in MainActivity); opening the
-    // sheet only makes sure it is up and shows its address. There is no pairing code, so the
-    // address stays usable after the sheet closes.
-    // Also while the sheet is only being warmed: the address and its QR code are then ready, made
-    // off the main thread, before the sheet is first opened.
+    // The phone page listens all along (PhoneServer.listen); the address is read again each time,
+    // as the TV's may have changed. Also while the sheet is only being warmed: the address and its
+    // QR code are then ready, made off the main thread, before the sheet is first opened.
     LaunchedEffect(visible, warm) {
         if (visible || warm) {
             val url = withContext(Dispatchers.IO) { PhoneServer.start(context) }
@@ -211,6 +209,23 @@ fun WallpaperSheet(
                             R.string.st_play, stringResource(R.string.st_play_hint), note,
                             listOf(false to R.string.st_play_still, true to R.string.st_play_always),
                             AerialSettings.wallpaperAlwaysMoves, AerialSettings::chooseWallpaperAlwaysMoves, first = true,
+                        )
+                    // An input's picture plays on and on, so it has no play mode to choose: the one
+                    // row says how it behaves instead — it stops for the screensaver and is taken
+                    // up again by itself a moment after, and no key puts it away.
+                    } else if (Wallpapers.isSource()) Group { note ->
+                        SettingRow(R.string.st_play, stringResource(R.string.st_source_play_hint), note, first = true) {
+                            BasicText(
+                                stringResource(R.string.st_play_always),
+                                style = Type.Body.copy(color = Palette.SecondaryLabel),
+                                modifier = Modifier.padding(end = 8.dp),
+                            )
+                        }
+                        // 极米: 磁贴下沉，和「我的视频」共用同一个设置：第一排沉下去，露出更多画面。
+                        Choices(
+                            R.string.st_video_sink, stringResource(R.string.st_source_sink_hint), note,
+                            listOf(true to R.string.st_yes, false to R.string.st_no),
+                            AerialSettings.videoSink, AerialSettings::chooseVideoSink,
                         )
                     }
 
@@ -336,7 +351,20 @@ fun WallpaperSheet(
                             listOf(true to R.string.st_on, false to R.string.st_off),
                             AerialSettings.screensaverClock, AerialSettings::chooseScreensaverClock,
                         )
-                        Choices(
+                        // The firmware's screensaver starts on the firmware's timer: Aerial's delay
+                        // did nothing there, and Xiaomi's 1 minute came before the 5 chosen (issue #675).
+                        if (Wallpapers.screensaver == ScreensaverMode.System) SettingRow(R.string.ss_delay, null, note) {
+                            val delay = remember { SystemScreensaver.firmwareDelayMs(context) }
+                            BasicText(
+                                when {
+                                    delay == null -> stringResource(R.string.ss_delay_system)
+                                    delay == 0L -> stringResource(R.string.ss_delay_system_off)
+                                    else -> stringResource(R.string.ss_delay_system_minutes, ((delay + 30_000) / 60_000).coerceAtLeast(1).toInt())
+                                },
+                                style = Type.Body.copy(color = Palette.SecondaryLabel),
+                                modifier = Modifier.padding(end = 8.dp),
+                            )
+                        } else Choices(
                             R.string.ss_delay, null, note,
                             AerialSettings.screensaverChoices.map {
                                 it to if (it == AerialSettings.NEVER) stringResource(R.string.ss_never) else stringResource(R.string.ss_minutes, it)
@@ -809,7 +837,8 @@ private fun PhoneCard(url: String?, qr: ImageBitmap?) {
         )
         if (url != null) {
             Spacer(Modifier.height(6.dp))
-            BasicText(url.removePrefix("http://").substringBefore('/') , style = Type.Caption.copy(color = Palette.TertiaryLabel))
+            // The whole address, token and all, to type into a computer's browser.
+            BasicText(url.removePrefix("http://"), style = Type.Caption.copy(color = Palette.SecondaryLabel))
         }
     }
 }

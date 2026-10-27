@@ -12,10 +12,11 @@ Amlogic 平台、Android 6.0.x 的一批小米电视和盒子，问题基本相�
 
 ## HDMI 编号（小米播放器 `ExternalSourceActivity --ei input N`）
 
-- 老固件（8.x、20.x）只给接了设备的口注册一个 `Hdmi3InputService/HW7`，播放器只认 23（#191 ANSM0、#313 4A）。
+- 部分老固件（8.x、20.x）只给接了设备的口注册一个 `Hdmi3InputService/HW7`，播放器对这个口使用 23（#191 ANSM0、#313 4A）。
 - 固件 22.4.15.3234（ANSM0）：23/24/25 分别是 HDMI 1/2/3，HW7 = 25，按通用规则 `hw + 18`（#375）。
 - 1.43 按 `Build.DISPLAY` 第一个数字区分（≥ 22 用通用规则），这是错的：固件 20.3.9.2061 上 23/24/25 也是 HDMI 1/2/3（#492），固件 22.11.28.3390 上 HW7 却要 23（#514）。
-- 真正决定编号的是固件配置：#191 的日志里播放器 `queryTvConfigByKey hdmi3_order` 读到 23（`ConfigParser`，TvService 进程）。同型号不同尺寸的板子配置不同。下一步：找到这份配置的文件（`grep -rl hdmi3_order /system /vendor`），能读就按它发编号。
+- 真正决定编号的是固件配置：#191 的日志里播放器 `queryTvConfigByKey hdmi3_order` 读到 23（`ConfigParser`，TvService 进程）。同型号不同尺寸的板子配置不同。#492 的 MiTV4-ANSM0（`8.9.19.854`）通过 `TvService` 交易 82 实测 `hdmi3_order` 返回 25，与直接启动播放器时的正确编号一致。
+- `mitv.common.ConfigurationManager.getInstance().queryTvConfigByKey("hdmiN_order")` 是可用的公开中间层入口；Aerial 用反射读它，失败时再回退到已知型号映射。
 
 ## 其他
 

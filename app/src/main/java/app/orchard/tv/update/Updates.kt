@@ -23,17 +23,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Whether a newer release is out (issues #24, #76). Most owners stay on the version they installed
- * and report bugs fixed long ago. At most once a day Aerial reads the latest release's tag from the
- * website (reachable in China, unlike GitHub); Control Center then names the new version and says
- * how to update. Nothing is downloaded or installed in the background: only when the owner picks
- * "Download and Install" does Aerial fetch the new APK and hand it to the system installer
- * ([install]).
+ * Whether a newer release is out. At most every three hours Aerial reads the newest release of the
+ * fork this build comes from (Chaos-Yez/aerial-tv) and Control Center then names the new version.
+ * The upstream website and repository are not consulted: their releases are other builds, and
+ * offering them would download an APK this copy cannot install.
+ *
+ * Nothing is downloaded or installed in the background: only when the owner picks "Download and
+ * Install" does Aerial fetch the release's APK and hand it to the system installer ([install]).
  *
  * Every three hours, not once a day: several releases can come out in one day, and a TV that had
  * checked in the morning kept offering nothing until the next day (1.22 to 1.25 on 2026-10-22).
@@ -41,7 +43,10 @@ import java.net.URL
 object Updates {
     private const val TAG = "AerialUpdates"
     private const val PREFS = "updates"
-    private const val VERSION_URL = "https://aerial.qust.me/download/version.txt"
+
+    /** The fork these builds are published to. */
+    private const val REPO = "Chaos-Yez/aerial-tv"
+    private const val RELEASES_URL = "https://api.github.com/repos/$REPO/releases?per_page=10"
     private const val CHECK_EVERY_MS = 3 * 60 * 60 * 1000L
     private const val RETRY_MS = 10 * 60 * 1000L
 
@@ -89,15 +94,45 @@ object Updates {
         if (!force && (now - lastAttempt < RETRY_MS || now - prefs.getLong("checked_at", 0) < maxAgeMs)) return
         lastAttempt = now
         scope.launch {
-            val latest = withContext(Dispatchers.IO) {
-                runCatching { read(VERSION_URL).trim().removePrefix("v") }
+            val release = withContext(Dispatchers.IO) {
+                runCatching { latestRelease() }
                     .onFailure { Log.w(TAG, "could not check for a new version", it) }
                     .getOrNull()
-                    ?.takeIf { it.matches(Regex("\\d+(\\.\\d+)*")) }
             } ?: return@launch
-            prefs.edit { putString("latest", latest); putLong("checked_at", System.currentTimeMillis()) }
-            available = latest.takeIf { newer(it, current) }
+            prefs.edit {
+                putString("latest", release.version)
+                putString("latest_apk", release.apk)
+                putLong("checked_at", System.currentTimeMillis())
+            }
+            available = release.version.takeIf { newer(it, current) }
         }
+    }
+
+    /** A release of [REPO]: the version it names and where its APK can be fetched. */
+    private class Release(val version: String, val apk: String)
+
+    /**
+     * The newest release that carries an APK. The tag names the version — "v1.50-xgimi" is 1.50 —
+     * and the APK is whichever asset the release carries, so a build can be published under any
+     * name. Drafts are skipped and releases without an APK fall through to the one before them.
+     */
+    private fun latestRelease(): Release? {
+        val list = JSONArray(read(RELEASES_URL))
+        for (i in 0 until list.length()) {
+            val r = list.optJSONObject(i) ?: continue
+            if (r.optBoolean("draft")) continue
+            val version = r.optString("tag_name").removePrefix("v").substringBefore('-').trim()
+            if (!version.matches(Regex("\\d+(\\.\\d+)*"))) continue
+            val assets = r.optJSONArray("assets") ?: continue
+            for (j in 0 until assets.length()) {
+                val a = assets.optJSONObject(j) ?: continue
+                val url = a.optString("browser_download_url")
+                if (a.optString("name").endsWith(".apk", ignoreCase = true) && url.isNotEmpty()) {
+                    return Release(version, url)
+                }
+            }
+        }
+        return null
     }
 
     /** Whether version [a] comes after [b], comparing dotted numbers ("1.10" after "1.9"). */
@@ -224,7 +259,7 @@ object Updates {
      */
     @Volatile var testApk: File? = null
 
-    /** The website first (reachable in China), then GitHub. Returns the APK's info once it parses. */
+    /** The APK of the release that was offered, and nothing else. Returns its info once it parses. */
     private suspend fun downloadFrom(context: Context, file: File): PackageInfo? {
         testApk?.takeIf { it.isFile }?.let { test ->
             file.parentFile?.mkdirs()
@@ -232,11 +267,9 @@ object Updates {
             if (Build.VERSION.SDK_INT < 24) file.setReadable(true, false)
             return verify(context, file)
         }
-        val name = "aerial-${BuildConfig.FLAVOR}.apk"
-        val sources = listOf(
-            "https://aerial.qust.me/download/$name",
-            "https://github.com/pengchujin/aerial-tv/releases/latest/download/$name",
-        )
+        // The address the release itself gave for one of its assets: a build can never be replaced
+        // by another repository's copy of the same version.
+        val sources = listOfNotNull(prefs.getString("latest_apk", null)?.takeIf { it.isNotEmpty() })
         for (url in sources) {
             val ok = runCatching { download(url, file) }
                 .onFailure { Log.w(TAG, "could not download $url", it) }

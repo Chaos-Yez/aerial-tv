@@ -1,6 +1,6 @@
 package app.orchard.tv.ui.home
 
-import android.view.SurfaceView
+import android.view.SurfaceHolder
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +35,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.VIDEO_VOLUME_STEPS
 import app.orchard.tv.system.DiagLog
+import app.orchard.tv.ui.components.FilmSlot
 import app.orchard.tv.ui.theme.Motion
 import app.orchard.tv.wallpaper.ScreensaverVideo
 import app.orchard.tv.wallpaper.ScreensaverVideos
@@ -51,12 +52,7 @@ internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
     val films by produceState<List<ScreensaverVideo>?>(null) {
         value = withContext(Dispatchers.IO) { ScreensaverVideos.all(context).shuffled() }
     }
-    val loaded = films ?: return
-    if (loaded.isEmpty()) {
-        LaunchedEffect(Unit) { onUnavailable() }
-        return
-    }
-    LocalFilms(loaded, steps, onUnavailable)
+    LocalFilms(films, steps, onUnavailable)
 }
 
 /**
@@ -68,9 +64,12 @@ internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
+private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
     val context = LocalContext.current
     val player = remember {
+        // As AerialSaver does: Home's wallpaper film starts again as Home resumes for a moment
+        // under the dream, and would hold the decoder this film needs (TCL MT5879).
+        LiveFilm.onHome?.letDecoderGo()
         ExoPlayer.Builder(context).setLoadControl(
             DefaultLoadControl.Builder().setTargetBufferBytes(12 * 1024 * 1024)
                 .setBufferDurationsMs(5_000, 15_000, 500, 1_000).build(),
@@ -84,6 +83,12 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
     }
     var attempt by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) }
+    // Whether this session has had a picture at all. A film that has drawn once is never given up
+    // for a join between its own loops: only a film that never drew anything falls back to the
+    // photos, which are not what the owner chose.
+    var drewOnce by remember { mutableStateOf(false) }
+    // One film may fail on a moment's decoder trouble; it is tried again before the photos.
+    var retries by remember { mutableIntStateOf(0) }
     var aspect by remember { mutableFloatStateOf(16f / 9f) }
     // The sound, as loud as the wallpaper's own switch and level say: it comes in behind the
     // picture, which is already moving.
@@ -99,7 +104,19 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
     }
     fun failed() {
         playing = false
-        if (player.mediaItemCount <= 1) { onUnavailable(); return }
+        // One film: the owner chose videos, so a decoder error is tried again before the screen is
+        // handed to the photos. Only when it keeps failing does the screensaver fall back.
+        if (player.mediaItemCount <= 1) {
+            if (retries < 2) {
+                retries++
+                DiagLog.i("local screensaver: retry $retries")
+                player.prepare()
+                player.playWhenReady = true
+                attempt++
+                return
+            }
+            onUnavailable(); return
+        }
         // Only this session's queue changes. Never delete a film because one decoder rejected it.
         player.removeMediaItem(player.currentMediaItemIndex)
         player.prepare()
@@ -109,18 +126,25 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
         val listener = object : Player.Listener {
             override fun onRenderedFirstFrame() {
                 playing = true
+                drewOnce = true
+                retries = 0
                 DiagLog.i("local screensaver first frame: ${player.currentMediaItem?.mediaId}")
             }
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 if (videoSize.width > 0 && videoSize.height > 0) aspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
             }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO) playing = false
+                // Not a lost picture: with one film this fires on every loop round (reason REPEAT),
+                // and the player stays READY, so nothing would ever set playing back to true. The
+                // guard below then took it for a film that never drew and handed the screen to the
+                // photos eleven seconds in. The attempt still restarts the guard's clock.
                 attempt++
             }
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_BUFFERING) playing = false
-                else if (playbackState == Player.STATE_READY && player.isPlaying) playing = true
+                // Buffering is not a lost picture either: a loop round buffers for a moment, and
+                // clearing this kept a single film "not playing" for good.
+                if (playbackState == Player.STATE_READY && player.isPlaying) playing = true
+                else if (playbackState == Player.STATE_ENDED || playbackState == Player.STATE_IDLE) playing = false
             }
             override fun onPlayerError(error: PlaybackException) {
                 DiagLog.i("local screensaver failed: ${error.errorCodeName}")
@@ -128,16 +152,25 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
             }
         }
         player.addListener(listener)
-        player.setMediaItems(films.map { MediaItem.Builder().setUri(it.file.toUri()).setMediaId(it.id).build() })
+        onDispose { player.removeListener(listener); player.release() }
+    }
+    // The list is read off the main thread, but the film's view is there from the first frame: a
+    // SurfaceView added to the dream's window after its first frame never got a surface, and the
+    // film played into nothing, a black screen (TCL MT5879, Android 11, issue #609). AerialSaver's
+    // view is in the first frame, which is why the aerial screensaver showed.
+    LaunchedEffect(films) {
+        val list = films ?: return@LaunchedEffect
+        DiagLog.i("local screensaver: ${list.size} films")
+        if (list.isEmpty()) { onUnavailable(); return@LaunchedEffect }
+        player.setMediaItems(list.map { MediaItem.Builder().setUri(it.file.toUri()).setMediaId(it.id).build() })
         // Where Home's own playing of them stopped, when it is not carried on: the film being
         // watched goes on from there rather than from its beginning.
         Wallpapers.videoSpot()?.let { spot ->
-            val index = films.indexOfFirst { it.id == spot.first }
+            val index = list.indexOfFirst { it.id == spot.first }
             if (index >= 0) player.seekTo(index, spot.second)
         }
         player.prepare()
         player.playWhenReady = true
-        onDispose { player.removeListener(listener); player.release() }
     }
     // The sound's fade, every step of it, and the track itself when the owner turns it on or off.
     LaunchedEffect(player) { snapshotFlow { volume.value }.collect { player.volume = it } }
@@ -159,14 +192,26 @@ private fun LocalFilms(films: List<ScreensaverVideo>, steps: SharedFlow<Int>, on
         volume.snapTo(level)
     }
     LaunchedEffect(steps) { steps.collect { skip(it) } }
-    LaunchedEffect(attempt, playing) {
-        if (!playing) { delay(8_000); failed() }
+    // A film that has not drawn anything eight seconds in is a broken one (a stale file, a decoder
+    // that would not open); then the queue moves on, or with a single film the retry above runs.
+    // Once a picture has been up, this is done with: the joins between loops are its own business.
+    LaunchedEffect(attempt, playing, drewOnce, films != null) {
+        if (films != null && !playing && !drewOnce) { delay(8_000); if (!playing && !drewOnce) failed() }
     }
     Box(Modifier.fillMaxSize()) {
         AndroidView(
             modifier = Modifier.align(Alignment.Center).aspectRatio(aspect),
-            factory = { ctx -> SurfaceView(ctx).also { player.setVideoSurfaceView(it) } },
-            onRelease = { player.clearVideoSurfaceView(it) },
+            factory = { ctx ->
+                FilmSlot(ctx).also {
+                    it.surface.holder.addCallback(object : SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: SurfaceHolder) = DiagLog.i("local screensaver surface created")
+                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit
+                        override fun surfaceDestroyed(holder: SurfaceHolder) = DiagLog.i("local screensaver surface destroyed")
+                    })
+                    player.setVideoSurfaceView(it.surface)
+                }
+            },
+            onRelease = { player.clearVideoSurfaceView(it.surface) },
         )
     }
 }

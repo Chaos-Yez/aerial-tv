@@ -78,6 +78,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.system.DiagLog
 import app.orchard.tv.wallpaper.Images
 import app.orchard.tv.system.NetKind
 import app.orchard.tv.system.NetworkStatus
@@ -276,16 +277,14 @@ private fun Pictures(backdrop: ImageBitmap?, frosted: ImageBitmap?, scroll: () -
 
 /**
  * The plate under the top row, one layer over whatever is behind it: the picture, or the film
- * once stopped. It gives way only to a moving film, so the swap from the paused film to its
- * picture leaves it as it is. A new glass fades in over the old one, which stays whole beneath
+ * once stopped. A new glass fades in over the old one, which stays whole beneath
  * it: two plates fading against each other let what is behind show through halfway.
  *
- * Under it, while a film moves, the film's plate ([film]): a film under the window cannot be
- * blurred, so a small key frame of it, frosted, a few seconds old (LiveWallpaper), lies
- * [FILM_FROST] of the way over the film, and a smoke tint and the lit edge over both. The film
- * shows through moving, so the frame's lag reads as the glass's softness. With no [film] (an
- * input's picture) only the smoke and the edge. Drawn only as the plate
- * moves or a new frame fades in, every [GLASS_EVERY_MS]: the film plays with Compose all but still.
+ * While a film moves, that glass is the film's own frame ([film]): a film under the window cannot
+ * be blurred, so a small key frame of it, frosted, a few seconds old (LiveWallpaper /
+ * VideoWallpaper), is the plate's glass, and a smoke tint and the lit edge lie over it. The film
+ * shows through moving around the plate, and the frame's lag reads as the glass's softness. With
+ * no [film] (an input's picture) the plate keeps the picture's glass.
  */
 @Composable
 private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll: () -> Float, collapse: Float, cover: () -> Float, filmStopped: () -> Float, toSaver: () -> Float, lift: () -> Float, sinkOnSaver: Boolean, saving: Boolean) {
@@ -335,14 +334,25 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
     // is, it held up a frame every few seconds (Xiaomi MiTV-MFTR0: frames of 50-70 ms).
     val density = LocalDensity.current
     var screen by remember { mutableStateOf(Size.Zero) }
+    var smoke by remember { mutableStateOf<ImageBitmap?>(null) }
     var filmTop by remember { mutableStateOf<ImageBitmap?>(null) }
     var filmBottom by remember { mutableStateOf<ImageBitmap?>(null) }
-    var smoke by remember { mutableStateOf<ImageBitmap?>(null) }
     val filmSwap = remember { Animatable(1f) }
+    val frostPaint = remember { androidx.compose.ui.graphics.Paint() }
     LaunchedEffect(plate, screen) {
         if (plate == null || screen == Size.Zero) return@LaunchedEffect
         smoke = withContext(Dispatchers.Default) { bakePlate(smokeGlass(), screen, plate, with(density) { PlateCorner.toPx() }, with(density) { 1.2.dp.toPx() }) }
     }
+    /**
+     * 极米: 影片在播时，底板要的那张玻璃就是影片这一帧（Wallpapers.filmFrost：2.5 秒一张，
+     * 回桌面立刻一张）。原来这块玻璃只是叠在**不透明底板底下**的一层，而且只在底板淡出
+     * （alpha < 0.99）时才绘制——Home 静止时 alpha 正好是 1，于是那一层从不画，底板永远挂着
+     * 壁纸那张静态荒图（frosted，只在影片停下时才更新）。帧一直在取、filmFrost 一直在更新，
+     * 却没人把它画出来——这就是「回桌面玻璃不换」的来源。航拍壁纸没这个问题，因为它的帧
+     * 写进的是 frosted，也就是底板本来的那张。
+     * 现在这块玻璃直接当底板：先在后台烘好（烘在绘制线程上每 2.5 秒会卡一帧），
+     * 再让两块板子交叉淡入。
+     */
     LaunchedEffect(film, plate, screen) {
         if (film == null || plate == null || screen == Size.Zero) {
             filmTop = null
@@ -352,6 +362,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
         val baked = withContext(Dispatchers.Default) { bakePlate(plateTinted(film), screen, plate, with(density) { PlateCorner.toPx() }, 0f, edge = false) }
         // Not on screen: the new frame simply takes over.
         if (filmTop == null || cover() < 0.01f) {
+            if (filmTop == null) DiagLog.i("plate: the film's own glass")
             filmTop = baked
             filmBottom = null
             filmSwap.snapTo(1f)
@@ -363,8 +374,6 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
         filmSwap.animateTo(1f, tween(FILM_SWAP_MS, easing = Motion.EaseOut))
         filmBottom = null
     }
-    val frostPaint = remember { androidx.compose.ui.graphics.Paint() }
-
     Canvas(Modifier.fillMaxSize().onSizeChanged { screen = Size(it.width.toFloat(), it.height.toFloat()) }) {
         if (plate == null) return@Canvas
         val alpha = visibility()
@@ -372,39 +381,33 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
         // f * SaverSink）。底板走同一条：同样的 f、同样的距离，板子才跟着磁贴沉下去，
         // 而不是钉在原地淡出。f 取第一列（不带磁贴那点错相），底板左边正对着它。
         val sinkOut = if (sinkOnSaver) sinkFade() * SaverSink.toPx() else 0f
-        // The film's plate, while the film shows and the plate over a picture does not hide it.
-        // With no frame to frost (an input's picture, which cannot be copied) it is the smoke and
-        // the lit edge alone, so the top row keeps a plate over anything.
-        val base = (1f - smooth(((scroll() / collapse).coerceIn(0f, 1f) / 0.55f).coerceIn(0f, 1f))) * (1f - sinkFade())
-        val frame = filmTop
-        val edge = smoke
-        if (edge != null && cover() > 0.01f && alpha < 0.99f && base > 0.01f) {
-            val p = (scroll() / collapse).coerceIn(0f, 1f)
-            val r = plate.translate(0f, -scroll() - lift() + sinkOut).inflate(PlateSwell.toPx() * smooth((p / 0.55f).coerceIn(0f, 1f)))
-            val t = filmSwap.value
-            val under = filmBottom
-            // The old frame whole under the new, both in one layer laid over the film at FILM_FROST.
-            if (frame != null && t < 1f && under != null) {
-                frostPaint.alpha = FILM_FROST * base
-                drawContext.canvas.saveLayer(r, frostPaint)
-                drawBaked(under, r, 1f)
-                drawBaked(frame, r, t)
-                drawContext.canvas.restore()
-            } else if (frame != null) {
-                drawBaked(frame, r, FILM_FROST * base)
-            }
-            drawBaked(edge, r, base)
-        }
-
-        // The plate rides with its row and dissolves into the frosted background: it fades
-        // over the first half of the scroll, swelling a little as if lifting off, and settles
-        // back the same way when focus returns to the top row. Kept small on purpose: the
-        // whole screen shrinking back into the plate read as too much.
+        // The plate rides with its row and dissolves into the frosted background: it fades over the
+        // first half of the scroll, swelling a little as if lifting off, and settles back the same
+        // way when focus returns to the top row. Kept small on purpose: the whole screen shrinking
+        // back into the plate read as too much.
         val p = (scroll() / collapse).coerceIn(0f, 1f)
         val rest = 1f - smooth((p / 0.55f).coerceIn(0f, 1f))
         if (alpha < 0.01f) return@Canvas
-        val grow = PlateSwell.toPx() * (1f - rest)
-        val r = plate.translate(0f, -scroll() - lift() + sinkOut).inflate(grow)
+        val r = plate.translate(0f, -scroll() - lift() + sinkOut).inflate(PlateSwell.toPx() * (1f - rest))
+        // 极米: 影片在播，底板就是影片这一帧做的玻璃（每 2.5 秒换一张，回桌面立刻换一张）。
+        // 换的时候新旧两块板子交叉淡入，跟壁纸换玻璃时一样。
+        val filmPlate = filmTop
+        val edge = smoke
+        if (filmPlate != null && cover() > 0.01f) {
+            val t = filmSwap.value
+            val under = filmBottom
+            if (t < 1f && under != null) {
+                frostPaint.alpha = alpha
+                drawContext.canvas.saveLayer(r, frostPaint)
+                drawBaked(under, r, 1f)
+                drawBaked(filmPlate, r, t)
+                drawContext.canvas.restore()
+            } else {
+                drawBaked(filmPlate, r, alpha)
+            }
+            edge?.let { drawBaked(it, r, alpha) }
+            return@Canvas
+        }
         val t = swap.value
         if (t < 1f) bottom?.draw(this, plate, r, alpha)
         top?.draw(this, plate, r, if (bottom != null) alpha * t else alpha)
@@ -443,9 +446,6 @@ private fun smooth(x: Float) = x * x * (3f - 2f * x)
 private fun smokeGlass(): ImageBitmap =
     android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
         .apply { eraseColor(FILM_SMOKE) }.asImageBitmap()
-
-/** How much of the film plate is its frosted key frame; the rest is the film itself, moving. */
-private const val FILM_FROST = 0.55f
 
 /** The film plate's smoke: a little black, so the tiles keep their contrast over a bright film. */
 private val FILM_SMOKE = android.graphics.Color.argb(46, 0, 0, 0)

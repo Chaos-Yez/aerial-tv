@@ -404,10 +404,13 @@ fun HomeScreen(
         wasSaving = vm.screensaverVisible
     }
     val toSaver = remember { Animatable(0f) }
-    LaunchedEffect(carrying) {
+    // 极米: 以前只有「屏保承接壁纸」时才让 Home 淡出。可是屏保里的影片（航拍、我的视频）走的是
+    // 硬件视频平面，在合成层之下——磁贴和底板浮在它上面，屏保起来了它们还挂在那儿，看着就是
+    // 硬切。所以改成跟着屏保本身的可见性走：屏保一出现，磁贴和底板就沉下去淡掉。
+    LaunchedEffect(vm.screensaverVisible) {
         when {
-            reduced -> toSaver.snapTo(if (carrying) 1f else 0f)
-            carrying -> toSaver.animateTo(1f, tween(2000, easing = Motion.EaseInOut))
+            reduced -> toSaver.snapTo(if (vm.screensaverVisible) 1f else 0f)
+            vm.screensaverVisible -> toSaver.animateTo(1f, tween(2000, easing = Motion.EaseInOut))
             // 极米: 磁贴下沉开着时，回来这一趟把去的那一趟原样倒放——同样两秒、同样缓动，
             // 第一排和底板在前六成路程里从下沉的位置升起来、淡进来，而不是屏保一走就看见
             // 一个满血的桌面（owner: 来回要一致）。没开下沉就还是上游那样，650 毫秒落回来。
@@ -623,7 +626,9 @@ fun HomeScreen(
         // 那一个磁贴升起来，同排其它的留在沉下去的位置。往下按进到下面的行，第一排回到原处照常滚动。
         // 两者共用同一个「磁贴下沉」设置（个性化里动态壁纸与信号源壁纸是同一组）。
         val sinkPicture = videosChosen || sourceChosen
-        val sinkOnTop = sinkPicture && AerialSettings.videoSink && focusedRow <= 0 && !vm.screensaverVisible && moving == null
+        // 极米: 屏保期间也保持沉下去——影片在视频平面（合成层之下），磁贴会浮在它上面，
+        // 沉下去再淡掉才和「进屏保」这一趟是一件事；回来时再按同一条路升起来。
+        val sinkOnTop = sinkPicture && AerialSettings.videoSink && focusedRow <= 0 && moving == null
         val tileFocused = focusedIndex >= 0 && !pillFocused
         val sink: Dp = if (sinkOnTop) metrics.sinkRest else 0.dp
         // 焦点不在磁贴上时（按上键到了状态药丸），那一个也跟着沉下去：焦点离开后它不再是「升起的

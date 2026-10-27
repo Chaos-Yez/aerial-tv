@@ -97,11 +97,20 @@ import kotlin.random.Random
  */
 @Composable
 fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skips: ScreensaverSkips, carry: SaverCarry? = null) {
+    // 极米: 屏保里的影片和「我的视频」是硬件视频平面（MTK HAL 直接送到显示平面，在合成层
+    // 之下），Compose 的淡入淡出摸不到那一层——从航拍壁纸切进我的视频屏保（或反过来）时，
+    // 影片那层是硬切。所以在影片上盖一层黑幕，随屏保一起放出来/收回去：进来时 1→0，
+    // 出去时 0→1，看到的就是画面慢慢显出来、慢慢压暗，而不是啪地换掉。
+    val veil = remember { Animatable(if (visible) 0f else 1f) }
+    LaunchedEffect(visible) {
+        if (visible) veil.animateTo(0f, tween(1200, easing = Motion.EaseOut))
+        else veil.animateTo(1f, tween(SAVER_VEIL_MS, easing = Motion.EaseInOut))
+    }
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(1200, easing = Motion.EaseOut)),
         // Leaves quickly: the viewer pressed a key and wants Home back.
-        exit = fadeOut(tween(220, easing = Motion.EaseOut)),
+        exit = fadeOut(tween(SAVER_VEIL_MS, easing = Motion.EaseOut)),
         modifier = Modifier.fillMaxSize(),
     ) {
         // Follows Home while up (the film may fail and hand over to the screensaver's own), and
@@ -118,19 +127,39 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
         var videosFailed by remember { mutableStateOf(false) }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             when (Wallpapers.screensaver) {
-                ScreensaverMode.Aerial -> if (aerialFailed) PhotoSaver(now, skips.steps) else AerialSaver(
-                    now, skips.steps, onUnavailable = { aerialFailed = true }, startAt = remember {
-                        // A paused wallpaper film still holds the decoder (one 4K decoder, MiTV-MFTR0).
-                        LiveFilm.onHome?.letDecoderGo()
-                        AerialStart.wallpaper()
-                    },
-                )
+                ScreensaverMode.Aerial -> if (aerialFailed) PhotoSaver(now, skips.steps) else Box(Modifier.fillMaxSize()) {
+                    AerialSaver(
+                        now, skips.steps, onUnavailable = { aerialFailed = true }, startAt = remember {
+                            // A paused wallpaper film still holds the decoder (one 4K decoder, MiTV-MFTR0).
+                            LiveFilm.onHome?.letDecoderGo()
+                            AerialStart.wallpaper()
+                        },
+                    )
+                    FilmVeil(veil.value)
+                }
                 ScreensaverMode.Photos -> PhotoSaver(now, skips.steps, remember { Wallpapers.screensaverPicture() })
                 ScreensaverMode.Clock, ScreensaverMode.System -> ClockSaver(apps, now)
-                ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else VideoSaver(skips.steps, now, onUnavailable = { videosFailed = true })
+                ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else Box(Modifier.fillMaxSize()) {
+                    VideoSaver(skips.steps, now, onUnavailable = { videosFailed = true })
+                    FilmVeil(veil.value)
+                }
             }
         }
     }
+}
+
+/** How long the veil takes to close over a film as the screensaver leaves (it opens over the 1200 ms fade in). */
+private const val SAVER_VEIL_MS = 380
+
+/**
+ * 极米: 盖在硬件视频平面上的黑幕。屏保里的影片（航拍、我的视频）由 MTK HAL 直接送到显示平面，
+ * 在合成层之下，Compose 的 alpha 摸不到它；这一层黑是 Compose 画的，在影片之上，可以把它
+ * 压下去、再放出来。从航拍壁纸切进我的视频屏保（或反过来）时，靠它做出淡入淡出。
+ */
+@Composable
+private fun FilmVeil(alpha: Float) {
+    if (alpha <= 0.002f) return
+    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = alpha)))
 }
 
 /**

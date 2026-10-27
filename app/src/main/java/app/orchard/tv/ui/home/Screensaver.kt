@@ -118,7 +118,7 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
         if (visible) held.value = carry
         when (val carried = held.value) {
             is SaverCarry.Film -> { FilmCarry(carried.film, now, skips.steps); return@AnimatedVisibility }
-            is SaverCarry.Video -> { VideoCarry(skips.steps); return@AnimatedVisibility }
+            is SaverCarry.Video -> { VideoCarry(now, skips.steps); return@AnimatedVisibility }
             is SaverCarry.Still -> { PhotoSaver(now, skips.steps, carried.wallpaper, carried); return@AnimatedVisibility }
             null -> Unit
         }
@@ -267,8 +267,13 @@ private fun FilmCarry(film: LiveFilm, now: LocalDateTime, steps: SharedFlow<Int>
  * and right step to the previous or next film, as over the aerial ones.
  */
 @Composable
-private fun VideoCarry(steps: SharedFlow<Int>) {
+private fun VideoCarry(now: LocalDateTime, steps: SharedFlow<Int>) {
     LaunchedEffect(steps) { steps.collect { HomeVideos.skip(it) } }
+    // 极米: 屏保里「我的视频」左下角那行字（手机端填的），位置与航拍的地名一样。
+    // 时间仍由 Home 的时钟给，这一层只放字（showTime = false）。
+    val cap = AerialSettings.videoCaption.ifBlank { null }
+    LaunchedEffect(cap) { DiagLog.i("carried video caption: ${cap ?: "none"}") }
+    Labels(cap, now, showTime = false)
 }
 
 /** Place name bottom-left, time top-right: how tvOS labels its screensaver. */

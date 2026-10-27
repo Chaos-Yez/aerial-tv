@@ -125,12 +125,6 @@ fun LiveWallpaper(
     gap: Boolean = false,
     /** Nothing over Home that blurs it: a stopped film may stand in for its picture. */
     standIn: Boolean,
-    /**
-     * Home is the one on screen (no screensaver over it). The plate's glass is taken off the film
-     * only while this is so: coming back, the glass is taken again, so the dock shows the picture
-     * that is up now rather than the one it left behind.
-     */
-    awake: Boolean = true,
     live: LiveFilm,
 ) {
     val context = LocalContext.current
@@ -209,13 +203,8 @@ fun LiveWallpaper(
     // the video plane where PixelCopy reads it (TCL MT5879); else a key frame from the film's file,
     // opened ahead (see FrameReader; Xiaomi MiTV-MFTR0).
     var glassSample by remember { mutableStateOf<GlassSample?>(null) }
-    // 极米: awake 也当一个键——屏保过去了 Home 回来，玻璃要重新取一张，dock 才跟得上现在
-    // 在放的画面，而不是停在屏保之前那张上。
-    LaunchedEffect(live.film, play, showing, awake) {
+    LaunchedEffect(live.film, play, showing) {
         val id = live.film?.id ?: return@LaunchedEffect
-        if (!awake) return@LaunchedEffect
-        // 极米: 回到 Home 就重新许可一次取帧，并马上取一张（sampleGlass 的第一张不等间隔）。
-        retryGlassFrames()
         if (!play || !showing) return@LaunchedEffect
         if (pixelCopy == false && glassFrames) reader.open(id)
         sampleGlass({ player }) { at ->
@@ -343,9 +332,22 @@ internal suspend fun copyFrame(view: SurfaceView): Bitmap? = if (pixelCopy == fa
  */
 internal suspend fun copyGlass(view: SurfaceView): Bitmap? {
     if (pixelCopy == false) return null
-    // 极米: 这张是小拷贝（320x180），不能拿停帧那张大拷贝的 150 毫秒去判它——判下去就把
-    // PixelCopy 永久关了，dock 的玻璃从此只是一张静止图，回桌面也不会再取。
-    val frame = captureOnce(view, 320, 180, GLASS_COPY_SLOW_MS)
+    val frame = captureOnce(view, 320, 180)
+    if (frame != null) pixelCopy = !copySlow
+    else if (++glassMisses >= 3 && pixelCopy == null) pixelCopy = false
+    if (frame != null) glassMisses = 0
+    return frame
+}
+
+/**
+ * 极米: the same small copy, for the owner's own videos. A copy is only written off past
+ * [GLASS_COPY_SLOW_MS] here, not the [COPY_SLOW_MS] a full frame that stands in for a stopped film
+ * is given: written off at 150 ms, PixelCopy closed for good and the dock's glass stayed a still.
+ * Nor does it close PixelCopy for the aerial wallpaper, which keeps its own [COPY_SLOW_MS].
+ */
+internal suspend fun copyVideoGlass(view: SurfaceView): Bitmap? {
+    if (pixelCopy == false) return null
+    val frame = captureOnce(view, 320, 180, GLASS_COPY_SLOW_MS, noteSlow = false)
     if (frame != null) pixelCopy = !copySlow
     else if (++glassMisses >= 3 && pixelCopy == null) pixelCopy = false
     if (frame != null) glassMisses = 0
@@ -389,25 +391,31 @@ private var pixelCopy: Boolean? = null
 internal const val GLASS_EVERY_MS = 2_500L
 
 /**
- * Whether frames are taken for the glass while a film moves. Not once taking one has cost the film
- * frames of its own: on TCL MT5879 each copy of a 4K film (PixelCopy), and each key frame decoded
- * from its file beside it, held the film up 0.5-0.6 s every time, 16 frames dropped each (frames of
- * 4K reaching the screen: 24 a second, 30 with none taken; 1080p films were not held up).
- * Remembered for the process, as [pixelCopy] is.
+ * Whether frames are taken for the glass while a film moves. Not on a TV set to Lite effects, and
+ * not once taking one has cost the film frames of its own: on TCL MT5879 each copy of a 4K film
+ * (PixelCopy), and each key frame decoded from its file beside it, held the film up 0.5-0.6 s
+ * every time, 16 frames dropped each (frames of 4K reaching the screen: 24 a second, 30 with none
+ * taken; 1080p films were not held up). Remembered for the process, as [pixelCopy] is.
  *
- * 极米: 这里原本还有 `!AerialSettings.lite`。这台电视被 Effects 的 Auto 判成低端机
- * （DeviceClass: 内存 / 核心数 / 低内存标志任一命中），lite 就是 true，于是玻璃**从来没取过一张**，
- * dock 一直挂着 useStillFilmFrost 的静止糊图——回桌面自然"没有重新取玻璃"。
- * 这里一张是 2.5 秒一次、320x180 的小拷贝，不是逐帧动画，掉帧保护（glassCostlyAt）也还在，
- * 所以不再跟着 lite 关掉。
+ * The aerial wallpaper keeps this, as it always had it. The owner's own videos do not ([videoGlassFrames]).
  */
-internal val glassFrames: Boolean
+internal val glassFrames: Boolean get() = !glassCostly && !AerialSettings.lite
+
+private var glassCostly = false
+
+/**
+ * 极米: 「我的视频」壁纸取玻璃的开关。与 [glassFrames] 不同，它不跟着 lite 关掉：这台电视被
+ * Effects 的 Auto 判成低端机（DeviceClass: 内存 / 核心数 / 低内存标志任一命中），lite 就是 true，
+ * 于是玻璃从来没取过一张，dock 一直挂着静止糊图——回桌面自然"没有重新取玻璃"。
+ * 这里一张是 2.5 秒一次、320x180 的小拷贝，不是逐帧动画，掉帧保护（[glassCostlyAt]）也还在。
+ */
+internal val videoGlassFrames: Boolean
     get() = glassCostlyAt == 0L || android.os.SystemClock.elapsedRealtime() - glassCostlyAt >= GLASS_COSTLY_FOR_MS
 
 /**
  * When taking a frame was last found to cost the film frames of its own; 0 where it never has.
- * 极米: 原来是永久的 true/false。掉帧常常只发生在一段过渡里（屏保刚回来、影片刚起播），
- * 一次判死就再也不取，dock 的玻璃从此停在静止图上。改成冷却：过一阵自己再试一次。
+ * 极米: [glassCostly] 是永久的 true/false。掉帧常常只发生在一段过渡里（屏保刚回来、影片刚起播），
+ * 一次判死就再也不取，dock 的玻璃从此停在静止图上。视频壁纸这边改成冷却：过一阵自己再试一次。
  */
 private var glassCostlyAt = 0L
 
@@ -417,6 +425,7 @@ private const val GLASS_COSTLY_FOR_MS = 60_000L
 /**
  * 极米: Home 重新回到屏幕上时（屏保走了、从别的应用回来），把「取帧太贵」这个结论作废一次。
  * 它记在整个进程里，一旦成立就不取帧，dock 会停在静止的玻璃上——这是「回桌面没有重新取玻璃」的来源。
+ * 只对「我的视频」壁纸生效；航拍壁纸沿用 [glassCostly]，跟上游一样。
  */
 internal fun retryGlassFrames() {
     if (glassCostlyAt != 0L) DiagLog.i("wallpaper glass: Home is back; taking frames again")
@@ -426,7 +435,7 @@ internal fun retryGlassFrames() {
 
 /** A look at the switches that decide whether the plate's glass is taken at all (diagnostics). */
 internal fun glassState(): String =
-    "copy=$pixelCopy costly=${glassCostlyAt != 0L} misses=$glassMisses slow=$copySlow lite=${AerialSettings.lite}"
+    "copy=$pixelCopy costly=$glassCostly videoStuck=${glassCostlyAt != 0L} misses=$glassMisses slow=$copySlow lite=${AerialSettings.lite}"
 
 /**
  * While the film moves, a frame from [take] every [GLASS_EVERY_MS] becomes the plate's glass
@@ -435,15 +444,46 @@ internal fun glassState(): String =
  * to its broad colours so that what has moved on does not show twice through it.
  */
 internal suspend fun sampleGlass(player: () -> ExoPlayer?, canTake: () -> Boolean = { true }, take: suspend (atMs: Long) -> Bitmap?) {
-    if (!glassFrames || !canTake()) DiagLog.i("wallpaper glass: nothing taken (${glassState()})")
+    // The first soon, for a film stopped moments after it moved.
+    var wait = 800L
+    var costly = 0
+    while (glassFrames && canTake()) {
+        delay(wait)
+        wait = GLASS_EVERY_MS
+        val p = player() ?: return
+        val before = droppedFrames(p)
+        val frame = take(p.currentPosition)
+        // The frames the film dropped while one was taken, and just after: the copy or the decode held it up.
+        delay(GLASS_SETTLE_MS)
+        // Twice in a row, as the film can drop a few once for something else (Xiaomi MiTV-MFTR0:
+        // 26 once, as Home came back from its screensaver; none in minutes either side).
+        val cost = droppedFrames(p) - before
+        costly = if (cost >= GLASS_COST_FRAMES) costly + 1 else 0
+        if (costly >= 2) {
+            DiagLog.i("wallpaper glass: the film dropped $cost frames while one was taken, twice running; a still glass from now on")
+            glassCostly = true
+            break
+        }
+        frame?.let { Wallpapers.useFilmFrost(it) }
+    }
+    if (wait == 800L) delay(wait)
+    Wallpapers.useStillFilmFrost()
+}
+
+/**
+ * 极米: 「我的视频」壁纸的取玻璃循环。与 [sampleGlass] 同一件事，三处不同：
+ * 一、第一张不等间隔——Home 从屏保回来（或影片刚起播）时 dock 要立刻跟上现在的画面；
+ * 二、回来时那一张不算掉帧账（那一下本来就在丢帧），空拷贝 400 毫秒后重试；
+ * 三、判成「太贵」不再从此静止，停 60 秒自己再试。
+ */
+internal suspend fun sampleVideoGlass(player: () -> ExoPlayer?, canTake: () -> Boolean = { true }, take: suspend (atMs: Long) -> Bitmap?) {
+    if (!videoGlassFrames || !canTake()) DiagLog.i("wallpaper glass: nothing taken (${glassState()})")
     var costly = 0
     var first = true
     // The last copy came back empty (the film had not drawn yet, or the plane read black): try
     // again soon rather than a whole interval later.
     var retry = false
-    while (glassFrames && canTake()) {
-        // 极米: 第一张不等——Home 从屏保回来（或影片刚起播）时 dock 要立刻跟上现在的画面，
-        // 不能等一个采样间隔过去才换掉屏保之前那张。
+    while (videoGlassFrames && canTake()) {
         if (!first) delay(if (retry) GLASS_RETRY_MS else GLASS_EVERY_MS)
         val wasFirst = first
         first = false
@@ -454,16 +494,10 @@ internal suspend fun sampleGlass(player: () -> ExoPlayer?, canTake: () -> Boolea
         retry = frame == null
         // The frames the film dropped while one was taken, and just after: the copy or the decode held it up.
         delay(GLASS_SETTLE_MS)
-        // Twice in a row, as the film can drop a few once for something else (Xiaomi MiTV-MFTR0:
-        // 26 once, as Home came back from its screensaver; none in minutes either side).
         val cost = droppedFrames(p) - before
-        // 极米: 回来时那一张不算账。Home 从屏保回来（或影片刚起播）本来就在丢帧，这一张正好
-        // 落在过渡里，会把正常取样判成「太贵」——之前每次回桌面取一张就被判死，就是这么来的。
         costly = if (!wasFirst && cost >= GLASS_COST_FRAMES) costly + 1 else 0
         if (costly >= 2) {
             DiagLog.i("wallpaper glass: the film dropped $cost frames while one was taken, twice running; no frames for ${GLASS_COSTLY_FOR_MS / 1000} s")
-            // 极米: 不再「从此静止」。停一阵再试——屏保刚回来那几个过渡帧本来就在丢，
-            // 一次判死等于 dock 的玻璃永远不再更新（这才是那种"看着像贴纸"的观感）。
             glassCostlyAt = android.os.SystemClock.elapsedRealtime()
             costly = 0
             delay(GLASS_COSTLY_FOR_MS)
@@ -480,9 +514,9 @@ internal suspend fun sampleGlass(player: () -> ExoPlayer?, canTake: () -> Boolea
 private const val GLASS_RETRY_MS = 400L
 
 /**
- * 极米: a copy of a small frame for the glass may take this long before it is written off. Larger
- * than [COPY_SLOW_MS] on purpose: this one does not stand in for a stopped film's picture (nothing
- * waits on it), so a slow copy here should not close PixelCopy for good.
+ * 极米: a copy of a small frame for the glass may take this long before it is written off, on the
+ * owner's own videos. Larger than [COPY_SLOW_MS] on purpose: this one does not stand in for a
+ * stopped film's picture (nothing waits on it), so a slow copy here should not close PixelCopy for good.
  */
 private const val GLASS_COPY_SLOW_MS = 500L
 
@@ -496,7 +530,7 @@ private const val GLASS_COST_FRAMES = 5
 /** A small key frame of [film] near [atMs], kept for the glass. */
 private class GlassSample(val film: String, val atMs: Long, val frame: Bitmap)
 
-private suspend fun captureOnce(view: SurfaceView, w: Int = view.width, h: Int = view.height, slowMs: Long = COPY_SLOW_MS): Bitmap? {
+private suspend fun captureOnce(view: SurfaceView, w: Int = view.width, h: Int = view.height, slowMs: Long = COPY_SLOW_MS, noteSlow: Boolean = true): Bitmap? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N || view.width <= 0 || !view.holder.surface.isValid) return null
     val surface = view.holder.surface
     val bitmap = createBitmap(w, h)
@@ -518,7 +552,9 @@ private suspend fun captureOnce(view: SurfaceView, w: Int = view.width, h: Int =
     val took = android.os.SystemClock.elapsedRealtime() - started
     if (result == PixelCopy.SUCCESS && took > slowMs) {
         DiagLog.i("wallpaper frame copy took $took ms; the film's file from now on")
-        copySlow = true
+        // 极米: 视频壁纸的小拷贝只记一笔，不关上 PixelCopy——那条结论是航拍的（[COPY_SLOW_MS] 的
+        // 整帧拷贝），拿它判一张 320x180 的小图会把视频壁纸的玻璃退回静止图上。
+        if (noteSlow) copySlow = true
     }
     val unread = if (result == PixelCopy.SUCCESS) unreadable(bitmap) else null
     if (unread == "green") copyLostColour = true

@@ -136,7 +136,6 @@
 
     <string name="st_columns">Қатардағы плиткалар</string>
     <string name="st_columns_hint">tvOS-тегідей бес, немесе алты, жеті не сегіз: қатар енін сақтайды, плиткалар тарылады, төменгі қатарлар да соған ілеседі.</string>
-    <string name="st_plate_glass">Шыны</string>
     <string name="st_plate_none">Жоқ</string>
     <string name="st_sounds">Дыбыстар</string>
     <string name="st_sounds_hint">Фокус жылжығанда, таңдағанда және «Артқа» басқанда дыбыс шығады, Apple TV сияқты.</string>

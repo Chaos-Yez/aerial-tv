@@ -101,6 +101,11 @@ class PhoneServer private constructor(private val context: Context, private val 
                     if (removed) onMain { Wallpapers.videosChanged() }
                     json(state().put("removed", removed))
                 }
+                // 极米: the line drawn bottom-left over the owner's videos in the screensaver.
+                session.method == Method.POST && path == "/api/videos/caption" -> {
+                    onMain { AerialSettings.chooseVideoCaption(form(session)["text"].orEmpty()) }
+                    json(state())
+                }
                 path.startsWith("/tile/") -> tile(java.net.URLDecoder.decode(path.removePrefix("/tile/"), "UTF-8"), own = session.parameters["art"]?.firstOrNull() == "own")
                 path.startsWith("/library/") -> libraryPicture(java.net.URLDecoder.decode(path.removePrefix("/library/"), "UTF-8"))
                 session.method == Method.POST && path == "/api/icon" -> icon(session)
@@ -213,6 +218,7 @@ class PhoneServer private constructor(private val context: Context, private val 
             .put("wallpaperAlwaysMoves", AerialSettings.wallpaperAlwaysMoves)
             .put("showWeather", AerialSettings.showWeather)
             .put("screensaverClock", AerialSettings.screensaverClock)
+            .put("videoCaption", AerialSettings.videoCaption)
             .put("wallpapers", list)
             .put("apps", JSONArray().apply {
                 // Pinned inputs first, then apps by the name Home shows. [default] is the name a

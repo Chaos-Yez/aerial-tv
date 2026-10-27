@@ -144,11 +144,12 @@
     <string name="st_home_one_row">单排</string>
     <string name="st_home_layout_hint">单排：只显示第一排，放在屏幕下方，露出更多壁纸，比如家庭合照。双排：下面露出第二排。按下键看其余 App。</string>
     <string name="st_plate">第一排底板</string>
-    <string name="st_plate_hint">第一排下面垫一块磨砂玻璃，像 Apple TV 一样；或者让 App 直接放在壁纸上。</string>
+    <string name="st_plate_hint">第一排下面垫一块磨砂玻璃，像 Apple TV 一样；或者让 App 直接放在壁纸上。选在哪种壁纸下显示：动态壁纸（航拍、我的视频）、静态壁纸（照片、内置、每日），或者都不显示。</string>
 
     <string name="st_columns">第一排磁贴数量</string>
     <string name="st_columns_hint">5 个（和 Apple TV 一样）、6、7 或 8 个：一排的宽度不变，磁贴按比例缩窄，下面几排的列数也跟着变。</string>
-    <string name="st_plate_glass">玻璃</string>
+    <string name="st_plate_live">动态壁纸下显示</string>
+    <string name="st_plate_still">静态壁纸下显示</string>
     <string name="st_plate_none">不显示</string>
     <string name="st_sounds">按键声音</string>
     <string name="st_sounds_hint">移动焦点、确认、返回时发出声音，像 Apple TV 一样。</string>

@@ -74,6 +74,7 @@ import app.orchard.tv.R
 import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.NameMode
+import app.orchard.tv.settings.PlateMode
 import app.orchard.tv.settings.FocusStyle
 import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.settings.Effects
@@ -244,10 +245,15 @@ fun WallpaperSheet(
                             listOf(true to R.string.st_peek_show, false to R.string.st_peek_hide),
                             AerialSettings.peekNextRow, AerialSettings::choosePeekNextRow,
                         )
+                        // 极米: 底板在哪种壁纸下出现——动态（航拍、我的视频）/ 静态 / 都不。
                         Choices(
                             R.string.st_plate, stringResource(R.string.st_plate_hint), note,
-                            listOf(true to R.string.st_plate_glass, false to R.string.st_plate_none),
-                            AerialSettings.homePlate, AerialSettings::chooseHomePlate,
+                            listOf(
+                                PlateMode.Live to R.string.st_plate_live,
+                                PlateMode.Still to R.string.st_plate_still,
+                                PlateMode.None to R.string.st_plate_none,
+                            ),
+                            AerialSettings.plateMode, AerialSettings::choosePlateMode,
                         )
                         // How many tiles the row holds: five, as tvOS has it, up to eight. More of
                         // them, and they narrow to fit, the rows below following.

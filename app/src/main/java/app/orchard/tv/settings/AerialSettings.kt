@@ -82,6 +82,20 @@ enum class VideoMode(val key: String) {
 }
 
 /**
+ * 极米: under which wallpapers the top row's plate shows. [Live] on a moving wallpaper (the aerial
+ * films, the owner's own videos), [Still] on a still one (a photo, a built-in, the daily picture),
+ * [None] on neither. Before this setting had three choices it was a boolean "show the plate",
+ * which read as [Live]: a plate over the moving wallpaper, as it always was.
+ */
+enum class PlateMode(val key: String) {
+    Live("live"), Still("still"), None("none");
+
+    companion object {
+        fun of(key: String?) = entries.firstOrNull { it.key == key }
+    }
+}
+
+/**
  * How much of the interface's light and motion to draw. Full is the glass panels, a focused tile's
  * sheen, parallax and shadow, and the panel's highest refresh rate. Lite draws the panels in plain
  * dark glass (no offscreen layer per frame), a focused tile without sheen, parallax or shadow, and
@@ -138,8 +152,12 @@ object AerialSettings {
      */
     var adbAccess by mutableStateOf(false); private set
 
-    /** The Liquid Glass plate under the top row; some prefer the apps straight on the wallpaper (#151). */
-    var homePlate by mutableStateOf(true); private set
+    /**
+     * The Liquid Glass plate under the top row, under which wallpapers: on a moving one (the aerial
+     * films, the owner's own videos), on a still one, or not at all (some prefer the apps straight
+     * on the wallpaper, #151).
+     */
+    var plateMode by mutableStateOf(PlateMode.Live); private set
 
     /**
      * How many tiles sit in the top row, and so in every row of the grid: five, six, seven or eight.
@@ -181,6 +199,12 @@ object AerialSettings {
      * aerial films.
      */
     var videoSink by mutableStateOf(true); private set
+
+    /**
+     * 极米: the line shown bottom-left over the owner's videos in the screensaver, where the aerial
+     * films show the place they were taken. Set on the phone page; empty shows nothing.
+     */
+    var videoCaption by mutableStateOf(""); private set
 
     /** The weather beside the clock; off for those who want the time alone (issue #472). */
     var showWeather by mutableStateOf(true); private set
@@ -248,7 +272,8 @@ object AerialSettings {
         peekNextRow = prefs.getBoolean("peek_next_row", true)
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", false)
-        homePlate = prefs.getBoolean("home_plate", true)
+        plateMode = PlateMode.of(prefs.getString("plate_mode", null))
+            ?: if (prefs.getBoolean("home_plate", true)) PlateMode.Live else PlateMode.None
         gridColumns = prefs.getInt("grid_columns", GRID_COLUMNS_DEFAULT).coerceIn(GRID_COLUMNS_MIN, GRID_COLUMNS_MAX)
         adbAccess = prefs.getBoolean("adb_access", false)
         // Before this setting had three modes it was a boolean "show every name"; keep old installs.
@@ -259,6 +284,7 @@ object AerialSettings {
         videoSound = prefs.getBoolean("video_sound", false)
         videoVolume = prefs.getInt("video_volume", VIDEO_VOLUME_STEPS).coerceIn(1, VIDEO_VOLUME_STEPS)
         videoSink = prefs.getBoolean("video_sink", true)
+        videoCaption = prefs.getString("video_caption", "").orEmpty()
         showWeather = prefs.getBoolean("show_weather", true)
         screensaverClock = prefs.getBoolean("screensaver_clock", true)
         // Before 1.28 this was on or off; on meant whichever sounds Aerial played.
@@ -332,9 +358,13 @@ object AerialSettings {
         if (!on) AdbShell.revoke(app)
     }
 
-    fun chooseHomePlate(on: Boolean) {
-        homePlate = on
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("home_plate", on) }
+    fun choosePlateMode(mode: PlateMode) {
+        plateMode = mode
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putString("plate_mode", mode.key)
+            // Kept for a build before this setting had three choices.
+            putBoolean("home_plate", mode != PlateMode.None)
+        }
     }
 
     fun chooseGridColumns(count: Int) {
@@ -388,6 +418,13 @@ object AerialSettings {
     fun chooseVideoSink(on: Boolean) {
         videoSink = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("video_sink", on) }
+    }
+
+    /** 极米: the line over the owner's videos in the screensaver; blank clears it. */
+    fun chooseVideoCaption(text: String) {
+        val line = text.trim().take(80)
+        videoCaption = line
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putString("video_caption", line) }
     }
 
     fun chooseShowWeather(on: Boolean) {

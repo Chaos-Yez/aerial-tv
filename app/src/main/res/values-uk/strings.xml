@@ -136,7 +136,6 @@
 
     <string name="st_columns">Плиток у ряду</string>
     <string name="st_columns_hint">Пʼять, як у tvOS, або шість, сім чи вісім: ряд зберігає свою ширину, а плитки звужуються; ряди нижче йдуть за ним.</string>
-    <string name="st_plate_glass">Скло</string>
     <string name="st_plate_none">Немає</string>
     <string name="st_sounds">Звуки</string>
     <string name="st_sounds_hint">Звук під час переміщення фокуса, вибору та натискання «Назад», як на Apple TV.</string>

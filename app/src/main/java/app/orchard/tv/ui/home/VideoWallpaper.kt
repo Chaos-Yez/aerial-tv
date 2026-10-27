@@ -213,14 +213,13 @@ fun VideoWallpaper(
 
     // The plate's glass over the moving video, where PixelCopy reads it. Not from the file: an
     // owner's video may be 4K HEVC, and a second decoder beside the player's may not be there.
-    // 极米: awake 也当一个键——屏保过去了 Home 回来，玻璃要重新取一张，dock 才跟得上现在
-    // 在放的画面，而不是停在屏保之前那张上。
+    // 极米: 这一支走的是「视频壁纸」自己的取样（sampleVideoGlass / copyVideoGlass）——不跟 lite
+    // 关掉取帧，回桌面立刻重取一张，判成「太贵」也只停 60 秒。航拍壁纸仍走上游那一套。
     LaunchedEffect(play, showing, awake) {
         if (!awake) return@LaunchedEffect
-        // 极米: 回到 Home 就重新许可一次取帧，并马上取一张（sampleGlass 的第一张不等间隔）。
         retryGlassFrames()
         if (!play || !showing) return@LaunchedEffect
-        sampleGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyGlass(it) } }
+        sampleVideoGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyVideoGlass(it) } }
     }
 
     LaunchedEffect(play, sound) {

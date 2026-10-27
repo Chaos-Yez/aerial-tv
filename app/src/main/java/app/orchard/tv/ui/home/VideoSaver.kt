@@ -228,7 +228,10 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, n
         // not there to hand over: it only carries these films on when their own wallpaper is the
         // one set, and from any other wallpaper (an input's picture, a photo, the aerials) Home is
         // covered whole and the screensaver brings the time itself.
-        Labels(null, now)
+        // 极米: 屏保里「我的视频」左下角那行字（手机端填的），位置与航拍的地名一样。
+        val cap = AerialSettings.videoCaption.ifBlank { null }
+        LaunchedEffect(cap) { DiagLog.i("local screensaver caption: ${cap ?: "none"}") }
+        Labels(cap, now)
         if (veil > 0.002f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = veil)))
     }
 }

@@ -6,6 +6,7 @@ import android.content.Intent
 import app.orchard.tv.apps.TileSheet
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.NameMode
+import app.orchard.tv.settings.PlateMode
 import app.orchard.tv.system.DiagLog
 import app.orchard.tv.update.Updates
 import app.orchard.tv.ui.components.UhdCanvas
@@ -61,11 +62,20 @@ class ConfigReceiver : BroadcastReceiver() {
             "clock_right" to AerialSettings::chooseClockRight,
             "one_row_home" to AerialSettings::chooseOneRowHome,
             "peek_next_row" to AerialSettings::choosePeekNextRow,
-            "home_plate" to AerialSettings::chooseHomePlate,
         ).filterKeys { intent.hasExtra(it) }
         if (layout.isNotEmpty()) {
             AerialSettings.init(context)
             layout.forEach { (key, choose) -> choose(intent.getBooleanExtra(key, false)) }
+        }
+        // ... --es plate_mode live|still|none   (under which wallpapers the top row's plate shows)
+        intent.getStringExtra("plate_mode")?.let { key ->
+            AerialSettings.init(context)
+            PlateMode.of(key)?.let { AerialSettings.choosePlateMode(it) }
+        }
+        // ... --ez home_plate true   (before this setting had three choices: plate or none, read as "moving")
+        if (intent.hasExtra("home_plate")) {
+            AerialSettings.init(context)
+            AerialSettings.choosePlateMode(if (intent.getBooleanExtra("home_plate", true)) PlateMode.Live else PlateMode.None)
         }
         // ... --es name_mode focused|all|hero   (which App names show on Home; see NameMode)
         intent.getStringExtra("name_mode")?.let { key ->

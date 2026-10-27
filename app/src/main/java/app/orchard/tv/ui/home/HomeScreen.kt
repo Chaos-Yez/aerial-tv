@@ -87,6 +87,7 @@ import app.orchard.tv.R
 import app.orchard.tv.settings.AerialSettings
 import app.orchard.tv.settings.GRID_COLUMNS_DEFAULT
 import app.orchard.tv.settings.NameMode
+import app.orchard.tv.settings.PlateMode
 import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.apps.AppDetails
 import app.orchard.tv.apps.AppEntry
@@ -570,10 +571,16 @@ fun HomeScreen(
         val inGrid = focusedRow >= if (oneRow) 1 else 2
         val saverFadeOffscreen = remember { DiagLog.saverFadeOffscreen(appContext) }
         val nameRoom = if (AerialSettings.nameMode == NameMode.All) NameRoom else 0.dp
+        // 极米: 底板只在设定的那种壁纸下出现（个性化「第一排底板」：动态 / 静态 / 不显示）。
+        val plateHere = when (AerialSettings.plateMode) {
+            PlateMode.Live -> Wallpapers.moves()
+            PlateMode.Still -> !Wallpapers.moves()
+            PlateMode.None -> false
+        }
         // With every name shown, the top row's go on its glass plate, which grows to hold them.
-        val plateNames = AerialSettings.nameMode == NameMode.All && AerialSettings.homePlate
+        val plateNames = AerialSettings.nameMode == NameMode.All && plateHere
         val peek = AerialSettings.peekNextRow
-        val hasPlate = AerialSettings.homePlate
+        val hasPlate = plateHere
         // The count is a key: chosen in Personalize, the grid takes its new shape at once, without
         // waiting for Home to be opened again.
         val metrics = remember(maxWidth, maxHeight, oneRow, plateNames, peek, hasPlate, columns) {
@@ -689,7 +696,7 @@ fun HomeScreen(
                 spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
                 label = "plate-sink",
             )
-            val plate = if (apps.isEmpty() || !AerialSettings.homePlate || sourceChosen) null else with(density) {
+            val plate = if (apps.isEmpty() || !plateHere || sourceChosen) null else with(density) {
                 Rect(
                     metrics.plateLeft.toPx(),
                     metrics.plateTop.toPx() + plateSink.y,
@@ -733,7 +740,6 @@ fun HomeScreen(
                     // (another plane and processing; a key frame a second off where the exact
                     // frame did not decode, Xiaomi MiTV-MFTR0 and TCL MT5879).
                     standIn = overlay == Overlay.None || overlay is Overlay.ControlCenter || overlay is Overlay.Wallpaper,
-                    awake = vm.resumed && !vm.screensaverVisible,
                     live = liveFilm,
                 )
                 Wallpapers.selectedId == Wallpapers.VIDEOS -> VideoWallpaper(
@@ -768,6 +774,9 @@ fun HomeScreen(
                 sinkOnSaver = AerialSettings.videoSink,
                 saving = vm.screensaverVisible,
                 filmGlass = (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null },
+                // 极米: 那块玻璃跟着影片换的，只有「我的视频」壁纸（videosChosen）。航拍壁纸仍按
+                // 上游那样：底板不透明，影片那一帧只压在底下。
+                filmPlate = videosChosen,
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
                 saverPush = { saverPush.value },

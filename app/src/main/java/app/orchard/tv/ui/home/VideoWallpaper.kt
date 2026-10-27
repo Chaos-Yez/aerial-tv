@@ -216,7 +216,10 @@ fun VideoWallpaper(
     // 极米: awake 也当一个键——屏保过去了 Home 回来，玻璃要重新取一张，dock 才跟得上现在
     // 在放的画面，而不是停在屏保之前那张上。
     LaunchedEffect(play, showing, awake) {
-        if (!awake || !play || !showing) return@LaunchedEffect
+        if (!awake) return@LaunchedEffect
+        // 极米: 回到 Home 就重新许可一次取帧，并马上取一张（sampleGlass 的第一张不等间隔）。
+        retryGlassFrames()
+        if (!play || !showing) return@LaunchedEffect
         sampleGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyGlass(it) } }
     }
 

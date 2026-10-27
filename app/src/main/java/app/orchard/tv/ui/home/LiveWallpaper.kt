@@ -389,26 +389,44 @@ private var pixelCopy: Boolean? = null
 internal const val GLASS_EVERY_MS = 2_500L
 
 /**
- * Whether frames are taken for the glass while a film moves. Not on a TV set to Lite effects, and
- * not once taking one has cost the film frames of its own: on TCL MT5879 each copy of a 4K film
- * (PixelCopy), and each key frame decoded from its file beside it, held the film up 0.5-0.6 s
- * every time, 16 frames dropped each (frames of 4K reaching the screen: 24 a second, 30 with none
- * taken; 1080p films were not held up). Remembered for the process, as [pixelCopy] is.
+ * Whether frames are taken for the glass while a film moves. Not once taking one has cost the film
+ * frames of its own: on TCL MT5879 each copy of a 4K film (PixelCopy), and each key frame decoded
+ * from its file beside it, held the film up 0.5-0.6 s every time, 16 frames dropped each (frames of
+ * 4K reaching the screen: 24 a second, 30 with none taken; 1080p films were not held up).
+ * Remembered for the process, as [pixelCopy] is.
+ *
+ * 极米: 这里原本还有 `!AerialSettings.lite`。这台电视被 Effects 的 Auto 判成低端机
+ * （DeviceClass: 内存 / 核心数 / 低内存标志任一命中），lite 就是 true，于是玻璃**从来没取过一张**，
+ * dock 一直挂着 useStillFilmFrost 的静止糊图——回桌面自然"没有重新取玻璃"。
+ * 这里一张是 2.5 秒一次、320x180 的小拷贝，不是逐帧动画，掉帧保护（glassCostlyAt）也还在，
+ * 所以不再跟着 lite 关掉。
  */
-internal val glassFrames: Boolean get() = !glassCostly && !AerialSettings.lite
+internal val glassFrames: Boolean
+    get() = glassCostlyAt == 0L || android.os.SystemClock.elapsedRealtime() - glassCostlyAt >= GLASS_COSTLY_FOR_MS
 
-private var glassCostly = false
+/**
+ * When taking a frame was last found to cost the film frames of its own; 0 where it never has.
+ * 极米: 原来是永久的 true/false。掉帧常常只发生在一段过渡里（屏保刚回来、影片刚起播），
+ * 一次判死就再也不取，dock 的玻璃从此停在静止图上。改成冷却：过一阵自己再试一次。
+ */
+private var glassCostlyAt = 0L
+
+/** How long taking frames is given up for after one has cost the film frames. */
+private const val GLASS_COSTLY_FOR_MS = 60_000L
 
 /**
  * 极米: Home 重新回到屏幕上时（屏保走了、从别的应用回来），把「取帧太贵」这个结论作废一次。
- * 它记在整个进程里，一旦为真就再也不取帧，dock 会一直停在一张静止的玻璃上——这正是
- * 「回桌面没有重新取玻璃」的来源。回桌面的第一次取样不贵就继续取，还是贵就再判一次。
+ * 它记在整个进程里，一旦成立就不取帧，dock 会停在静止的玻璃上——这是「回桌面没有重新取玻璃」的来源。
  */
 internal fun retryGlassFrames() {
-    if (glassCostly) DiagLog.i("wallpaper glass: Home is back; taking frames again")
-    glassCostly = false
+    if (glassCostlyAt != 0L) DiagLog.i("wallpaper glass: Home is back; taking frames again")
+    glassCostlyAt = 0L
     glassMisses = 0
 }
+
+/** A look at the switches that decide whether the plate's glass is taken at all (diagnostics). */
+internal fun glassState(): String =
+    "copy=$pixelCopy costly=${glassCostlyAt != 0L} misses=$glassMisses slow=$copySlow lite=${AerialSettings.lite}"
 
 /**
  * While the film moves, a frame from [take] every [GLASS_EVERY_MS] becomes the plate's glass
@@ -417,6 +435,7 @@ internal fun retryGlassFrames() {
  * to its broad colours so that what has moved on does not show twice through it.
  */
 internal suspend fun sampleGlass(player: () -> ExoPlayer?, canTake: () -> Boolean = { true }, take: suspend (atMs: Long) -> Bitmap?) {
+    if (!glassFrames || !canTake()) DiagLog.i("wallpaper glass: nothing taken (${glassState()})")
     var costly = 0
     var first = true
     // The last copy came back empty (the film had not drawn yet, or the plane read black): try
@@ -426,21 +445,31 @@ internal suspend fun sampleGlass(player: () -> ExoPlayer?, canTake: () -> Boolea
         // 极米: 第一张不等——Home 从屏保回来（或影片刚起播）时 dock 要立刻跟上现在的画面，
         // 不能等一个采样间隔过去才换掉屏保之前那张。
         if (!first) delay(if (retry) GLASS_RETRY_MS else GLASS_EVERY_MS)
+        val wasFirst = first
         first = false
         val p = player() ?: return
         val before = droppedFrames(p)
         val frame = take(p.currentPosition)
+        if (wasFirst) DiagLog.i("wallpaper glass: first copy ${if (frame == null) "empty" else "taken"} (${glassState()})")
         retry = frame == null
         // The frames the film dropped while one was taken, and just after: the copy or the decode held it up.
         delay(GLASS_SETTLE_MS)
         // Twice in a row, as the film can drop a few once for something else (Xiaomi MiTV-MFTR0:
         // 26 once, as Home came back from its screensaver; none in minutes either side).
         val cost = droppedFrames(p) - before
-        costly = if (cost >= GLASS_COST_FRAMES) costly + 1 else 0
+        // 极米: 回来时那一张不算账。Home 从屏保回来（或影片刚起播）本来就在丢帧，这一张正好
+        // 落在过渡里，会把正常取样判成「太贵」——之前每次回桌面取一张就被判死，就是这么来的。
+        costly = if (!wasFirst && cost >= GLASS_COST_FRAMES) costly + 1 else 0
         if (costly >= 2) {
-            DiagLog.i("wallpaper glass: the film dropped $cost frames while one was taken, twice running; a still glass from now on")
-            glassCostly = true
-            break
+            DiagLog.i("wallpaper glass: the film dropped $cost frames while one was taken, twice running; no frames for ${GLASS_COSTLY_FOR_MS / 1000} s")
+            // 极米: 不再「从此静止」。停一阵再试——屏保刚回来那几个过渡帧本来就在丢，
+            // 一次判死等于 dock 的玻璃永远不再更新（这才是那种"看着像贴纸"的观感）。
+            glassCostlyAt = android.os.SystemClock.elapsedRealtime()
+            costly = 0
+            delay(GLASS_COSTLY_FOR_MS)
+            glassCostlyAt = 0L
+            first = true
+            continue
         }
         frame?.let { Wallpapers.useFilmFrost(it) }
     }

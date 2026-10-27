@@ -16,7 +16,7 @@ mkdir -p site/download site/tools
 gh release download --repo "$REPO" --pattern 'aerial-*.apk' --dir site/download
 gh release view --repo "$REPO" --json tagName -q .tagName > site/download/version.txt
 cp tools/get.sh site/install.sh
-cp tools/install.sh tools/restore.sh tools/tcast-push.py tools/report.sh site/tools/
+cp tools/install.sh tools/restore.sh tools/tcast-push.py tools/report.sh tools/selftest.sh site/tools/
 echo "Publishing $(cat site/download/version.txt): $(ls site/download | tr '\n' ' ')"
 
 # The tile pictures TVs download (IconLibrary). They are not ours to put in the public repo, so

@@ -9,6 +9,7 @@
 #   curl -fsSL .../install.sh | TV=<tv-ip> bash -s guard        # firmwares that refuse launchers
 #   curl -fsSL .../install.sh | TV=<tv-ip> bash -s repair       # Home opens the TV's launcher again
 #   curl -fsSL .../install.sh | TV=<tv-ip> bash -s restore      # give Home back to the TV's launcher
+#   (Android 4.0-4.4 gets Aerial Lite by itself; `bash -s lite` asks for it and is refused on 5.0+)
 #
 # Needs curl, unzip and python3 (TCL only). If adb is not installed, Google's platform-tools are
 # downloaded into ~/.cache/aerial and used from there.

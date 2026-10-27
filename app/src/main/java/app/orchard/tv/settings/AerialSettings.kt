@@ -88,7 +88,7 @@ enum class VideoMode(val key: String) {
  * which read as [Live]: a plate over the moving wallpaper, as it always was.
  */
 enum class PlateMode(val key: String) {
-    Live("live"), Still("still"), None("none");
+    Live("live"), Still("still"), None("none"), All("all");
 
     companion object {
         fun of(key: String?) = entries.firstOrNull { it.key == key }
@@ -157,7 +157,7 @@ object AerialSettings {
      * films, the owner's own videos), on a still one, or not at all (some prefer the apps straight
      * on the wallpaper, #151).
      */
-    var plateMode by mutableStateOf(PlateMode.Live); private set
+    var plateMode by mutableStateOf(PlateMode.All); private set
 
     /**
      * How many tiles sit in the top row, and so in every row of the grid: five, six, seven or eight.

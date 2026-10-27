@@ -144,13 +144,14 @@
     <string name="st_home_one_row">单排</string>
     <string name="st_home_layout_hint">单排：只显示第一排，放在屏幕下方，露出更多壁纸，比如家庭合照。双排：下面露出第二排。按下键看其余 App。</string>
     <string name="st_plate">第一排底板</string>
-    <string name="st_plate_hint">第一排下面垫一块磨砂玻璃，像 Apple TV 一样；或者让 App 直接放在壁纸上。选在哪种壁纸下显示：动态壁纸（航拍、我的视频）、静态壁纸（照片、内置、每日），或者都不显示。</string>
+    <string name="st_plate_hint">第一排下面垫一块磨砂玻璃，像 Apple TV 一样；或者让 App 直接放在壁纸上。选在哪种壁纸下显示：动态壁纸（航拍、我的视频）、静态壁纸（照片、内置、每日），或者都显示，或者都不显示。</string>
 
     <string name="st_columns">第一排磁贴数量</string>
     <string name="st_columns_hint">5 个（和 Apple TV 一样）、6、7 或 8 个：一排的宽度不变，磁贴按比例缩窄，下面几排的列数也跟着变。</string>
     <string name="st_plate_live">动态壁纸下显示</string>
     <string name="st_plate_still">静态壁纸下显示</string>
     <string name="st_plate_none">不显示</string>
+    <string name="st_plate_all">动态静态都显示</string>
     <string name="st_sounds">按键声音</string>
     <string name="st_sounds_hint">移动焦点、确认、返回时发出声音，像 Apple TV 一样。</string>
     <string name="st_sounds_tv_hint">用电视系统自带的按键音，和电视菜单里一样。电视设置里关了按键音时不会响，这时请选「Aerial」。</string>
@@ -205,6 +206,7 @@
     <string name="cc_update_failed_blocked">这台电视不让 App 安装别的 App，请用下面的命令升级。</string>
     <string name="cc_update_failed_signature">这台电视上的 Aerial 和官方版本签名不同，不能直接覆盖。</string>
     <string name="cc_update_failed_older">官网上的版本还不比这台电视上的新，过一会儿再试。</string>
+    <string name="cc_update_storage_permission">这台电视需要存储权限才能保存更新。请允许弹出的文件权限请求，再点一次「下载并安装」。</string>
     <string name="st_pin">家长密码</string>
     <string name="st_pin_off">关闭</string>
     <string name="st_pin_on">开启</string>

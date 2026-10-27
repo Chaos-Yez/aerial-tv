@@ -22,14 +22,14 @@ import androidx.core.content.ContextCompat
  * - Sony BRAVIA: the screen brightness setting changes but the backlight does not (no backlight in
  *   the display config); Control Center opens Sony's picture settings, which DISPLAY_SETTINGS
  *   resolves to. Reported on a BRAVIA VH1, Android 12 (GitHub issue #2).
- * - XGIMI (GMUI): the real brightness is the DLP light-engine level, in a private HAL class
- *   (com.xgimi.gmpf.api.DisplayManager, see SystemProbe.xgimiBrightnessLevel). Issue #241 had it
- *   read-only on a Z7X; on the GMUI 9 firmware of `pig_chivalrous` a plain app sets it too, so
- *   Control Center steps the light engine's own levels (1..10).
  * - Skyworth/Coocaa: the panel is driven by the TV's picture middleware, and Settings.System
  *   screen_brightness does not move it (75A7D, 8R134_A7D, Android 11, CCOS 9.0: the setting sat at
  *   2/255 with the screen at full brightness). Control Center opens the firmware's picture panel
  *   instead (SystemProbe.skyworthPicturePanel).
+ * - XGIMI (GMUI): the real brightness is the DLP light engine's level, in a private HAL class
+ *   (com.xgimi.gmpf.api.DisplayManager, see SystemProbe.xgimiBrightnessLevel); the system setting
+ *   does not follow it. Issue #241 took the level for read-only on a Z7X, but a `pig_chivalrous` on
+ *   GMUI 9 takes a write from a plain app, so Control Center steps the light engine's own levels.
  * - Others: the standard Settings.System screen brightness, 0–255. Writing it needs the "modify
  *   system settings" app-op. Both are granted by tools/install.sh; without them Control Center
  *   opens the TV's own picture settings instead.
@@ -37,15 +37,10 @@ import androidx.core.content.ContextCompat
 object Brightness {
     private const val XIAOMI_BACKLIGHT = "picture_backlight"
 
-    /**
-     * MiTV-MFTP0 (Android 9) has picture_backlight, yet changing it leaves the panel as it was (two
-     * owners, issues #284 and #335); it gets Xiaomi's own backlight slider like the TVs without it.
-     * Nothing on the TV tells the two apart, so by model.
-     */
-    private val IGNORES_BACKLIGHT_SETTING = setOf("MiTV-MFTP0", "MiTV_MFTP0")
+    // MiTV-MFTP0 keeps picture_backlight without following it: DeviceProfile.ignoresPictureBacklight.
 
     private fun usesXiaomiBacklight(context: Context) =
-        Build.MODEL !in IGNORES_BACKLIGHT_SETTING &&
+        !DeviceProfile.current(context).ignoresPictureBacklight &&
             Settings.Global.getString(context.contentResolver, XIAOMI_BACKLIGHT) != null
 
     private fun isTcl(context: Context) =
@@ -100,22 +95,35 @@ object Brightness {
     }
 
     /**
-     * Steps brightness one notch up or down and returns the new level. Never to 0: Xiaomi turns
-     * the backlight off at picture_backlight 0 and the screen goes black, with Control Center still
-     * open on it (HyperOS, issue #174); its own slider stops at 1. So the lowest notch is 1, and the
-     * steps stay on multiples of 5 above it (1, 5, 10 ...).
+     * XGIMI's light-engine level one notch from [current], or null on a TV without the engine.
+     * [current] comes from the caller rather than from the HAL: the engine applies a write a moment
+     * later, so a level read back between the repeats of a held key names the previous notch again
+     * and the row would stick while the picture moves on.
+     */
+    fun xgimiStep(current: Float, direction: Int): Float? {
+        if (!SystemProbe.hasXgimiBrightness) return null
+        val max = SystemProbe.xgimiBrightnessMax
+        val now = Math.round(current * max)
+        val next = (now + if (direction > 0) 1 else -1).coerceIn(1, max)
+        return next / max.toFloat()
+    }
+
+    /**
+     * Steps brightness one notch up or down and returns the new level. Never to 0: Xiaomi turns the
+     * backlight off at picture_backlight 0 and the screen goes black, with Control Center still open
+     * on it (HyperOS, issue #174); its own slider stops at 1. So the lowest notch is 1, and the steps
+     * stay on multiples of 5 above it (1, 5, 10 ...).
      *
-     * On XGIMI the level is the DLP light engine's, stepped by its own single levels (1..10), and
-     * set through the HAL class (see [SystemProbe.setXgimiBrightnessLevel]).
+     * On XGIMI the level is the DLP light engine's, stepped by its own single levels (1..10) through
+     * the HAL class (see [SystemProbe.setXgimiBrightnessLevel]).
      */
     fun adjust(context: Context, direction: Int): Float? {
         SystemProbe.xgimiBrightnessLevel()?.let { current ->
-            val max = SystemProbe.xgimiBrightnessMax
-            val now = Math.round(current * max)
-            val next = (now + if (direction > 0) 1 else -1).coerceIn(1, max)
-            // Where the TV drops the write, the level comes back unchanged and Control Center's
-            // poll shows that, rather than a slider that pretends.
-            return SystemProbe.setXgimiBrightnessLevel(next) ?: current
+            val next = xgimiStep(current, direction) ?: return current
+            val level = Math.round(next * SystemProbe.xgimiBrightnessMax)
+            // The light engine applies it off this thread, so the new level is reported as asked and
+            // Control Center's poll shows what it settled at — including where a TV drops the write.
+            return if (SystemProbe.setXgimiBrightnessLevel(level)) next else current
         }
         val current = level(context) ?: return null
         val percent = Math.round(current * 100)

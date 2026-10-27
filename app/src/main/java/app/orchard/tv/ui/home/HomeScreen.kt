@@ -576,6 +576,7 @@ fun HomeScreen(
             PlateMode.Live -> Wallpapers.moves()
             PlateMode.Still -> !Wallpapers.moves()
             PlateMode.None -> false
+            PlateMode.All -> true
         }
         // With every name shown, the top row's go on its glass plate, which grows to hold them.
         val plateNames = AerialSettings.nameMode == NameMode.All && plateHere

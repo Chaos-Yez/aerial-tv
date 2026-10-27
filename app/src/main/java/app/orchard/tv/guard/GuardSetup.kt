@@ -276,12 +276,43 @@ object GuardSetup {
     }
 
     /**
+     * Android 5.x: the guard is enabled in settings, yet the accessibility manager lists no such
+     * service, shows "no services installed" and writes accessibility_enabled back to 0. Hisense
+     * VIDAA MSD6A828 (5.1.1) did so after every boot until Aerial was installed again, which makes
+     * it read the installed services again (issue #578); Skyworth 8S70 (5.0.1) went without the
+     * guard until Aerial was revived minutes later (#579). A package change makes it read them as
+     * an install does, so Aerial changes one of its own components' state there and back.
+     */
+    fun rescanIfMissing(context: Context) {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.LOLLIPOP_MR1) return
+        val me = ComponentName(context, HomeGuardService::class.java)
+        val enabled = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+            .split(':').any { ComponentName.unflattenFromString(it) == me }
+        if (!enabled) return
+        val installed = runCatching {
+            context.getSystemService<android.view.accessibility.AccessibilityManager>()?.installedAccessibilityServiceList
+                ?.any { it.resolveInfo?.serviceInfo?.let { s -> s.packageName == me.packageName && s.name == me.className } == true }
+        }.getOrNull() ?: return
+        if (installed) return
+        Log.i(TAG, "the guard is enabled but Android lists no such service; asking it to read the services again")
+        val pm = context.packageManager
+        val marker = ComponentName(context, BootReceiver::class.java)
+        runCatching {
+            pm.setComponentEnabledSetting(marker, PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP)
+            Handler(Looper.getMainLooper()).postDelayed({
+                runCatching { pm.setComponentEnabledSetting(marker, PackageManager.COMPONENT_ENABLED_STATE_DEFAULT, PackageManager.DONT_KILL_APP) }
+            }, 1500)
+        }.onFailure { Log.w(TAG, "could not change a component's state", it) }
+    }
+
+    /**
      * Enabled but not running: seen on TCL after Aerial is updated, where Android keeps the
      * setting but never binds the new version. Writing the list without Aerial and then with it
      * makes Android bind it again.
      */
     fun rebindIfStalled(context: Context) {
         if (HomeGuardService.isRunning) return
+        rescanIfMissing(context)
         if (standingOut(context)) { watchScreenOn(context); return }
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return
         val me = ComponentName(context, HomeGuardService::class.java).flattenToString()

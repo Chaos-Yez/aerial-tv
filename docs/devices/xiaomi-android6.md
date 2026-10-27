@@ -8,6 +8,11 @@ Amlogic 平台、Android 6.0.x 的一批小米电视和盒子，问题基本相�
 - 开机约 20 秒后 PatchWall 的 `BootActivity` 盖住 Aerial，关掉后露出主页，没有新事件（#209 #318）。
 - 开机那次绑定有时 `queryIntentActivities(HOME)` 拿不到 PatchWall（#318）。
 - 1.43：守护在 Android 6 及以下每秒读一次用量统计（`UsageStatsManager.queryEvents` 最近 10 秒里最新的 `MOVE_TO_FOREGROUND`），前台是原桌面的主页 Activity 就拉回 Aerial，同一个事件只拉一次。要 `appops set app.orchard.tv GET_USAGE_STATS allow`（只能 adb 给）。用户在 ANSM0 上用本地补丁验证过开机和主页键都能接管，按主页键后要 5–8 秒才回到 Aerial（这台启动慢）。
+- 2026-10-26 在 MiTV4（pulpfiction，固件 9.1.8.2318）上查清了「按键过滤收不到 Home」，原因在 `flagDefault`：反编译电视自带的 services.jar，`AccessibilityManagerService.notifyKeyEventLocked` 先在**没有** `flagDefault` 的服务里找、再在有的里找，每一轮都从最后绑定的服务往前，把键只交给第一个申请过滤的服务，它不要的键回到系统，不会再给下一个。小米语言麦克风（`com.xiaomi.mitv.karaoke.service` 的 `PuremicKeyService`）也申请过滤且没有 `flagDefault`，于是第一轮总是它拿到键，带 `flagDefault` 的守护一个键都收不到（Home、方向键都没有），Home 进了 PatchWall。
+- 现在：Android 6 及以下有别的服务申请过滤且没有 `flagDefault` 时，守护过滤按键时也去掉这个标记（`HomeGuardService.keyFilterRival`）。开机时三个服务的进程由无障碍同时拉起，守护进程最重、最后连上，自然排在最后：8 次开机 40 次 Home 全部拦下。
+- 绑定顺序只有 `dumpsys accessibility` 能看到（越靠后越晚绑定）；App 里的 `getEnabledAccessibilityServiceList` 按反馈类型逐位收集，小米语言麦克风的反馈类型是 0，永远不在结果里。
+- `BootActivity`：守护的用量统计轮询在开机 3 分钟内也认 `com.mitv.tvhome.BootActivity`，0.6–1.0 秒盖掉（以前要等 30 秒的复查，实测 19.7 秒）。
+- 测按键要往输入设备写原始事件：`sendevent /dev/input/event0 1 102 1` 等（`aml_keypad`，shell 在 input 组里），和实体遥控器走同一条路；`input keyevent` 不经过无障碍按键过滤。
 - 手动恢复（老版本）：`settings put secure accessibility_enabled 0`，等 2 秒，再 `1`；或 `am force-stop` 后重开 Aerial。
 
 ## HDMI 编号（小米播放器 `ExternalSourceActivity --ei input N`）

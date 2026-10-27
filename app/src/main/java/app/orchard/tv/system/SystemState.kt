@@ -49,7 +49,16 @@ data class TvSource(
     /** What HDMI-CEC says is plugged in, e.g. "Apple TV". */
     val deviceName: String?,
     val intent: Intent,
-)
+    /** The hardware id a framework input ends in (`.../HW5`), which DeviceProfile keys on. */
+    val hardware: Int? = null,
+    /** The framework's own label, before DeviceProfile renames it. */
+    val firmwareLabel: String? = null,
+    /** Hidden by DeviceProfile; only in [SystemProbe.inputsToCheck]. */
+    val hidden: Boolean = false,
+) {
+    /** The Xiaomi tvplayer source id this input opens, or null when it does not go through it. */
+    val xiaomiInput: Int? get() = intent.takeIf { it.component?.packageName == SystemProbe.XIAOMI_PLAYER && it.hasExtra("input") }?.getIntExtra("input", 0)
+}
 
 enum class HomeStatus { Default, Guarded, NotDefault }
 
@@ -75,17 +84,7 @@ object SystemProbe {
                 val wm = context.applicationContext.getSystemService<WifiManager>()
                 @Suppress("DEPRECATION")
                 val info = wm?.connectionInfo
-                var ssid = info?.ssid?.trim('"')?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID.trim('<', '>') || it == "<unknown ssid>" }
-                // On Android 8.1+ the live SSID is hidden behind the location toggle, which is off on
-                // TVs; the saved-network list still carries it, so read the connected network's SSID
-                // from there (XGIMI/GMUI and other Android 9 firmwares hit this).
-                if (ssid == null) {
-                    @Suppress("DEPRECATION")
-                    ssid = runCatching {
-                        val id = info?.networkId ?: -1
-                        wm?.configuredNetworks?.firstOrNull { it.networkId == id }?.SSID?.trim('"')?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID.trim('<', '>') || it == "<unknown ssid>" }
-                    }.getOrNull()
-                }
+                val ssid = info?.ssid?.trim('"')?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID.trim('<', '>') || it == "<unknown ssid>" }
                 val level = if (info == null) 1f else if (Build.VERSION.SDK_INT >= 30) {
                     wm.calculateSignalLevel(info.rssi) / wm.maxSignalLevel.coerceAtLeast(1).toFloat()
                 } else {
@@ -247,8 +246,67 @@ object SystemProbe {
 
     private val XGIMI_SETTINGS = ComponentName("com.android.newsettings", "com.xgimi.newsettings.SettingService")
     private const val XGIMI_NETWORK_PAGE = "Settings://com.xgimi.settings.net/wifi_misckey"
-    private const val XGIMI_SOURCE_PAGE = "Settings://com.xgimi.settings.signalSource/hdmi_misckey"
-    private const val XGIMI_BRIGHTNESS_PAGE = "Settings://com.xgimi.settings.brightness/brightness_misckey"
+
+    /**
+     * The DLP light-engine levels XGIMI's HAL steps through (1..10, 10 being full); measured on a Z7X
+     * (GMUI 6.11) and a `pig_chivalrous` (GMUI 9). The HAL has no getter for the range, and other
+     * light engines may use a wider one.
+     */
+    private const val XGIMI_DLP_LUMENS_MAX = 10
+
+    /**
+     * XGIMI's real brightness as 0..1, read from the DLP light-engine HAL
+     * `com.xgimi.gmpf.api.DisplayManager.getDlpLumensLevel()` (a byte). The class ships only on the
+     * device, in com.xgimi.api.jar, so it is reached by reflection and is absent everywhere else.
+     * The system `screen_brightness` setting does not follow this value — which is why Control
+     * Center reads it here to show the level the light engine is actually at. Writing goes through
+     * the same class; see [setXgimiBrightnessLevel].
+     */
+    fun xgimiBrightnessLevel(): Float? = runCatching {
+        val dm = xgimiDisplayManager() ?: return@runCatching null
+        val get = xgimiDisplayManagerClass()?.getMethod("getDlpLumensLevel") ?: return@runCatching null
+        val raw = (get.invoke(dm) as? Number)?.toInt() ?: return@runCatching null
+        ((raw and 0xFF) / XGIMI_DLP_LUMENS_MAX.toFloat()).coerceIn(0f, 1f)
+    }.getOrNull()
+
+    /**
+     * The class, only on devices that have XGIMI's SDK in their boot class path. Looked up once:
+     * every other TV asks for the brightness on each Control Center open and would throw here each time.
+     */
+    private val xgimiDisplayManagerClassOnce by lazy {
+        runCatching { Class.forName("com.xgimi.gmpf.api.DisplayManager") }.getOrNull()
+    }
+    private fun xgimiDisplayManagerClass(): Class<*>? = xgimiDisplayManagerClassOnce
+
+    private fun xgimiDisplayManager(): Any? {
+        val c = xgimiDisplayManagerClass() ?: return null
+        return runCatching { c.getMethod("getInstance").invoke(null) }.getOrNull()
+            ?: runCatching { c.getDeclaredConstructor().also { it.isAccessible = true }.newInstance() }.getOrNull()
+    }
+
+    /**
+     * Sets the DLP light-engine level, 1..[XGIMI_DLP_LUMENS_MAX]. Returns false where the class or
+     * the setter is missing, and true once the call went through — the light engine applies it off
+     * the caller's thread, so the level is not read back here: Control Center polls the HAL while its
+     * row is up, and shows what the light engine settled at, including where a TV drops the write.
+     *
+     * Issue #241 took this for read-only on a Z7X, where the native setter was said to drop a
+     * third-party call. On the GMUI 9 firmware of `pig_chivalrous` it goes through from a plain app:
+     * `setDlpLumensLevel` changes what `getDlpLumensLevel` answers, across processes. So it is tried
+     * rather than assumed broken.
+     */
+    fun setXgimiBrightnessLevel(level: Int): Boolean {
+        val c = xgimiDisplayManagerClass() ?: return false
+        val dm = xgimiDisplayManager() ?: return false
+        val target = level.coerceIn(1, XGIMI_DLP_LUMENS_MAX)
+        return runCatching { c.getMethod("setDlpLumensLevel", java.lang.Byte.TYPE).invoke(dm, target.toByte()) }.isSuccess
+    }
+
+    /** The DLP levels on this light engine, as the top step Control Center steps through. */
+    val xgimiBrightnessMax: Int get() = XGIMI_DLP_LUMENS_MAX
+
+    /** Whether this TV's brightness is the light engine's (see [xgimiBrightnessLevel]). */
+    val hasXgimiBrightness: Boolean get() = xgimiBrightnessLevel() != null
 
     // XGIMI Z7X (GMUI 6.11) opens these pages through an exported service rather than an activity;
     // the reporter of issue #241 opened settings, network, inputs and picture through it on a Z7X.
@@ -261,6 +319,7 @@ object SystemProbe {
     }
 
     fun startSettingsIntent(context: Context, intent: Intent) {
+        if (HisenseSources.open(context, intent)) return
         val activity = if (intent.component == XGIMI_SETTINGS) {
             val shown = runCatching { context.startService(intent) }.getOrNull() != null
             if (shown) return
@@ -272,63 +331,6 @@ object SystemProbe {
         } else intent
         context.startActivity(settingsLaunchIntent(context, activity))
     }
-
-    /**
-     * The highest level [xgimiBrightnessLevel] reports on the firmware it was measured on (Z7X,
-     * GMUI 6.11). The HAL has no getter for it, and other models may use a wider range.
-     */
-    private const val XGIMI_DLP_LUMENS_MAX = 10
-
-    /**
-     * XGIMI's real brightness as 0..1, read from the DLP light-engine HAL
-     * `com.xgimi.gmpf.api.DisplayManager.getDlpLumensLevel()` (a byte). The class ships only on the
-     * device (com.xgimi.api.jar), so it is reached by reflection and is absent everywhere else. The
-     * system `screen_brightness` setting does not follow this value — which is why Control Center
-     * reads it here to show the true level. Writing goes through the same class; see
-     * [setXgimiBrightnessLevel]. Measured on a Z7X (issue #241) and a `pig_chivalrous` (GMUI 9).
-     */
-    fun xgimiBrightnessLevel(): Float? = runCatching {
-        val dm = xgimiDisplayManager() ?: return null
-        val raw = (xgimiDisplayManagerClass()!!.getMethod("getDlpLumensLevel").invoke(dm) as? Number)?.toInt() ?: return null
-        ((raw and 0xFF) / XGIMI_DLP_LUMENS_MAX.toFloat()).coerceIn(0f, 1f)
-    }.getOrNull()
-
-    /** The class, only on devices that have XGIMI's SDK in their boot class path. */
-    private fun xgimiDisplayManagerClass(): Class<*>? =
-        runCatching { Class.forName("com.xgimi.gmpf.api.DisplayManager") }.getOrNull()
-
-    private fun xgimiDisplayManager(): Any? {
-        val c = xgimiDisplayManagerClass() ?: return null
-        return runCatching { c.getMethod("getInstance").invoke(null) }.getOrNull()
-            ?: runCatching { c.getDeclaredConstructor().also { it.isAccessible = true }.newInstance() }.getOrNull()
-    }
-
-    /**
-     * Sets the DLP light-engine level, 1..[XGIMI_DLP_LUMENS_MAX], and reads it back after the HAL has
-     * had a moment to apply it. Returns the level the light engine reports (0..1), or null where the
-     * class or the setter is missing.
-     *
-     * Issue #241 took this for read-only on a Z7X, where the native setter was said to drop a
-     * third-party call. On the GMUI 9 firmware of `pig_chivalrous` it goes through from a plain app:
-     * `setDlpLumensLevel` changes what `getDlpLumensLevel` answers, across processes. So it is tried
-     * here rather than assumed broken, and [levels] lets the caller tell "the TV took it" from "the
-     * level came back as it was".
-     */
-    fun setXgimiBrightnessLevel(level: Int): Float? {
-        val c = xgimiDisplayManagerClass() ?: return null
-        val dm = xgimiDisplayManager() ?: return null
-        val target = level.coerceIn(1, XGIMI_DLP_LUMENS_MAX)
-        runCatching { c.getMethod("setDlpLumensLevel", java.lang.Byte.TYPE).invoke(dm, target.toByte()) }
-            .onFailure { return null }
-        // The level asked for, not one read back: the light engine applies it off the caller's
-        // thread, so a read here answers the previous level for a moment. Control Center shows the
-        // step at once and polls the HAL while its row is up, which corrects it if the TV dropped
-        // the write. Waiting here to read back blocked the row for 80 ms on every held key.
-        return target / XGIMI_DLP_LUMENS_MAX.toFloat()
-    }
-
-    /** The DLP levels on this light engine, as the top step Control Center steps through. */
-    val xgimiBrightnessMax: Int get() = XGIMI_DLP_LUMENS_MAX
 
     /**
      * Whaley (WTV55K1J, Android 5.0) answers no settings action; its network page is not exported,
@@ -361,11 +363,6 @@ object SystemProbe {
      * found in PR #85; MiTV-MFTP0, Mi TV 4A, #23, #130, #185), and MiTV-MFTR0 has the receiver too.
      */
     fun openPictureSettings(context: Context): Boolean {
-        // XGIMI Z7X (GMUI 6.11): the backlight is the DLP light-engine level, which no third-party
-        // app can set; its settings service opens the brightness page (issue #241).
-        xgimiSettingsIntent(context, XGIMI_BRIGHTNESS_PAGE)?.let { intent ->
-            if (runCatching { context.startService(intent) }.getOrNull() != null) return true
-        }
         val backlight = Intent("com.xiaomi.mitv.settings.BACKLIGHT_POPUP")
             .setComponent(ComponentName("com.xiaomi.mitv.settings", "com.xiaomi.mitv.settings.SettingsBroadcastReceiver"))
         if (context.packageManager.queryBroadcastReceivers(backlight, 0).any { it.activityInfo.exported }) {
@@ -401,6 +398,9 @@ object SystemProbe {
         }.isSuccess
     }
 
+    /** XGIMI's own source page, opened through its settings service; see [openInputPicker]. */
+    private const val XGIMI_SOURCE_PAGE = "Settings://com.xgimi.settings.signalSource/hdmi_misckey"
+
     /**
      * Opens the TV's own input picker, for TVs whose inputs Android does not list. TCL MT5879 keeps
      * its inputs in its own middleware (TvInputManager has none) and its remote's input key opens a
@@ -409,9 +409,10 @@ object SystemProbe {
      */
     fun openInputPicker(context: Context): Boolean {
         val pm = context.packageManager
-        // XGIMI Z7X (GMUI 6.11): TvInputManager lists the inputs, but no activity answers the
-        // passthrough intent they carry, so switching goes through the source page of its settings
-        // service (issue #241).
+        // XGIMI (GMUI): TvInputManager does list the inputs here, but nothing on the firmware answers
+        // the passthrough intent they carry - `am start` cannot resolve it - so a source tile and the
+        // inputs page of Control Center both end at "this TV does not support it" (issue #241, and
+        // again on a `pig_chivalrous`, GMUI 9). Its settings service opens the source page instead.
         xgimiSettingsIntent(context, XGIMI_SOURCE_PAGE)?.let { intent ->
             if (runCatching { context.startService(intent) }.getOrNull() != null) return true
         }
@@ -491,18 +492,17 @@ object SystemProbe {
 
     // ---- Inputs ----
 
-    private const val XIAOMI_PLAYER = "com.xiaomi.mitv.tvplayer"
+    const val XIAOMI_PLAYER = "com.xiaomi.mitv.tvplayer"
     private const val DROIDLOGIC_PLAYER = "com.droidlogic.tvsource"
 
     /** CEC logical-device placeholders some input services report instead of the device's name. */
     private val GENERIC_CEC_NAME = Regex("^(Playback|Recorder|Tuner|Audio ?System|Audio|TV|Reserved)[ _]?\\d*$", RegexOption.IGNORE_CASE)
 
-    /**
-     * Physical inputs from the TV input framework, routed through the maker's own player where the
-     * generic passthrough intent has no handler (Xiaomi's China firmware).
-     */
+    /** Lists framework inputs first, then known manufacturer-specific input integrations. */
     fun sources(context: Context): List<TvSource> = frameworkSources(context)
+        .ifEmpty { XgimiMstarSources.load(context) }
         .ifEmpty { xiaomiSources(context) }
+        .ifEmpty { HisenseSources.load(context) }
         .ifEmpty { KonkaSources.load(context) }
         .ifEmpty { tclSources(context) }
         .ifEmpty { whaleySources(context) }
@@ -534,17 +534,24 @@ object SystemProbe {
         ComponentName("com.tcl.ui_mediaCenter", "com.tcl.ui_mediaCenter.main.MainActivity"),
     )
 
-    private fun frameworkSources(context: Context): List<TvSource> {
+    /**
+     * Every framework input with a hardware id, hidden ones too: what DeviceProfile can correct
+     * (ConfigReceiver list_sources and open_source, for agents adapting a TV).
+     */
+    fun inputsToCheck(context: Context): List<TvSource> =
+        frameworkSources(context, withHidden = true).filter { it.hardware != null }
+
+    private fun frameworkSources(context: Context, withHidden: Boolean = false): List<TvSource> {
         val tim = context.getSystemService<TvInputManager>() ?: return emptyList()
         val infos = runCatching { tim.tvInputList }.getOrNull() ?: return emptyList()
         val xiaomi = isInstalled(context, XIAOMI_PLAYER)
         val tclPlayer = tclPlayer(context)
-        val profile = DeviceProfile.current()
+        val profile = DeviceProfile.current(context)
 
         return infos
             .filter { it.parentId == null && (it.isPassthroughInput || it.type == TvInputInfo.TYPE_TUNER) }
             .filter { Build.VERSION.SDK_INT < 24 || runCatching { !it.isHidden(context) }.getOrDefault(true) }
-            .filter { hw(it.id) !in profile.hiddenHardware }
+            .filter { info -> withHidden || hw(info.id).let { it == null || it !in profile.hiddenHardware } }
             .mapNotNull { info ->
                 val kind = when (info.type) {
                     TvInputInfo.TYPE_HDMI -> SourceKind.Hdmi
@@ -561,7 +568,7 @@ object SystemProbe {
                 // only switches the picture (Sony BRAVIA XR90 with an Apple TV and a PS5, issue #259).
                 val cec = infos.firstOrNull { it.parentId == info.id }
                 val generic = genericRoute(cec ?: info, kind)
-                val intent = (if (xiaomi) xiaomiRoute(info, kind, label, profile) else null)
+                val intent = (if (xiaomi) xiaomiRoute(info, kind, label, profile)?.takeIf { resolves(context, it) } else null)
                     ?: generic.takeIf { resolves(context, it) }
                     ?: droidLogicRoute(context, info)
                     ?: tclPlayer?.let { tclRoute(it, kind, label) }
@@ -571,11 +578,14 @@ object SystemProbe {
                     ?.takeIf { it.isNotBlank() && !GENERIC_CEC_NAME.matches(it) }
                 TvSource(
                     id = info.id,
-                    label = profile.labels[hw(info.id)] ?: label,
+                    label = hw(info.id)?.let { profile.labels[it] } ?: label,
                     kind = kind,
                     connected = device != null || state == TvInputManager.INPUT_STATE_CONNECTED && kind != SourceKind.Tuner,
                     deviceName = device,
                     intent = intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    hardware = hw(info.id),
+                    firmwareLabel = label,
+                    hidden = hw(info.id)?.let { it in profile.hiddenHardware } == true,
                 )
             }
             .let { tunersApart(context, it) }
@@ -793,7 +803,7 @@ object SystemProbe {
         else -> SourceKind.Other
     }
 
-    private fun hw(id: String): Int? = Regex("/HW(\\d+)$").find(id)?.groupValues?.get(1)?.toIntOrNull()
+    fun hw(id: String): Int? = Regex("/HW(\\d+)$").find(id)?.groupValues?.get(1)?.toIntOrNull()
 
     private fun xiaomiRoute(info: TvInputInfo, kind: SourceKind, label: String, profile: DeviceProfile): Intent? {
         val n = hw(info.id) ?: return null
@@ -850,6 +860,9 @@ object SystemProbe {
     private fun isDigitalTuner(label: String, hw: Int): Boolean = when {
         label.contains("ATV", ignoreCase = true) -> false
         label.contains("DTV", ignoreCase = true) || label.contains("DTMB", ignoreCase = true) -> true
+        // Novatek's framework label names the standard instead: "NovatekDVBT" at HW1 is the
+        // digital tuner the profile shows as DTMB (Redmi X50 MiTV-NSOP0, #738).
+        label.contains("DVB", ignoreCase = true) -> true
         else -> hw == 0
     }
 
@@ -862,63 +875,4 @@ object SystemProbe {
 
     private fun isInstalled(context: Context, pkg: String) =
         runCatching { context.packageManager.getPackageInfo(pkg, 0); true }.getOrDefault(false)
-}
-
-/**
- * Per-model corrections the framework cannot tell us. MiTV-MFTR0 registers a fourth HDMI input
- * (HW8) with no connector behind it, and its two tuners are better named by what they receive.
- * MiTV-MFFU1 (Redmi monitor G Pro 27U) registers its DP port (HW9) and its USB-C port (HW10) both
- * as DisplayPort; its tvplayer knows them as source 29 and 30 (#62, found in its MonitorUtils).
- * MiTV-ANTL0 (L42R7-RA, Amlogic, Android 5.1) registers only one HDMI input, HW6, labelled
- * HDMI2, but it is the HDMI 1 port and source 23 (#64, from the reporter's logcat).
- * MiTV4-ANSM0 (Mi TV 4, Amlogic, Android 6.0.1) registers an HDMI input only for a port with a
- * device in it. On older firmwares HW7 is source 23 on some boards (#191, the reporter scanned
- * sources 1–32; Mi TV 4A, L32M5-AZ, #313) and 25 on others (#492), which the firmware's
- * hdmi3_order tells apart; 23 stays the fallback. Firmware 22.x numbers the ports as the general
- * rule does (#375).
- * MiTV-MFZP0 (77" OLED, mt9950, Android 9) registers HW4–HW7 as HDMI 1–4 but has three ports:
- * HW7 has none behind it, and its tvplayer numbers them hw + 19 (#311, the reporter's local build).
- */
-private class DeviceProfile(
-    val hiddenHardware: Set<Int?> = emptySet(),
-    val labels: Map<Int?, String> = emptyMap(),
-    /** Xiaomi tvplayer source ids for inputs that have no rule or another one, by hardware id. */
-    val xiaomiSourceIds: Map<Int, Int> = emptyMap(),
-    /** Like [xiaomiSourceIds], but only where the firmware has no hdmiN_order of its own. */
-    val xiaomiFallbackSourceIds: Map<Int, Int> = emptyMap(),
-) {
-    companion object {
-        fun current(): DeviceProfile = when (Build.MODEL) {
-            // NSOP0 / Novatek, firmware 22.7.26.1365: real input sessions map 23/24/25 to HW6/5/4.
-            "MiTV_NSOP0", "MiTV-NSOP0" -> DeviceProfile(
-                labels = mapOf(6 to "HDMI 1", 5 to "HDMI 2", 4 to "HDMI 3", 3 to "TV", 1 to "DTMB", 0 to "AV"),
-                xiaomiSourceIds = mapOf(6 to 23, 5 to 24, 4 to 25),
-            )
-            "MiTV_MFTR0", "MiTV-MFTR0" -> DeviceProfile(
-                hiddenHardware = setOf(8),
-                labels = mapOf(1 to "ATV", 0 to "DTMB", 2 to "AV", 6 to "HDMI 2 (eARC)"),
-            )
-            "MiTV_MFFU1", "MiTV-MFFU1" -> DeviceProfile(
-                labels = mapOf(9 to "DP", 10 to "USB-C"),
-                xiaomiSourceIds = mapOf(9 to 29, 10 to 30),
-            )
-            "MiTV_ANTL0", "MiTV-ANTL0" -> DeviceProfile(
-                labels = mapOf(6 to "HDMI 1"),
-                xiaomiSourceIds = mapOf(6 to 23),
-            )
-            // Firmware 22.x knows each port by its own number, and HW7 is HDMI 3 = 25 by the
-            // general rule (MiTV4-ANSM0 22.4.15.3234, issue #375: 23/24/25 opened HDMI 1/2/3).
-            "MiTV4-ANSM0", "MiTV4_ANSM0", "MiTV4A" ->
-                if (xiaomiFirmwareMajor() >= 22) DeviceProfile()
-                else DeviceProfile(xiaomiFallbackSourceIds = mapOf(7 to 23))
-            "MiTV_MFZP0", "MiTV-MFZP0" -> DeviceProfile(
-                hiddenHardware = setOf(7),
-                xiaomiSourceIds = mapOf(4 to 23, 5 to 24, 6 to 25),
-            )
-            else -> DeviceProfile()
-        }
-
-        /** The first number of a Xiaomi build id such as 22.4.15.3234, or 0. */
-        private fun xiaomiFirmwareMajor(): Int = Build.DISPLAY.substringBefore('.').toIntOrNull() ?: 0
-    }
 }

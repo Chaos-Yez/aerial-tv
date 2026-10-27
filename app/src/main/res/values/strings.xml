@@ -145,13 +145,14 @@
     <string name="st_home_one_row">One Row</string>
     <string name="st_home_layout_hint">One Row puts only the top row on screen, low down, so more of the wallpaper shows, a family photo say. Two Rows shows the top of the second row too. Press down for the rest.</string>
     <string name="st_plate">Top Row</string>
-    <string name="st_plate_hint">A plate of frosted glass under the top row, as on Apple TV, or the apps straight on the wallpaper. Choose where it shows: under moving wallpapers (the aerials, your own videos), under still ones (a photo, a built-in, the daily picture), or never.</string>
+    <string name="st_plate_hint">A plate of frosted glass under the top row, as on Apple TV, or the apps straight on the wallpaper. Choose where it shows: under moving wallpapers (the aerials, your own videos), under still ones (a photo, a built-in, the daily picture), both, or never.</string>
 
     <string name="st_columns">Tiles in a row</string>
     <string name="st_columns_hint">Five, as tvOS has it, or six, seven or eight: the row keeps its width and the tiles narrow to fit, and the rows below follow.</string>
     <string name="st_plate_live">On moving</string>
     <string name="st_plate_still">On still</string>
     <string name="st_plate_none">None</string>
+    <string name="st_plate_all">On both</string>
     <string name="st_sounds">Sounds</string>
     <string name="st_sounds_hint">A sound as focus moves, and on select and Back, as on Apple TV.</string>
     <string name="st_sounds_tv_hint">The TV\'s own key sounds, as in its menus. Silent if key sounds are off in the TV\'s settings: choose Aerial then.</string>
@@ -206,6 +207,7 @@
     <string name="cc_update_failed_blocked">This TV does not let apps install other apps. Update with the command below.</string>
     <string name="cc_update_failed_signature">The Aerial on this TV is signed differently from the official one, so it cannot be updated over.</string>
     <string name="cc_update_failed_older">The website does not have a newer version yet. Try again in a while.</string>
+    <string name="cc_update_storage_permission">This TV needs storage access to save the update. Allow the file permission request, then choose Download and Install again.</string>
     <string name="st_pin">Parental PIN</string>
     <string name="st_pin_off">Off</string>
     <string name="st_pin_on">On</string>

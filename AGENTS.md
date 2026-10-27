@@ -5,14 +5,16 @@ tvOS 风格的 Android TV 桌面，面向国内电视（小米、TCL 等），Ko
 开始任何工作前先读：
 1. `docs/HANDOFF.md`：现状、操作方式，以及**必须遵守**的规则
 2. `docs/ARCHITECTURE.md`：代码结构
-3. `docs/devices/*.md`：各台电视的限制和解决办法
-4. `local/TVS.md`（如果存在）：电视的 IP、每台电视上改过的设置、户主的数据。这些是本机信息，不要复制进版本库里的文件
+3. `docs/LITE.md`：Android 4.0–4.4 用的 Aerial Lite（`lite/` 模块），改它之前先读
+4. `docs/devices/*.md`：各台电视的限制和解决办法
+5. `local/TVS.md`（如果存在）：电视的 IP、每台电视上改过的设置、户主的数据。这些是本机信息，不要复制进版本库里的文件
 
 ## 命令
 
 ```bash
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17
 ./gradlew assembleStandardRelease assembleGuardRelease
+./gradlew :lite:assembleRelease   # Android 4.x 用的 Aerial Lite
 source local/tvs.env && BUILD=1 KEEP_ADB=1 TV=$XIAOMI_TV tools/install.sh   # BUILD=1：用本地编译的 APK；不加就下载最新 Release
 ```
 

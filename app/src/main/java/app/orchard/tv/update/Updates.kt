@@ -274,26 +274,53 @@ object Updates {
             if (Build.VERSION.SDK_INT < 24) file.setReadable(true, false)
             return verify(context, file)
         }
-        // The address the release itself gave for one of its assets: a build can never be replaced
-        // by another repository's copy of the same version.
-        val sources = listOfNotNull(prefs.getString("latest_apk", null)?.takeIf { it.isNotEmpty() })
-        for (url in sources) {
-            val ok = runCatching { download(url, file) }
+        // The address the release itself gave for one of its assets, tried through the accelerators
+        // first: on many Chinese networks the connection to github.com:443 is dropped, so the
+        // release's own address downloads nothing while the API check still answers — the update is
+        // offered and then never arrives. A copy that does not parse as this package, or that is
+        // signed with another key, is skipped rather than handed to the installer.
+        val address = prefs.getString("latest_apk", null)?.takeIf { it.isNotEmpty() } ?: return null
+        val sources = mirrorUrls(address)
+        for ((i, url) in sources.withIndex()) {
+            val ok = runCatching { download(url, file, if (i < sources.lastIndex) MIRROR_TIMEOUT_MS else 10_000) }
                 .onFailure { Log.w(TAG, "could not download $url", it) }
                 .isSuccess
-            if (ok) verify(context, file)?.let { return it }
+            if (ok) {
+                val info = verify(context, file)
+                if (info != null && sameSigner(context, info)) return info
+                Log.w(TAG, "$url gave an APK that is not this copy; trying the next address")
+            }
             file.delete()
         }
         return null
     }
 
-    private suspend fun download(url: String, file: File) {
+    /**
+     * Public accelerators that forward a github.com URL unchanged after their own host. Tried in
+     * order, the release's own address last: outside China the accelerators are the slow way round,
+     * and this fork's TVs are here.
+     */
+    private val MIRRORS = listOf(
+        "https://gh-proxy.com/",
+        "https://ghfast.top/",
+        "https://gh.ddlc.top/",
+        "https://ghproxy.net/",
+    )
+
+    /** An accelerator that is not up answers nothing at all: give it less time than the real host. */
+    private const val MIRROR_TIMEOUT_MS = 6_000
+
+    /** Where the asset at [url] can be fetched, the release's own address last. */
+    private fun mirrorUrls(url: String): List<String> =
+        if (url.startsWith("https://github.com/")) MIRRORS.map { it + url } + url else listOf(url)
+
+    private suspend fun download(url: String, file: File, connectTimeoutMs: Int = 10_000) {
         val directory = checkNotNull(file.parentFile)
         check(directory.isDirectory || directory.mkdirs()) { "Cannot create update directory: $directory" }
         check(directory.canWrite()) { "Cannot write update directory: $directory" }
         val part = File(directory, file.name + ".part")
         val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 10_000
+        c.connectTimeout = connectTimeoutMs
         c.readTimeout = 20_000
         // A throttled route can keep the TLS handshake up and deliver a byte now and then, so no
         // read() ever blocks long enough to time out and the progress bar sits at 0% for good

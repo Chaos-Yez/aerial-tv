@@ -408,8 +408,10 @@ fun HomeScreen(
         when {
             reduced -> toSaver.snapTo(if (carrying) 1f else 0f)
             carrying -> toSaver.animateTo(1f, tween(2000, easing = Motion.EaseInOut))
-            // A key woke it: Home comes back at once and settles in, the way it went. At 380 ms the
-            // apps' part of it (60% of the way) was over in a blink and read as a cut (issue #357).
+            // 极米: 磁贴下沉开着时，回来这一趟把去的那一趟原样倒放——同样两秒、同样缓动，
+            // 第一排和底板在前六成路程里从下沉的位置升起来、淡进来，而不是屏保一走就看见
+            // 一个满血的桌面（owner: 来回要一致）。没开下沉就还是上游那样，650 毫秒落回来。
+            AerialSettings.videoSink -> toSaver.animateTo(0f, tween(2000, easing = Motion.EaseInOut))
             else -> toSaver.animateTo(0f, tween(650, easing = Motion.EaseOut))
         }
     }
@@ -740,6 +742,7 @@ fun HomeScreen(
                 // both give way to the frosted picture, as any wallpaper does.
                 filmStopped = { if (videosChosen) videoStopped else filmStopped },
                 toSaver = { toSaver.value },
+                sinkOnSaver = AerialSettings.videoSink,
                 saving = vm.screensaverVisible,
                 filmGlass = (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null },
                 saverImage = saverImage,
@@ -910,12 +913,13 @@ fun HomeScreen(
                                     } else Modifier,
                                 )
                                 // Into the screensaver, the apps go left to right, sinking a little.
-                                // 极米: 进屏保时前六成路程就沉下去淡掉（屏保还在起来）；回桌面时跟
-                                // toSaver 全程走完，屏保自己淡出的同时磁贴已经在它后面淡入。
-                                // 底板走同一条（HomeChrome 的 sinkFade）。
+                                // 极米: 磁贴下沉开着时，回来这一趟把去的那一段倒着走——前六成路程
+                                // 里从下沉的位置升起来、淡进来（错相也跟着倒过来）。没开下沉就是
+                                // 上游那一条。底板走同一套（HomeChrome 的 sinkFade）。
                                 .graphicsLayer {
-                                    val f = ((toSaver.value - 0.05f * (index % columns)) /
-                                        (if (vm.screensaverVisible) 0.6f else 1f)).coerceIn(0f, 1f)
+                                    val phase = 0.05f * (index % columns)
+                                    val back = sinkPicture && AerialSettings.videoSink && !vm.screensaverVisible
+                                    val f = ((if (back) toSaver.value - 0.4f + phase else toSaver.value - phase) / 0.6f).coerceIn(0f, 1f)
                                     if (f > 0f) {
                                         alpha = 1f - f
                                         translationY = f * SaverSink.toPx()

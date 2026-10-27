@@ -208,10 +208,12 @@ fun HomeBackground(
     /** How far Home has given way to the screensaver carrying its wallpaper on: the plate goes. */
     toSaver: () -> Float = { 0f },
     /**
-     * Whether the screensaver is up. Going in, [toSaver] is spent early (the row is gone long before
-     * the film has come in); coming back, it is followed all the way, so the row and the plate are
-     * already fading up behind the screensaver's own fade-out instead of arriving on a bare screen.
+     * Whether the top row sinks over a picture (AerialSettings.videoSink). With it, the plate leaves
+     * and comes back on the row's own sinking curve; without it, the plate only fades where it
+     * stands, as it always did.
      */
+    sinkOnSaver: Boolean = false,
+    /** Whether the screensaver is up: one way in, the other way back, over the same stretch. */
     saving: Boolean = false,
     /**
      * The glass for a moving film (Wallpapers.filmFrost, or [frosted] until it has one): the plate
@@ -232,7 +234,7 @@ fun HomeBackground(
             val a = saverReveal()
             if (a > 0.01f) drawDrawingIn(saverImage, saverPush(), a)
         }
-        Plate(frosted ?: backdrop, filmGlass, plate, scroll, collapse, cover, filmStopped, toSaver, lift, saving)
+        Plate(frosted ?: backdrop, filmGlass, plate, scroll, collapse, cover, filmStopped, toSaver, lift, sinkOnSaver, saving)
     }
 }
 
@@ -286,19 +288,23 @@ private fun Pictures(backdrop: ImageBitmap?, frosted: ImageBitmap?, scroll: () -
  * moves or a new frame fades in, every [GLASS_EVERY_MS]: the film plays with Compose all but still.
  */
 @Composable
-private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll: () -> Float, collapse: Float, cover: () -> Float, filmStopped: () -> Float, toSaver: () -> Float, lift: () -> Float, saving: Boolean) {
+private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll: () -> Float, collapse: Float, cover: () -> Float, filmStopped: () -> Float, toSaver: () -> Float, lift: () -> Float, sinkOnSaver: Boolean, saving: Boolean) {
     var shown by remember { mutableStateOf(glass) }
     var under by remember { mutableStateOf<ImageBitmap?>(null) }
     val swap = remember { Animatable(1f) }
     /**
-     * The screensaver taking Home away, as the tiles have it (HomeScreen: f = toSaver / 0.6 while
-     * the screensaver is up): by six tenths of the way in, the row is gone and down by [SaverSink],
-     * and the plate goes with it. Coming back the whole of toSaver is followed instead, so the row
-     * and the plate fade up at once behind the screensaver's own fade-out rather than turning up
-     * in full on a screen the screensaver has just left. Faded on toSaver alone going in, the plate
-     * outlived the row it was drawn under.
+     * The screensaver taking Home away, as the tiles have it (HomeScreen: f = toSaver / 0.6 over
+     * the first six tenths, staggered a little): the row is gone and down by [SaverSink] well
+     * before the film has come in, and the plate goes with it. Coming back, the same stretch is
+     * run the other way round, so the row and the plate rise up and fade in as the screensaver
+     * fades out. Without sinking (a picture that is not the owner's choice for it), the plate
+     * only fades where it stands, as it always did.
      */
-    fun sinkFade(): Float = (toSaver() / if (saving) 0.6f else 1f).coerceIn(0f, 1f)
+    fun sinkFade(): Float = when {
+        !sinkOnSaver -> toSaver()
+        saving -> (toSaver() / 0.6f).coerceIn(0f, 1f)
+        else -> ((toSaver() - 0.4f) / 0.6f).coerceIn(0f, 1f)
+    }
     fun visibility(): Float {
         val rest = 1f - smooth(((scroll() / collapse).coerceIn(0f, 1f) / 0.55f).coerceIn(0f, 1f))
         // Kept over a moving film and over an input's picture (the owner asked for the dock to stay
@@ -365,7 +371,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
         // 极米: 屏保把 Home 接走时，第一排磁贴是一边下沉一边淡出（HomeScreen: translationY =
         // f * SaverSink）。底板走同一条：同样的 f、同样的距离，板子才跟着磁贴沉下去，
         // 而不是钉在原地淡出。f 取第一列（不带磁贴那点错相），底板左边正对着它。
-        val sinkOut = sinkFade() * SaverSink.toPx()
+        val sinkOut = if (sinkOnSaver) sinkFade() * SaverSink.toPx() else 0f
         // The film's plate, while the film shows and the plate over a picture does not hide it.
         // With no frame to frost (an input's picture, which cannot be copied) it is the smoke and
         // the lit edge alone, so the top row keeps a plate over anything.

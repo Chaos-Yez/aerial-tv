@@ -71,14 +71,18 @@ object Images {
     /**
      * A home backdrop frosted: shrunk and blurred three times over. Small
      * on purpose; it is only ever seen blurred, and it is drawn stretched in a single pass.
+     *
+     * 极米: [width]/[height]/[passes]/[radius] are there for the plate's glass over a moving film
+     * (Wallpapers.useFilmFrost): that one is meant to read as the picture that is up now, so it is
+     * taken larger and blurred less than a backdrop is.
      */
-    fun frost(b: Bitmap): Bitmap {
-        val w = 320
-        val h = 180
+    fun frost(b: Bitmap, width: Int = 320, height: Int = 180, passes: Int = 3, radius: Int = 7): Bitmap {
+        val w = width
+        val h = height
         val small = Bitmap.createScaledBitmap(b, w, h, true)
         val px = IntArray(w * h)
         small.getPixels(px, 0, w, 0, 0, w, h)
-        repeat(3) { boxBlur(px, w, h, 7) }
+        repeat(passes) { boxBlur(px, w, h, radius) }
         val out = small.copy(Bitmap.Config.ARGB_8888, true).also { if (it !== small) small.recycle() }
         out.setPixels(px, 0, w, 0, 0, w, h)
         return out

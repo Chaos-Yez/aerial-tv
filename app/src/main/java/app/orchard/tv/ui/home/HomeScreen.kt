@@ -733,6 +733,7 @@ fun HomeScreen(
                     // (another plane and processing; a key frame a second off where the exact
                     // frame did not decode, Xiaomi MiTV-MFTR0 and TCL MT5879).
                     standIn = overlay == Overlay.None || overlay is Overlay.ControlCenter || overlay is Overlay.Wallpaper,
+                    awake = vm.resumed && !vm.screensaverVisible,
                     live = liveFilm,
                 )
                 Wallpapers.selectedId == Wallpapers.VIDEOS -> VideoWallpaper(
@@ -741,6 +742,7 @@ fun HomeScreen(
                     keep = vm.resumed && (!vm.screensaverVisible || videoSaver),
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
+                    awake = vm.resumed && !vm.screensaverVisible,
                 )
                 sourceInput != null -> SourceWallpaper(
                     sourceInput,

@@ -102,6 +102,12 @@ fun VideoWallpaper(
     keep: Boolean,
     lastInputAt: Long,
     cover: Animatable<Float, *>,
+    /**
+     * Home is the one on screen (no screensaver over it). The plate's glass is taken off the film
+     * only while this is so: coming back, it is taken again, so the dock shows the picture that is
+     * up now rather than the one it left behind.
+     */
+    awake: Boolean = true,
 ) {
     val context = LocalContext.current
     val mode = AerialSettings.videoMode
@@ -207,8 +213,10 @@ fun VideoWallpaper(
 
     // The plate's glass over the moving video, where PixelCopy reads it. Not from the file: an
     // owner's video may be 4K HEVC, and a second decoder beside the player's may not be there.
-    LaunchedEffect(play, showing) {
-        if (!play || !showing) return@LaunchedEffect
+    // 极米: awake 也当一个键——屏保过去了 Home 回来，玻璃要重新取一张，dock 才跟得上现在
+    // 在放的画面，而不是停在屏保之前那张上。
+    LaunchedEffect(play, showing, awake) {
+        if (!awake || !play || !showing) return@LaunchedEffect
         sampleGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyGlass(it) } }
     }
 

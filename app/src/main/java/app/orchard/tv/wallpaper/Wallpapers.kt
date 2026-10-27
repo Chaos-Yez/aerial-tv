@@ -499,7 +499,11 @@ object Wallpapers {
 
     suspend fun useFilmFrost(frame: Bitmap) {
         if (!moves()) return
-        filmFrost = withContext(Dispatchers.Default) { Images.frost(frame) }.asImageBitmap()
+        // 极米: 这块玻璃对着的是一直在动的画面，所以比背景那层玻璃做得清楚得多——大一号、只模糊
+        // 一遍、半径也小。糊成一团的时候，dock 看着像一张不动的贴纸，而不是压在画面上的一块玻璃。
+        filmFrost = withContext(Dispatchers.Default) {
+            Images.frost(frame, width = 640, height = 360, passes = 1, radius = 3)
+        }.asImageBitmap()
     }
 
     /**

@@ -125,6 +125,12 @@ fun LiveWallpaper(
     gap: Boolean = false,
     /** Nothing over Home that blurs it: a stopped film may stand in for its picture. */
     standIn: Boolean,
+    /**
+     * Home is the one on screen (no screensaver over it). The plate's glass is taken off the film
+     * only while this is so: coming back, the glass is taken again, so the dock shows the picture
+     * that is up now rather than the one it left behind.
+     */
+    awake: Boolean = true,
     live: LiveFilm,
 ) {
     val context = LocalContext.current
@@ -203,8 +209,11 @@ fun LiveWallpaper(
     // the video plane where PixelCopy reads it (TCL MT5879); else a key frame from the film's file,
     // opened ahead (see FrameReader; Xiaomi MiTV-MFTR0).
     var glassSample by remember { mutableStateOf<GlassSample?>(null) }
-    LaunchedEffect(live.film, play, showing) {
+    // 极米: awake 也当一个键——屏保过去了 Home 回来，玻璃要重新取一张，dock 才跟得上现在
+    // 在放的画面，而不是停在屏保之前那张上。
+    LaunchedEffect(live.film, play, showing, awake) {
         val id = live.film?.id ?: return@LaunchedEffect
+        if (!awake) return@LaunchedEffect
         if (!play || !showing) return@LaunchedEffect
         if (pixelCopy == false && glassFrames) reader.open(id)
         sampleGlass({ player }) { at ->
@@ -247,7 +256,7 @@ fun LiveWallpaper(
                 val h = surface?.height ?: Wallpapers.screenH
                 p.videoDecoderCounters?.let { DiagLog.i("wallpaper film dropped ${it.droppedBufferCount} of ${it.renderedOutputBufferCount + it.droppedBufferCount} frames") }
                 val before = Wallpapers.frosted
-                glassSample?.takeIf { it.film == film && abs(it.atMs - at) <= GLASS_EVERY_MS * 2 }?.let {
+                glassSample?.takeIf { it.film == film && abs(it.atMs - at) <= GLASS_EVERY_MS * 3 }?.let {
                     Wallpapers.useLiveFrost(it.frame)
                     glassReady(live)
                 }
@@ -332,7 +341,8 @@ internal suspend fun copyFrame(view: SurfaceView): Bitmap? = if (pixelCopy == fa
  */
 internal suspend fun copyGlass(view: SurfaceView): Bitmap? {
     if (pixelCopy == false) return null
-    val frame = captureOnce(view, 320, 180)
+    // 极米: 640x360 而不是 320x180——这块玻璃要看得清画面，糊成 320 的六倍放大就只剩一团颜色了。
+    val frame = captureOnce(view, 640, 360)
     if (frame != null) pixelCopy = !copySlow
     else if (++glassMisses >= 3 && pixelCopy == null) pixelCopy = false
     if (frame != null) glassMisses = 0
@@ -368,8 +378,12 @@ private const val COPY_SLOW_MS = 150L
 /** Whether PixelCopy read the film in this process; null until it has been tried. */
 private var pixelCopy: Boolean? = null
 
-/** How often a small frame is taken for the glass while the film moves. */
-internal const val GLASS_EVERY_MS = 2_500L
+/**
+ * How often a small frame is taken for the glass while the film moves. 极米: 原来 2.5 秒一张，
+ * dock 的玻璃看着像一张不动的贴纸；Android 9 上没有能逐帧重算的模糊（RenderEffect 要 31），
+ * 只有把这一张张取得勤一点，才像是压在画面上的玻璃。掉帧保护还在（glassCostly）。
+ */
+internal const val GLASS_EVERY_MS = 800L
 
 /**
  * Whether frames are taken for the glass while a film moves. Not on a TV set to Lite effects, and
@@ -417,7 +431,7 @@ internal suspend fun sampleGlass(player: () -> ExoPlayer?, canTake: () -> Boolea
 
 private fun droppedFrames(p: ExoPlayer): Int = p.videoDecoderCounters?.let { it.ensureUpdated(); it.droppedBufferCount } ?: 0
 
-private const val GLASS_SETTLE_MS = 600L
+private const val GLASS_SETTLE_MS = 300L
 
 /** Frames dropped around one frame taken that make it too costly; with none taken, 0 here (TCL MT5879, Xiaomi MiTV-MFTR0). */
 private const val GLASS_COST_FRAMES = 5

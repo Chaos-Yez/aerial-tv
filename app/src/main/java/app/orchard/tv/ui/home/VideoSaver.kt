@@ -1,9 +1,11 @@
 package app.orchard.tv.ui.home
 
 import android.view.SurfaceHolder
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -18,6 +20,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
@@ -193,6 +196,14 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, n
     LaunchedEffect(attempt, playing, drewOnce, films != null) {
         if (films != null && !playing && !drewOnce) { delay(8_000); if (!playing && !drewOnce) failed() }
     }
+    // 极米: 屏保的影片走硬件视频平面，首帧出来之前那个平面是绿的（MTK 没初始化它是绿的）。
+    // 跟 AerialSaver 一个做法：盖一层黑，真的出帧了再慢慢放出来——从航拍壁纸切进「我的视频」
+    // 屏保时，看到的才是画面淡进来，而不是先绿一下。
+    val veil by animateFloatAsState(
+        if (playing) 0f else 1f,
+        tween(if (playing) 1_500 else 400, easing = Motion.EaseOut),
+        label = "local-film-veil",
+    )
     Box(Modifier.fillMaxSize()) {
         // Full screen, as the same film is behind Home: the surface is the window's, and the
         // picture is cropped to it rather than letterboxed into a shape of its own.
@@ -215,5 +226,6 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, n
         // one set, and from any other wallpaper (an input's picture, a photo, the aerials) Home is
         // covered whole and the screensaver brings the time itself.
         Labels(null, now)
+        if (veil > 0.002f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = veil)))
     }
 }

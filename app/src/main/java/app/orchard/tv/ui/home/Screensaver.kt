@@ -99,12 +99,11 @@ import kotlin.random.Random
 fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skips: ScreensaverSkips, carry: SaverCarry? = null) {
     // 极米: 屏保里的影片和「我的视频」是硬件视频平面（MTK HAL 直接送到显示平面，在合成层
     // 之下），Compose 的淡入淡出摸不到那一层——从航拍壁纸切进我的视频屏保（或反过来）时，
-    // 影片那层是硬切。所以在影片上盖一层黑幕，随屏保一起放出来/收回去：进来时 1→0，
-    // 出去时 0→1，看到的就是画面慢慢显出来、慢慢压暗，而不是啪地换掉。
-    val veil = remember { Animatable(if (visible) 0f else 1f) }
+    // 影片那层是硬切。进来那一半由各个影片自己盖黑幕等首帧（AerialSaver / VideoSaver 的 veil，
+    // 首帧没出来之前那个平面是绿的）；这里只管出去那一半：走的时候把黑幕盖上，让画面压暗着走。
+    val leaveVeil = remember { Animatable(0f) }
     LaunchedEffect(visible) {
-        if (visible) veil.animateTo(0f, tween(1200, easing = Motion.EaseOut))
-        else veil.animateTo(1f, tween(SAVER_VEIL_MS, easing = Motion.EaseInOut))
+        if (visible) leaveVeil.snapTo(0f) else leaveVeil.animateTo(1f, tween(SAVER_VEIL_MS, easing = Motion.EaseInOut))
     }
     AnimatedVisibility(
         visible = visible,
@@ -127,21 +126,18 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
         var videosFailed by remember { mutableStateOf(false) }
         Box(Modifier.fillMaxSize().background(Color.Black)) {
             when (Wallpapers.screensaver) {
-                ScreensaverMode.Aerial -> if (aerialFailed) PhotoSaver(now, skips.steps) else Box(Modifier.fillMaxSize()) {
-                    AerialSaver(
-                        now, skips.steps, onUnavailable = { aerialFailed = true }, startAt = remember {
-                            // A paused wallpaper film still holds the decoder (one 4K decoder, MiTV-MFTR0).
-                            LiveFilm.onHome?.letDecoderGo()
-                            AerialStart.wallpaper()
-                        },
-                    )
-                    FilmVeil(veil.value)
-                }
+                ScreensaverMode.Aerial -> if (aerialFailed) PhotoSaver(now, skips.steps) else AerialSaver(
+                    now, skips.steps, onUnavailable = { aerialFailed = true }, startAt = remember {
+                        // A paused wallpaper film still holds the decoder (one 4K decoder, MiTV-MFTR0).
+                        LiveFilm.onHome?.letDecoderGo()
+                        AerialStart.wallpaper()
+                    },
+                )
                 ScreensaverMode.Photos -> PhotoSaver(now, skips.steps, remember { Wallpapers.screensaverPicture() })
                 ScreensaverMode.Clock, ScreensaverMode.System -> ClockSaver(apps, now)
                 ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else Box(Modifier.fillMaxSize()) {
                     VideoSaver(skips.steps, now, onUnavailable = { videosFailed = true })
-                    FilmVeil(veil.value)
+                    FilmVeil(leaveVeil.value)
                 }
             }
         }

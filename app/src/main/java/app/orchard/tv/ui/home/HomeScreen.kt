@@ -387,7 +387,6 @@ fun HomeScreen(
             saverImage = null
         }
     }
-    val carrying = filmSaver || stillSaver != null || videoSaver
     // The screensaver's own film lets go of the video path as it fades out, and the chip wants a
     // moment before it is given to another player. Asking for the wallpaper's decoder in that same
     // moment is where the aerial wallpaper came back green: the new player is on the plane before
@@ -422,10 +421,14 @@ fun HomeScreen(
     // it was most of the way back in two or three frames (Xiaomi MiTV-MFTR0: 45-57 ms a frame as it
     // wakes) and leapt; out of the corner and back are one motion run both ways.
     val clockToSaver = remember { Animatable(0f) }
-    LaunchedEffect(carrying) {
+    // 极米: 和磁贴、底板同一条路——跟的是屏保自己，而不只是「屏保承接壁纸」的那几种组合。
+    // 屏保里的影片走视频平面，时钟是 Compose 画的，浮在它上面；不跟着走的话，屏保一起来
+    // 时钟还挂在影片上。它飞到大钟的位置、或者按设置淡掉，回来时同一段路程倒着走回来。
+    LaunchedEffect(vm.screensaverVisible) {
         when {
-            reduced -> clockToSaver.snapTo(if (carrying) 1f else 0f)
-            carrying -> clockToSaver.animateTo(1f, tween(2000, easing = Motion.EaseInOut))
+            reduced -> clockToSaver.snapTo(if (vm.screensaverVisible) 1f else 0f)
+            vm.screensaverVisible -> clockToSaver.animateTo(1f, tween(2000, easing = Motion.EaseInOut))
+            AerialSettings.videoSink -> clockToSaver.animateTo(0f, tween(2000, easing = Motion.EaseInOut))
             else -> clockToSaver.animateTo(0f, tween(CLOCK_BACK_MS, easing = Motion.EaseInOut))
         }
     }
@@ -785,7 +788,7 @@ fun HomeScreen(
                             .graphicsLayer { alpha = 1f - (scroll.value / collapsePx * 1.6f).coerceIn(0f, 1f) },
                         toSaver = { clockToSaver.value },
                         saving = vm.screensaverVisible,
-                        away = carrying,
+                        away = vm.screensaverVisible,
                     )
                 } else if (!clockRight) {
                     CornerClock(

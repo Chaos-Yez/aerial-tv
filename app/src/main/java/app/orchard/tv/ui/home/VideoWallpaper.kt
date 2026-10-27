@@ -219,7 +219,7 @@ fun VideoWallpaper(
         if (!awake) return@LaunchedEffect
         retryGlassFrames()
         if (!play || !showing) return@LaunchedEffect
-        sampleVideoGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyVideoGlass(it) } }
+        sampleVideoGlass({ player }, canTake = { videoCopyPossible }) { surface?.let { copyVideoGlass(it) } }
     }
 
     LaunchedEffect(play, sound) {

@@ -774,9 +774,6 @@ fun HomeScreen(
                 sinkOnSaver = AerialSettings.videoSink,
                 saving = vm.screensaverVisible,
                 filmGlass = (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null },
-                // 极米: 那块玻璃跟着影片换的，只有「我的视频」壁纸（videosChosen）。航拍壁纸仍按
-                // 上游那样：底板不透明，影片那一帧只压在底下。
-                filmPlate = videosChosen,
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
                 saverPush = { saverPush.value },

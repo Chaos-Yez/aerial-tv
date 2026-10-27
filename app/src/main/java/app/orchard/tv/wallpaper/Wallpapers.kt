@@ -503,6 +503,18 @@ object Wallpapers {
     }
 
     /**
+     * 极米: the glass for the owner's own videos while one plays. The plate under the top row is
+     * made from [frosted] (HomeChrome.Plate) — that is where the glass comes from, upstream too —
+     * so the frame goes there rather than into [filmFrost]: the plate is still the wallpaper's
+     * frosted picture, only kept up to date while the film plays, so the dock shows the frame that
+     * is up now and not the one the film started from.
+     */
+    suspend fun useVideoFrost(frame: Bitmap) {
+        if (selectedId != VIDEOS) return
+        frosted = withContext(Dispatchers.Default) { Images.frost(frame) }.asImageBitmap()
+    }
+
+    /**
      * Where no frame can be taken while the film moves (LiveWallpaper.sampleGlass): the glass of the
      * frame it started from ([frosted]), blurred down to its broad colours, so the shapes that move
      * on behind the plate do not show twice through it.

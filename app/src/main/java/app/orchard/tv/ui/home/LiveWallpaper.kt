@@ -343,16 +343,32 @@ internal suspend fun copyGlass(view: SurfaceView): Bitmap? {
  * 极米: the same small copy, for the owner's own videos. A copy is only written off past
  * [GLASS_COPY_SLOW_MS] here, not the [COPY_SLOW_MS] a full frame that stands in for a stopped film
  * is given: written off at 150 ms, PixelCopy closed for good and the dock's glass stayed a still.
- * Nor does it close PixelCopy for the aerial wallpaper, which keeps its own [COPY_SLOW_MS].
+ *
+ * Nor does it share the aerial wallpaper's verdicts: [pixelCopy], [copySlow] and [glassMisses] are
+ * the aerial wallpaper's (three unreadable copies there close PixelCopy for the process, and it is
+ * lite TVs like this one that miss most). The owner's videos keep their own, so a bad minute over
+ * the aerials cannot stop the dock's glass following them.
  */
 internal suspend fun copyVideoGlass(view: SurfaceView): Bitmap? {
-    if (pixelCopy == false) return null
+    if (videoCopy == false) return null
     val frame = captureOnce(view, 320, 180, GLASS_COPY_SLOW_MS, noteSlow = false)
-    if (frame != null) pixelCopy = !copySlow
-    else if (++glassMisses >= 3 && pixelCopy == null) pixelCopy = false
-    if (frame != null) glassMisses = 0
+    if (frame != null) {
+        videoCopy = true
+        videoMisses = 0
+    } else if (++videoMisses >= 3) {
+        videoCopy = false
+    }
     return frame
 }
+
+/** Whether PixelCopy read the owner's videos here; null until it has been tried. */
+private var videoCopy: Boolean? = null
+
+/** Copies of the owner's videos that came back empty, in a row. */
+private var videoMisses = 0
+
+/** Whether [copyVideoGlass] may still read the film here. */
+internal val videoCopyPossible: Boolean get() = videoCopy != false
 
 private var glassMisses = 0
 
@@ -431,11 +447,14 @@ internal fun retryGlassFrames() {
     if (glassCostlyAt != 0L) DiagLog.i("wallpaper glass: Home is back; taking frames again")
     glassCostlyAt = 0L
     glassMisses = 0
+    videoMisses = 0
+    // 极米: 视频那边判过「读不到」的，回来也再试一次——一次空拷贝不该让 dock 的玻璃永远停在原处。
+    if (videoCopy == false) videoCopy = null
 }
 
 /** A look at the switches that decide whether the plate's glass is taken at all (diagnostics). */
 internal fun glassState(): String =
-    "copy=$pixelCopy costly=$glassCostly videoStuck=${glassCostlyAt != 0L} misses=$glassMisses slow=$copySlow lite=${AerialSettings.lite}"
+    "copy=$pixelCopy video=$videoCopy costly=$glassCostly videoStuck=${glassCostlyAt != 0L} misses=$glassMisses/$videoMisses slow=$copySlow lite=${AerialSettings.lite}"
 
 /**
  * While the film moves, a frame from [take] every [GLASS_EVERY_MS] becomes the plate's glass
@@ -505,9 +524,10 @@ internal suspend fun sampleVideoGlass(player: () -> ExoPlayer?, canTake: () -> B
             first = true
             continue
         }
-        frame?.let { Wallpapers.useFilmFrost(it) }
+        frame?.let { Wallpapers.useVideoFrost(it) }
     }
-    Wallpapers.useStillFilmFrost()
+    // 极米: 没取到就不再动 frosted——底板保持壁纸原来那张糊图，不用把它糊成 16x9 的色块
+    // （那是航拍壁纸的做法：它的帧只当底板下面一层，怕同一个画面看两遍）。
 }
 
 /** How soon a copy that came back empty is tried again. */

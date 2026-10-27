@@ -273,16 +273,22 @@ private fun VideoCarry(now: LocalDateTime, steps: SharedFlow<Int>) {
     // 时间仍由 Home 的时钟给，这一层只放字（showTime = false）。
     val cap = AerialSettings.videoCaption.ifBlank { null }
     LaunchedEffect(cap) { DiagLog.i("carried video caption: ${cap ?: "none"}") }
-    Labels(cap, now, showTime = false)
+    Labels(cap, now, showTime = false, shade = false)
 }
 
-/** Place name bottom-left, time top-right: how tvOS labels its screensaver. */
+/**
+ * Place name bottom-left, time top-right: how tvOS labels its screensaver.
+ *
+ * 极米: [shade] is the two dark bands top and bottom that let white words read over bright sky. The
+ * owner's own videos do not take them ([shade] false): their picture is the point, and the films
+ * the aerials show are the ones that needed the bands.
+ */
 @Composable
-internal fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = true) {
+internal fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = true, shade: Boolean = true) {
     // Fades in where Home's own clock has moved to, as the photos cover it.
     val time by animateFloatAsState(if (showTime) 1f else 0f, tween(2000), label = "time")
     Box(Modifier.fillMaxSize()) {
-        Canvas(Modifier.fillMaxSize()) {
+        if (shade) Canvas(Modifier.fillMaxSize()) {
             // Just enough shade under the text to read it over bright sky or snow.
             drawRect(Brush.verticalGradient(0.7f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.45f)))
             drawRect(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.3f), 0.18f to Color.Transparent))

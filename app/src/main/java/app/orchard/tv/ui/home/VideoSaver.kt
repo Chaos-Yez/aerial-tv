@@ -231,7 +231,8 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, n
         // 极米: 屏保里「我的视频」左下角那行字（手机端填的），位置与航拍的地名一样。
         val cap = AerialSettings.videoCaption.ifBlank { null }
         LaunchedEffect(cap) { DiagLog.i("local screensaver caption: ${cap ?: "none"}") }
-        Labels(cap, now)
+        // 极米: 只放字，不压暗——那两条黑边是为航拍的亮天空准备的，这里挡住的是自己的影片。
+        Labels(cap, now, shade = false)
         if (veil > 0.002f) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = veil)))
     }
 }

@@ -658,13 +658,20 @@ fun HomeScreen(
             // The glass plate under the top row (tvOS 26), the row's full width however few apps
             // there are, which sit at its left: sized to three apps it read as a stray panel (#284).
             // 极米: 选了信号源壁纸就没有底板了（owner: 播放时把底板 dock 隐藏），磁贴直接落在画面上。
+            // 极米: 底板跟着第一排一起沉下去，别让磁贴跑到板子外面去。磁贴的沉浮是一条弹簧
+            // （下面每个磁贴的 slot），底板走同一条：目标和初值都一样，两者才真的一起下去、一起上来，
+            // 而不是磁贴慢慢沉、板子一下子跳过去。
+            val plateSink by animateIntOffsetAsState(
+                with(density) { IntOffset(0, sink.roundToPx()) },
+                spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
+                label = "plate-sink",
+            )
             val plate = if (apps.isEmpty() || !AerialSettings.homePlate || sourceChosen) null else with(density) {
-                // 极米: 底板跟着第一排一起沉下去，别让磁贴跑到板子外面去。
                 Rect(
                     metrics.plateLeft.toPx(),
-                    (metrics.plateTop + sink).toPx(),
+                    metrics.plateTop.toPx() + plateSink.y,
                     metrics.plateRight.toPx(),
-                    (metrics.plateBottom + sink).toPx(),
+                    metrics.plateBottom.toPx() + plateSink.y,
                 )
             }
             // A moving wallpaper's film, under everything; it moves only on the top row with

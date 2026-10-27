@@ -740,6 +740,7 @@ fun HomeScreen(
                 // both give way to the frosted picture, as any wallpaper does.
                 filmStopped = { if (videosChosen) videoStopped else filmStopped },
                 toSaver = { toSaver.value },
+                saving = vm.screensaverVisible,
                 filmGlass = (Wallpapers.filmFrost ?: Wallpapers.frosted).takeIf { Wallpapers.moves() && Wallpapers.backdrop != null },
                 saverImage = saverImage,
                 saverReveal = { saverReveal.value },
@@ -909,11 +910,15 @@ fun HomeScreen(
                                     } else Modifier,
                                 )
                                 // Into the screensaver, the apps go left to right, sinking a little.
+                                // 极米: 进屏保时前六成路程就沉下去淡掉（屏保还在起来）；回桌面时跟
+                                // toSaver 全程走完，屏保自己淡出的同时磁贴已经在它后面淡入。
+                                // 底板走同一条（HomeChrome 的 sinkFade）。
                                 .graphicsLayer {
-                                    val f = ((toSaver.value - 0.05f * (index % columns)) / 0.6f).coerceIn(0f, 1f)
+                                    val f = ((toSaver.value - 0.05f * (index % columns)) /
+                                        (if (vm.screensaverVisible) 0.6f else 1f)).coerceIn(0f, 1f)
                                     if (f > 0f) {
                                         alpha = 1f - f
-                                        translationY = f * 18.dp.toPx()
+                                        translationY = f * SaverSink.toPx()
                                         compositingStrategy = if (saverFadeOffscreen) CompositingStrategy.Offscreen else CompositingStrategy.ModulateAlpha
                                     }
                                 },

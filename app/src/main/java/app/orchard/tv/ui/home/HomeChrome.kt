@@ -208,6 +208,12 @@ fun HomeBackground(
     /** How far Home has given way to the screensaver carrying its wallpaper on: the plate goes. */
     toSaver: () -> Float = { 0f },
     /**
+     * Whether the screensaver is up. Going in, [toSaver] is spent early (the row is gone long before
+     * the film has come in); coming back, it is followed all the way, so the row and the plate are
+     * already fading up behind the screensaver's own fade-out instead of arriving on a bare screen.
+     */
+    saving: Boolean = false,
+    /**
      * The glass for a moving film (Wallpapers.filmFrost, or [frosted] until it has one): the plate
      * stays over the film on it. Null where the film has none (an input's picture): the plate is
      * the smoke and the lit edge alone.
@@ -226,7 +232,7 @@ fun HomeBackground(
             val a = saverReveal()
             if (a > 0.01f) drawDrawingIn(saverImage, saverPush(), a)
         }
-        Plate(frosted ?: backdrop, filmGlass, plate, scroll, collapse, cover, filmStopped, toSaver, lift)
+        Plate(frosted ?: backdrop, filmGlass, plate, scroll, collapse, cover, filmStopped, toSaver, lift, saving)
     }
 }
 
@@ -280,16 +286,25 @@ private fun Pictures(backdrop: ImageBitmap?, frosted: ImageBitmap?, scroll: () -
  * moves or a new frame fades in, every [GLASS_EVERY_MS]: the film plays with Compose all but still.
  */
 @Composable
-private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll: () -> Float, collapse: Float, cover: () -> Float, filmStopped: () -> Float, toSaver: () -> Float, lift: () -> Float) {
+private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll: () -> Float, collapse: Float, cover: () -> Float, filmStopped: () -> Float, toSaver: () -> Float, lift: () -> Float, saving: Boolean) {
     var shown by remember { mutableStateOf(glass) }
     var under by remember { mutableStateOf<ImageBitmap?>(null) }
     val swap = remember { Animatable(1f) }
+    /**
+     * The screensaver taking Home away, as the tiles have it (HomeScreen: f = toSaver / 0.6 while
+     * the screensaver is up): by six tenths of the way in, the row is gone and down by [SaverSink],
+     * and the plate goes with it. Coming back the whole of toSaver is followed instead, so the row
+     * and the plate fade up at once behind the screensaver's own fade-out rather than turning up
+     * in full on a screen the screensaver has just left. Faded on toSaver alone going in, the plate
+     * outlived the row it was drawn under.
+     */
+    fun sinkFade(): Float = (toSaver() / if (saving) 0.6f else 1f).coerceIn(0f, 1f)
     fun visibility(): Float {
         val rest = 1f - smooth(((scroll() / collapse).coerceIn(0f, 1f) / 0.55f).coerceIn(0f, 1f))
         // Kept over a moving film and over an input's picture (the owner asked for the dock to stay
         // while their videos, the screensaver's wallpaper or HDMI play): only the grid and the
         // screensaver take it away.
-        return rest * (1f - toSaver())
+        return rest * (1f - sinkFade())
     }
     LaunchedEffect(glass) {
         if (glass === shown) return@LaunchedEffect
@@ -347,15 +362,19 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
     Canvas(Modifier.fillMaxSize().onSizeChanged { screen = Size(it.width.toFloat(), it.height.toFloat()) }) {
         if (plate == null) return@Canvas
         val alpha = visibility()
+        // 极米: 屏保把 Home 接走时，第一排磁贴是一边下沉一边淡出（HomeScreen: translationY =
+        // f * SaverSink）。底板走同一条：同样的 f、同样的距离，板子才跟着磁贴沉下去，
+        // 而不是钉在原地淡出。f 取第一列（不带磁贴那点错相），底板左边正对着它。
+        val sinkOut = sinkFade() * SaverSink.toPx()
         // The film's plate, while the film shows and the plate over a picture does not hide it.
         // With no frame to frost (an input's picture, which cannot be copied) it is the smoke and
         // the lit edge alone, so the top row keeps a plate over anything.
-        val base = (1f - smooth(((scroll() / collapse).coerceIn(0f, 1f) / 0.55f).coerceIn(0f, 1f))) * (1f - toSaver())
+        val base = (1f - smooth(((scroll() / collapse).coerceIn(0f, 1f) / 0.55f).coerceIn(0f, 1f))) * (1f - sinkFade())
         val frame = filmTop
         val edge = smoke
         if (edge != null && cover() > 0.01f && alpha < 0.99f && base > 0.01f) {
             val p = (scroll() / collapse).coerceIn(0f, 1f)
-            val r = plate.translate(0f, -scroll() - lift()).inflate(PlateSwell.toPx() * smooth((p / 0.55f).coerceIn(0f, 1f)))
+            val r = plate.translate(0f, -scroll() - lift() + sinkOut).inflate(PlateSwell.toPx() * smooth((p / 0.55f).coerceIn(0f, 1f)))
             val t = filmSwap.value
             val under = filmBottom
             // The old frame whole under the new, both in one layer laid over the film at FILM_FROST.
@@ -379,7 +398,7 @@ private fun Plate(glass: ImageBitmap?, film: ImageBitmap?, plate: Rect?, scroll:
         val rest = 1f - smooth((p / 0.55f).coerceIn(0f, 1f))
         if (alpha < 0.01f) return@Canvas
         val grow = PlateSwell.toPx() * (1f - rest)
-        val r = plate.translate(0f, -scroll() - lift()).inflate(grow)
+        val r = plate.translate(0f, -scroll() - lift() + sinkOut).inflate(grow)
         val t = swap.value
         if (t < 1f) bottom?.draw(this, plate, r, alpha)
         top?.draw(this, plate, r, if (bottom != null) alpha * t else alpha)
@@ -438,6 +457,13 @@ private const val GRID_SHADE = 0.55f
 
 /** How much the plate swells as it dissolves into the grid's background. */
 private val PlateSwell = 14.dp
+
+/**
+ * How far the top row sinks as the screensaver takes Home (HomeScreen, the tiles' translationY).
+ * The plate goes down by the same amount over the same run of [toSaver], so the dock and the row
+ * leave together: it was fading out where it stood while the tiles sank away under it.
+ */
+internal val SaverSink = 18.dp
 
 /** The plate's tint: the frosted picture a little darker, lifted with white, so it reads as milky glass. */
 private val PlateTint = floatArrayOf(

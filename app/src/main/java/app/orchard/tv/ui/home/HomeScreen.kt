@@ -261,6 +261,14 @@ private const val FILM_SAVER_WAIT_MS = 10_000L
  */
 private const val SAVER_RESUME_MS = 1_000L
 
+/**
+ * How long one moving wallpaper is left alone after another has been chosen in its place, before
+ * its film is asked for: the same hand-over of the one video path as above, only between two
+ * wallpapers. The old surface goes, the plane is empty, and the new player is on it before it has
+ * a frame - green, for as long as the plane takes to come up.
+ */
+private const val WALL_GAP_MS = 800L
+
 /** How long the large clock's time takes back from the screensaver's corner (ShelfClock waits for it). */
 internal const val CLOCK_BACK_MS = 1000
 
@@ -401,6 +409,27 @@ fun HomeScreen(
             saverGap = false
         }
         wasSaving = vm.screensaverVisible
+    }
+    // 极米: 换壁纸是同一个毛病，同一个办法。一面影片壁纸换成另一面时，旧的那层先拆掉
+    // （SurfaceView 没了，视频平面空着），新的播放器上来又要走一遍平面的初始化——这几百毫秒
+    // 那块面板是绿的。所以换过去之后也让平面先空一会儿，这期间 Home 显示的是壁纸的静止图，
+    // 影片晚一点再起播（与屏保前后那一秒完全一样）。
+    var wallGap by remember { mutableStateOf(false) }
+    var wasWall by remember { mutableStateOf(Wallpapers.selectedId) }
+    // 而「影片透出来多少」只对产生它的那面壁纸有效。换壁纸的那一帧就得按 0 算，不能等副作用
+    // 把快照归零：那一两帧里 Compose 什么都不画（Pictures 直接 return），露出的正是下面空着的
+    // 视频平面——绿色。所以这个数字跟壁纸的 id 绑在一起看。
+    var coverWall by remember { mutableStateOf(Wallpapers.selectedId) }
+    LaunchedEffect(Wallpapers.selectedId) {
+        val id = Wallpapers.selectedId
+        val changed = wasWall != id
+        wasWall = id
+        filmCover.snapTo(0f)
+        coverWall = id
+        if (!changed) return@LaunchedEffect
+        wallGap = true
+        delay(WALL_GAP_MS)
+        wallGap = false
     }
     val toSaver = remember { Animatable(0f) }
     // 极米: 以前只有「屏保承接壁纸」时才让 Home 淡出。可是屏保里的影片（航拍、我的视频）走的是
@@ -714,7 +743,7 @@ fun HomeScreen(
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
                     hold = filmSaver && vm.resumed,
-                    gap = saverGap,
+                    gap = saverGap || wallGap,
                     // Control Center and Personalize leave Home sharp (dimmed, or above the sheet):
                     // the paused film stays. Swapped for its picture there, the background jumped
                     // (another plane and processing; a key frame a second off where the exact
@@ -728,6 +757,7 @@ fun HomeScreen(
                     keep = vm.resumed && (!vm.screensaverVisible || videoSaver),
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
+                    gap = wallGap,
                 )
                 sourceInput != null -> SourceWallpaper(
                     sourceInput,
@@ -735,8 +765,6 @@ fun HomeScreen(
                     cover = filmCover,
                 )
             }
-            // Another wallpaper chosen: nothing shows through until the new one has a frame.
-            LaunchedEffect(Wallpapers.selectedId) { filmCover.snapTo(0f) }
             HomeBackground(
                 // The chosen wallpaper; in "Follow App" mode, light from the focused app.
                 backdrop = Wallpapers.backdrop ?: ambientApp?.art?.backdrop,
@@ -744,7 +772,7 @@ fun HomeScreen(
                 plate = plate,
                 scroll = { scroll.value },
                 collapse = collapsePx,
-                cover = { filmCover.value },
+                cover = { if (coverWall == Wallpapers.selectedId) filmCover.value else 0f },
                 // No shade over a moving wallpaper (the aerial film, the owner's videos, an
                 // input's picture): the owner asked for the picture at its own light. In the grid
                 // both give way to the frosted picture, as any wallpaper does.

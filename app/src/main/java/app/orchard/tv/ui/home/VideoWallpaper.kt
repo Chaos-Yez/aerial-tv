@@ -115,6 +115,8 @@ fun VideoWallpaper(
     val modeNow by rememberUpdatedState(mode)
     val soundNow by rememberUpdatedState(sound)
     val keepNow by rememberUpdatedState(keep)
+    /** Home is the one on screen: the film may rest without being taken down. */
+    val awakeNow by rememberUpdatedState(awake)
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     var showing by remember { mutableStateOf(false) }
@@ -242,6 +244,18 @@ fun VideoWallpaper(
                 cover.snapTo(0f)
                 videosPlaying = false
                 release()
+                return@LaunchedEffect
+            }
+            // 极米: Home 还在屏幕上，只是焦点离开了第一排（往下按打开更多磁贴、开了面板），或者
+            // 影片被网格盖住的那一会儿。解码器停一下，画面原地不动：网格那张压暗的糊图盖着影片，
+            // 什么也看不出来。回来时 cover 本来就是 1，影片从暂停的那一帧接着走——不写静止帧、
+            // 不淡出，所以不会出现「切回去画面缩了一下」。
+            // （以前这里会取一张停帧当背景、把 cover 淡到 0，回来再淡回 1；两张图的构图差一点，
+            // 看上去就是画面缩放了一下。）
+            if (awakeNow) {
+                p.pause()
+                videosPlaying = false
+                DiagLog.i("video wallpaper rests at ${p.currentPosition} ms (Home is still up)")
                 return@LaunchedEffect
             }
             p.pause()

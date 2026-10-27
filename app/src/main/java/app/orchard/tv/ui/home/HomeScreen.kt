@@ -979,15 +979,9 @@ fun HomeScreen(
         }
         PanelBackdrop(Wallpapers.frosted.takeIf { Wallpapers.backdrop != null }, { backdropFrost })
 
-        // Rows that scroll up under the status pill fade out instead of colliding with it.
-        Canvas(
-            Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .graphicsLayer { alpha = (scroll.value / collapsePx).coerceIn(0f, 1f) },
-        ) {
-            drawRect(Brush.verticalGradient(0f to Color.Black, 0.5f to Color.Black.copy(alpha = 0.82f), 1f to Color.Transparent))
-        }
+        // 极米: 这里原来有一条 120dp 的黑渐变（最上面纯黑，往下 0.82，再透下去），行滚上去时
+        // 慢慢显出来，免得和状态药丸撞在一起。往下按打开更多磁贴时它把画面上半截压得很黑，
+        // 主人不要，去掉了：行直接滚过去。
 
         // The pill holds only the network and Control Center. The time joins it once the clock
         // above the top row has scrolled away, so the screen never shows the time twice. The small

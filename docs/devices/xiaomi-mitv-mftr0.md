@@ -53,7 +53,8 @@
 
 - 不用 Android 标准的 Dream（`screensaver_enabled=0`）。由小米的 PowerManagerService 在空闲 `system screen_saver_timeout`（480000 = 8 分钟）后发出 `com.duokan.intent.action.show.screensaver`，交给 `com.xiaomi.mitv.hyper.screensaver` 显示。这个广播受保护，shell 发不出去。
 - 解决办法：Aerial 在桌面空闲 5 分钟时启动自己的屏保，同时加 `FLAG_KEEP_SCREEN_ON`，小米的屏保就不会再触发。停在别的 App 里空闲时，小米屏保仍可能出现。
-- 只有一个 4K 解码器：航拍壁纸的 HEVC 在播时再开杜比视界，两个都 `DECODING_FAILED`（2026-10-24）。先停壁纸、再从同一时刻开杜比视界能接上，但中间黑 0.9–3.5 秒，户主不接受；现在壁纸和屏保都是航拍时屏保沿用壁纸的播放器和格式（4K SDR），不切换。
+- Aerial 屏保保持常亮 4 小时后会放开（`SCREENSAVER_HOLD_MS`，好让电视自己关屏）。这台 `screen_off_timeout` 是无限，放开后屏幕不会关，小米的计时器 60 秒后照样把它的屏保盖上来（户主 2026-10-27 03:35 遇到，用量统计里 Aerial 23:31 回到前台，03:35 小米屏保出现）。现在屏幕本来就不会自动关时不再放开。用 90 秒的测试包对比过：旧逻辑放开 60 秒后小米屏保出现，新逻辑 3 分半仍是 Aerial。按 `MitvPowerManagerService` 反编译：计时器在「有视频在播」「有视频暂停（`media.player` 报的前台播放器）」之后才看常亮；后台 App 里暂停的 MediaPlayer 实测不算（报 `pausing:false uid:-1`），所以 Aerial 在前台时只有常亮放开会让小米屏保出来。
+- 只有一个 4K 解码器：航拍壁纸的 HEVC 在播时再开杜比视界，两个都 `DECODING_FAILED`（2026-10-24）。先停壁纸、再从同一时刻开杜比视界能接上，但中间黑 0.9–3.5 秒，户主不接受；现在壁纸和屏保都是航拍、画质为「自动」时，屏保沿用壁纸的播放器和格式（4K SDR），不切换。手动选了「4K 杜比视界」才切过去：先停壁纸、从同一时刻开杜比视界，实测第一帧 2.8 秒（2026-10-27）。
 - 自带屏保的入口：`com.xiaomi.mitv.hyper.screensaver/.MainActivity` 就是屏保本身。系统由受保护广播交给 `MainReceiver`，它再带 `show_saver_list=false`、`show_widget_view=false`、`Source` 启动 `MainActivity`；不带这两个 extra 直接打开，屏保上会盖着样式选择列表（还有广告）。1.42 个性化的「系统内置」：按返回就这样打开它，计时交给小米自己（`screen_saver_timeout`），这时 Aerial 不保持常亮。实测返回键打开的是没有列表的屏保，返回回到 Aerial；停在 Aerial 60 秒后小米屏保自己出来（这台当时 `screen_saver_timeout=60000`）。屏保 3.04.115（2026-10-24）。
 - 1.38 加了「从不」以后，选「从不」时 Aerial 不启动屏保，8 分钟后小米的屏保照样出现在 Aerial 上，户主以为屏保「跳回了小米自带的」（2026-10-23，户主的这台就设成了「从不」）。1.42 起选「从不」且 `screen_off_timeout` 是无限（这台是 2147483647）时，Aerial 在前台就保持 `FLAG_KEEP_SCREEN_ON`，日志里有 `setKeepScreenOnFlag KeepScreenOn:true`，户主确认小米屏保不再出来。
 

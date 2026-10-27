@@ -75,6 +75,23 @@ object SystemScreensaver {
             ?.takeIf { it in 1 until 24 * 60 * 60 * 1000L }
     }
 
+    /**
+     * After how long the firmware starts its own screensaver, for "System" chosen: Xiaomi's own
+     * timer (system/screen_saver_timeout, 60000 on MiTV-MFTR0, -1 when off), else Android's dream
+     * after screen_off_timeout (TCL MT5879: 120000). 0 when it is off; null where it is not known.
+     */
+    fun firmwareDelayMs(context: Context): Long? {
+        val resolver = context.contentResolver
+        val xiaomi = runCatching { context.packageManager.getPackageInfo(XIAOMI, 0) }.isSuccess
+        if (xiaomi) {
+            val ms = runCatching { Settings.System.getLong(resolver, "screen_saver_timeout") }.getOrNull() ?: return null
+            return if (ms > 0) ms else 0
+        }
+        if (!dreamsOn(context)) return 0
+        return runCatching { Settings.System.getLong(resolver, Settings.System.SCREEN_OFF_TIMEOUT) }.getOrNull()
+            ?.takeIf { it in 1 until 24 * 60 * 60 * 1000L }
+    }
+
     /** Starts the TV's dream now, whichever it is; false where that is not possible. */
     fun startDream(context: Context): Boolean {
         if (!dreamsOn(context)) return false

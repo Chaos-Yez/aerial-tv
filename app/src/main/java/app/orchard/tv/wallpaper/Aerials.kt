@@ -78,6 +78,20 @@ object AerialFormats {
     fun forWallpaper(context: Context): AerialQuality =
         resolve(context, AerialSettings.aerialQuality).let { if (it == AerialQuality.DolbyVision) AerialQuality.Uhd else it }
 
+    /**
+     * Whether a screensaver of aerials over the aerial wallpaper carries the wallpaper's film on, in
+     * its format. Auto does: going to Dolby Vision from the wallpaper's SDR showed black for 0.9–3.5 s
+     * (Xiaomi MiTV-MFTR0, one 4K decoder) and most TVs blink as they switch modes. Dolby Vision
+     * chosen by hand is played whatever that costs, from the wallpaper's film and moment.
+     */
+    fun screensaverCarriesWallpaper(context: Context): Boolean =
+        !(AerialSettings.aerialQuality == AerialQuality.DolbyVision && AerialQuality.DolbyVision in supported(context))
+
+    /** What a screensaver of aerials starts in; [overWallpaper]: it begins from the aerial wallpaper's film. */
+    fun forScreensaver(context: Context, overWallpaper: Boolean): AerialQuality =
+        if (overWallpaper && screensaverCarriesWallpaper(context)) forWallpaper(context)
+        else resolve(context, AerialSettings.aerialQuality)
+
     /** One step down, after a decoder failed on [quality]. */
     fun lower(quality: AerialQuality): AerialQuality = when (quality) {
         AerialQuality.DolbyVision -> AerialQuality.Uhd

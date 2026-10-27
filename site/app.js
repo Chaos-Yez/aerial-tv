@@ -30,6 +30,7 @@ adb shell cmd notification allow_listener app.orchard.tv/app.orchard.tv.guard.Re
 adb shell appops set app.orchard.tv SYSTEM_ALERT_WINDOW allow
 adb shell appops set app.orchard.tv APP_AUTO_START allow   # ${T.tclOnly}
 adb shell am start -n app.orchard.tv/.MainActivity`;
+    $('#adaptprompt').textContent = T.adapt(ip, SITE + T.adaptGuide);
   }
 
   $('#ip').value = store.get('aerial-ip') || '';

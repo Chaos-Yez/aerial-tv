@@ -1,7 +1,6 @@
 package app.orchard.tv.system
 
 import android.content.Context
-import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
 import android.provider.Settings
@@ -52,12 +51,6 @@ object MitvPanel {
     /** How far a reading may sit from the level the panel was moved to (the getter animates). */
     private const val PROBE_TOLERANCE = 2
 
-    /**
-     * Models that keep [SETTING] yet stay on the TV's own slider: MiTV-MFTP0 has a picture_backlight
-     * it does not honour (two owners write its panel, issues #284 and #335), and this path has not
-     * been tried on it. Move a model here if transaction 42 turns out not to move its panel.
-     */
-    private val UNTESTED_MODELS = setOf("MiTV-MFTP0", "MiTV_MFTP0")
 
     private var verified: Boolean? = null
 
@@ -78,7 +71,11 @@ object MitvPanel {
     fun usable(context: Context): Boolean {
         verified?.let { return it }
         val ok = run {
-            if (Build.MODEL in UNTESTED_MODELS) return@run false
+            // Models that keep [SETTING] yet stay on the TV's own slider: MiTV-MFTP0 has a
+            // picture_backlight it does not honour (issues #284 and #335), and this path has not
+            // been tried on it. A model whose panel transaction 42 turns out not to move goes into
+            // devices.json the same way.
+            if (DeviceProfile.current(context).ignoresPictureBacklight) return@run false
             if (!isAvailable(context)) return@run false
             val before = readSettled(context) ?: return@run false
             if (before !in 1..100) return@run false

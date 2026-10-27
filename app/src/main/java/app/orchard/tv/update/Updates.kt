@@ -166,6 +166,8 @@ object Updates {
         data object Opened : Install
         /** Aerial may not install apps yet; the TV's setting for it is open. */
         data object NeedsPermission : Install
+        /** Android 6 firmware requires storage access before the APK can be saved. */
+        data object NeedsStoragePermission : Install
         data class Failed(val reason: Failure) : Install
     }
 
@@ -197,6 +199,11 @@ object Updates {
         if (install is Install.Downloading) return
         val app = context.applicationContext
         if (!canInstall(app)) { install = Install.Failed(Failure.NotOfficial); return }
+        if (LegacyUpdateStorage.needsPermission(app)) {
+            install = Install.NeedsStoragePermission
+            LegacyUpdateStorage.requestPermission(context)
+            return
+        }
         if (Build.VERSION.SDK_INT >= 26 && !app.packageManager.canRequestPackageInstalls()) {
             // Xiaomi MiTV-MFTR0 has this page; TCL MT5879 does not (tools/install.sh grants it there).
             val settings = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${app.packageName}"))
@@ -281,8 +288,10 @@ object Updates {
     }
 
     private suspend fun download(url: String, file: File) {
-        file.parentFile?.mkdirs()
-        val part = File(file.parentFile, file.name + ".part")
+        val directory = checkNotNull(file.parentFile)
+        check(directory.isDirectory || directory.mkdirs()) { "Cannot create update directory: $directory" }
+        check(directory.canWrite()) { "Cannot write update directory: $directory" }
+        val part = File(directory, file.name + ".part")
         val c = URL(url).openConnection() as HttpURLConnection
         c.connectTimeout = 10_000
         c.readTimeout = 20_000

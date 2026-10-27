@@ -4,9 +4,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Shader
+import android.media.ExifInterface
 import androidx.core.graphics.createBitmap
 import java.io.File
 import kotlin.math.max
@@ -16,15 +18,52 @@ import kotlin.random.Random
 /** Bitmap helpers shared by the wallpaper code. All of it runs off the main thread. */
 object Images {
 
-    /** Decodes [file] no larger than needed for [w]×[h], then centre-crops it to exactly that size. */
+    /** Decodes [file] no larger than needed for [w]×[h], upright, then centre-crops it to exactly that size. */
     fun decodeCover(file: File, w: Int, h: Int): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        val orientation = exifOrientation(file)
+        val turned = quarterTurn(orientation)
+        val bw = if (turned) bounds.outHeight else bounds.outWidth
+        val bh = if (turned) bounds.outWidth else bounds.outHeight
         var sample = 1
-        while (bounds.outWidth / (sample * 2) >= w && bounds.outHeight / (sample * 2) >= h) sample *= 2
-        val src = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        while (bw / (sample * 2) >= w && bh / (sample * 2) >= h) sample *= 2
+        val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample }) ?: return null
+        val src = upright(decoded, orientation)
         return cover(src, w, h).also { if (it !== src) src.recycle() }
+    }
+
+    /**
+     * How the camera stored [file]'s picture (EXIF Orientation). Phones keep the sensor's pixels as
+     * they were and write the turn into the file, so a photo taken upright decoded on its side or
+     * upside down (issue #647). Normal for anything without the tag (PNG, Bing's pictures).
+     */
+    fun exifOrientation(file: File): Int = runCatching {
+        ExifInterface(file.path).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+    }.getOrDefault(ExifInterface.ORIENTATION_NORMAL)
+
+    /** Whether [orientation] turns the picture a quarter, so its width and height swap. */
+    fun quarterTurn(orientation: Int): Boolean = when (orientation) {
+        ExifInterface.ORIENTATION_TRANSPOSE, ExifInterface.ORIENTATION_ROTATE_90,
+        ExifInterface.ORIENTATION_TRANSVERSE, ExifInterface.ORIENTATION_ROTATE_270 -> true
+        else -> false
+    }
+
+    /** [src] turned and mirrored upright for [orientation]; [src] itself when it already is, else recycled. */
+    fun upright(src: Bitmap, orientation: Int): Bitmap {
+        val m = Matrix()
+        when (orientation) {
+            ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> m.setScale(-1f, 1f)
+            ExifInterface.ORIENTATION_ROTATE_180 -> m.setRotate(180f)
+            ExifInterface.ORIENTATION_FLIP_VERTICAL -> m.setScale(1f, -1f)
+            ExifInterface.ORIENTATION_TRANSPOSE -> { m.setRotate(90f); m.postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_ROTATE_90 -> m.setRotate(90f)
+            ExifInterface.ORIENTATION_TRANSVERSE -> { m.setRotate(-90f); m.postScale(-1f, 1f) }
+            ExifInterface.ORIENTATION_ROTATE_270 -> m.setRotate(-90f)
+            else -> return src
+        }
+        return Bitmap.createBitmap(src, 0, 0, src.width, src.height, m, true).also { if (it !== src) src.recycle() }
     }
 
     fun cover(src: Bitmap, w: Int, h: Int): Bitmap {

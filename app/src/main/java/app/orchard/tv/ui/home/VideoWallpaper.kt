@@ -18,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -48,7 +47,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Whether the owner's videos are playing this moment, for Home to take the top row's glass away
@@ -75,12 +73,9 @@ object HomeVideos {
     }
 }
 
-/** The size a film is made at: 720p, stretched to the panel. */
-private const val FILM_WIDTH = 1280
-private const val FILM_HEIGHT = 720
-
-/** How long a film is given to show its first frame before it is made at its own size. */
-private const val FIRST_FRAME_MS = 3_500L
+/** The size a film is made at: 720p, stretched to the panel - the size they were uploaded at. */
+internal const val FILM_WIDTH = 1280
+internal const val FILM_HEIGHT = 720
 
 /** "Pause on tiles": how still Home must be before the film plays again after a key. */
 private const val TILE_IDLE_MS = 3_000L
@@ -115,13 +110,9 @@ fun VideoWallpaper(
     val soundNow by rememberUpdatedState(sound)
     val keepNow by rememberUpdatedState(keep)
     var player by remember { mutableStateOf<ExoPlayer?>(null) }
-    /** The size the player behind [player] was made for. */
-    var playerScaled by remember { mutableStateOf(true) }
     var surface by remember { mutableStateOf<SurfaceView?>(null) }
     var showing by remember { mutableStateOf(false) }
     var idle by remember { mutableStateOf(false) }
-    // 720p, or a film's own size on a chip that will not have it.
-    var scaled by remember { mutableStateOf(true) }
     // The sound's own fade, kept apart from the player so the join of a film going round again
     // can leave it alone.
     val volume = remember { Animatable(0f) }
@@ -221,11 +212,9 @@ fun VideoWallpaper(
         sampleGlass({ player }, canTake = { copyGlassPossible }) { surface?.let { copyGlass(it) } }
     }
 
-    LaunchedEffect(play, sound, scaled) {
-        // The size the films are made at changed: the decoder is made again for it.
-        if (player != null && playerScaled != scaled) release()
+    LaunchedEffect(play, sound) {
         if (play) {
-            val p = player ?: open()?.also { player = it; playerScaled = scaled } ?: return@LaunchedEffect
+            val p = player ?: open()?.also { player = it } ?: return@LaunchedEffect
             DiagLog.i("video wallpaper starts (${p.currentMediaItem?.mediaId} at ${p.currentPosition} ms, idle $idle)")
             Wallpapers.dropFilmFrost()
             if (p.playbackState == Player.STATE_IDLE) p.prepare()
@@ -281,46 +270,36 @@ fun VideoWallpaper(
     LaunchedEffect(AerialSettings.videoVolume, sound) {
         if (sound && volume.value > 0f) volume.snapTo(AerialSettings.videoVolume / 10f)
     }
-    // A chip that will not make the films at 720p shows no frame at all: watch for the first one,
-    // and if it does not come, make them at the panel's own size.
-    LaunchedEffect(player, play, scaled) {
-        if (!play || showing) return@LaunchedEffect
-        val got = withTimeoutOrNull(FIRST_FRAME_MS) { snapshotFlow { showing }.first { it } }
-        if (got == null && scaled) {
-            DiagLog.i("video wallpaper: no frame at 720p; the films at their own size")
-            scaled = false
-        }
-    }
+    // 极米: 尺寸说定就是 720p，跟上传时定的那一个尺寸走，不自己换。以前这里有个「3.5 秒还没
+    // 出帧就改影片自己的尺寸」的退路——屏保刚放开解码器那会儿，Home 起播一慢就会踩上，
+    // 播放器和 surface 双双重建一次，从屏保回桌面时画面就缩了一下。这一版不要那条退路。
     DisposableEffect(Unit) { onDispose { release() } }
 
     Box(Modifier.fillMaxSize()) {
-        // Keyed by the size: a film at its own size needs a surface of its own.
-        key(scaled) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    FilmSlot(ctx).also { slot ->
-                        val sv = slot.surface
-                        // Made at 720p and stretched to the panel: two thirds less for the chip to
-                        // mix with the window over. Asked for before the surface is made, so the
-                        // very first buffer is already that size.
-                        if (scaled) sv.holder.setFixedSize(FILM_WIDTH, FILM_HEIGHT)
-                        sv.holder.addCallback(object : SurfaceHolder.Callback {
-                            override fun surfaceCreated(holder: SurfaceHolder) = Unit
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                FilmSlot(ctx).also { slot ->
+                    val sv = slot.surface
+                    // Made at 720p and stretched to the panel: two thirds less for the chip to
+                    // mix with the window over. Asked for before the surface is made, so the
+                    // very first buffer is already that size.
+                    sv.holder.setFixedSize(FILM_WIDTH, FILM_HEIGHT)
+                    sv.holder.addCallback(object : SurfaceHolder.Callback {
+                        override fun surfaceCreated(holder: SurfaceHolder) = Unit
 
-                            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-                                DiagLog.i("video wallpaper: surface up, format $format (${width}x$height)")
-                            }
+                        override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+                            DiagLog.i("video wallpaper: surface up, format $format (${width}x$height)")
+                        }
 
-                            override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
-                        })
-                        surface = sv
-                        player?.setVideoSurfaceView(sv)
-                    }
-                },
-                onRelease = { player?.clearVideoSurfaceView(it.surface); if (surface === it.surface) surface = null },
-            )
-        }
+                        override fun surfaceDestroyed(holder: SurfaceHolder) = Unit
+                    })
+                    surface = sv
+                    player?.setVideoSurfaceView(sv)
+                }
+            },
+            onRelease = { player?.clearVideoSurfaceView(it.surface); if (surface === it.surface) surface = null },
+        )
         // A little shade over the film, top and bottom: the clock and the tiles' names sit there,
         // and a bright film would swallow them. Only the two bands, not the whole picture: a shade
         // over the whole picture is blended again over every frame of the film, and the chip is

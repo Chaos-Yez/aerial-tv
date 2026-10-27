@@ -211,6 +211,9 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, n
             modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 FilmSlot(ctx).also {
+                    // 极米: 与 Home 的壁纸同一个尺寸（720p，就是影片上传时定的那个）。
+                    // 两处尺寸一样，从壁纸进屏保、从屏保回桌面，画面才一格都不动。
+                    it.surface.holder.setFixedSize(FILM_WIDTH, FILM_HEIGHT)
                     it.surface.holder.addCallback(object : SurfaceHolder.Callback {
                         override fun surfaceCreated(holder: SurfaceHolder) = DiagLog.i("local screensaver surface created")
                         override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) = Unit

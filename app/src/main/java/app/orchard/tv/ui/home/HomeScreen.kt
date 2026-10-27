@@ -392,13 +392,26 @@ fun HomeScreen(
     // moment is where the aerial wallpaper came back green: the new player is on the plane before
     // it has a frame, and the plane shows green until the film moves. So the film is asked for a
     // second after the screensaver has gone, as the input's picture is (SourceWallpaper).
+    // 极米: 这一秒是给「换手」留的——屏保带着自己的播放器走了，或者回来时要重新申请解码器。
+    // 可是屏保若是接着 Home 自己的影片播的（SaverCarry.Video / Film：同一个播放器、同一个
+    // surface），那一路从头到尾没停过，根本没有东西要交接。这时候还让出这一秒，反而把正在
+    // 播的影片停下、换上静止图、一秒后再重建播放器淡回来——回桌面时画面就缩了一下。
+    // 所以只有真的换过手，才等这一秒。
     var saverGap by remember { mutableStateOf(false) }
+    var saverCarried by remember { mutableStateOf(false) }
     var wasSaving by remember { mutableStateOf(vm.screensaverVisible) }
     LaunchedEffect(vm.screensaverVisible) {
-        if (wasSaving && !vm.screensaverVisible) {
-            saverGap = true
-            delay(SAVER_RESUME_MS)
-            saverGap = false
+        if (vm.screensaverVisible) {
+            // Decided as the screensaver comes up: whose film it carries on (videoSaver and
+            // filmSaver are worked out above, from the state of that moment).
+            saverCarried = filmSaver || videoSaver
+        } else {
+            if (wasSaving && !saverCarried) {
+                saverGap = true
+                delay(SAVER_RESUME_MS)
+                saverGap = false
+            }
+            saverCarried = false
         }
         wasSaving = vm.screensaverVisible
     }

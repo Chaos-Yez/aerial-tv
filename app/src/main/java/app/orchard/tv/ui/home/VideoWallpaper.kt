@@ -107,8 +107,6 @@ fun VideoWallpaper(
     keep: Boolean,
     lastInputAt: Long,
     cover: Animatable<Float, *>,
-    /** True while the video path is being handed over (another wallpaper just went): no player yet. */
-    gap: Boolean = false,
 ) {
     val context = LocalContext.current
     val mode = AerialSettings.videoMode
@@ -134,7 +132,7 @@ fun VideoWallpaper(
         delay(if (mode == VideoMode.AfterIdle) START_AFTER_MS else TILE_IDLE_MS)
         idle = true
     }
-    val play = moving && !gap && (mode == VideoMode.Always || idle)
+    val play = moving && (mode == VideoMode.Always || idle)
 
     fun release() {
         player?.release()

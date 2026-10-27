@@ -127,7 +127,7 @@ fun Screensaver(visible: Boolean, apps: List<AppEntry>, now: LocalDateTime, skip
                 )
                 ScreensaverMode.Photos -> PhotoSaver(now, skips.steps, remember { Wallpapers.screensaverPicture() })
                 ScreensaverMode.Clock, ScreensaverMode.System -> ClockSaver(apps, now)
-                ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else VideoSaver(skips.steps, onUnavailable = { videosFailed = true })
+                ScreensaverMode.Videos -> if (videosFailed) PhotoSaver(now, skips.steps) else VideoSaver(skips.steps, now, onUnavailable = { videosFailed = true })
             }
         }
     }
@@ -248,7 +248,7 @@ private fun VideoCarry(steps: SharedFlow<Int>) {
 
 /** Place name bottom-left, time top-right: how tvOS labels its screensaver. */
 @Composable
-private fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = true) {
+internal fun Labels(caption: String?, now: LocalDateTime, showTime: Boolean = true) {
     // Fades in where Home's own clock has moved to, as the photos cover it.
     val time by animateFloatAsState(if (showTime) 1f else 0f, tween(2000), label = "time")
     Box(Modifier.fillMaxSize()) {

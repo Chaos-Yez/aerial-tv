@@ -2,7 +2,6 @@ package app.orchard.tv.ui.home
 
 import android.view.SurfaceHolder
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -14,13 +13,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.net.toUri
@@ -28,7 +25,6 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
@@ -47,12 +43,12 @@ import kotlinx.coroutines.withContext
 
 /** A local, silent playlist, shared by Home and AerialDream. An empty or broken set falls back. */
 @Composable
-internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
+internal fun VideoSaver(steps: SharedFlow<Int>, now: java.time.LocalDateTime, onUnavailable: () -> Unit) {
     val context = LocalContext.current
     val films by produceState<List<ScreensaverVideo>?>(null) {
         value = withContext(Dispatchers.IO) { ScreensaverVideos.all(context).shuffled() }
     }
-    LocalFilms(films, steps, onUnavailable)
+    LocalFilms(films, steps, now, onUnavailable)
 }
 
 /**
@@ -64,7 +60,7 @@ internal fun VideoSaver(steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
-private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, onUnavailable: () -> Unit) {
+private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, now: java.time.LocalDateTime, onUnavailable: () -> Unit) {
     val context = LocalContext.current
     val player = remember {
         // As AerialSaver does: Home's wallpaper film starts again as Home resumes for a moment
@@ -78,7 +74,10 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
                 trackSelectionParameters = trackSelectionParameters.buildUpon()
                     .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, !AerialSettings.videoSound).build()
             repeatMode = Player.REPEAT_MODE_ALL
-            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+            // Filled to the edges whatever its shape, exactly as the same film is behind Home
+            // (ui/home/VideoWallpaper.kt): with the two made differently, going from the aerials
+            // into the screensaver showed the film a shade smaller than it was a moment before.
+            videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
         }
     }
     var attempt by remember { mutableIntStateOf(0) }
@@ -89,7 +88,6 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
     var drewOnce by remember { mutableStateOf(false) }
     // One film may fail on a moment's decoder trouble; it is tried again before the photos.
     var retries by remember { mutableIntStateOf(0) }
-    var aspect by remember { mutableFloatStateOf(16f / 9f) }
     // The sound, as loud as the wallpaper's own switch and level say: it comes in behind the
     // picture, which is already moving.
     val sound = AerialSettings.videoSound
@@ -129,9 +127,6 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
                 drewOnce = true
                 retries = 0
                 DiagLog.i("local screensaver first frame: ${player.currentMediaItem?.mediaId}")
-            }
-            override fun onVideoSizeChanged(videoSize: VideoSize) {
-                if (videoSize.width > 0 && videoSize.height > 0) aspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
             }
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 // Not a lost picture: with one film this fires on every loop round (reason REPEAT),
@@ -199,8 +194,10 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
         if (films != null && !playing && !drewOnce) { delay(8_000); if (!playing && !drewOnce) failed() }
     }
     Box(Modifier.fillMaxSize()) {
+        // Full screen, as the same film is behind Home: the surface is the window's, and the
+        // picture is cropped to it rather than letterboxed into a shape of its own.
         AndroidView(
-            modifier = Modifier.align(Alignment.Center).aspectRatio(aspect),
+            modifier = Modifier.fillMaxSize(),
             factory = { ctx ->
                 FilmSlot(ctx).also {
                     it.surface.holder.addCallback(object : SurfaceHolder.Callback {
@@ -213,5 +210,10 @@ private fun LocalFilms(films: List<ScreensaverVideo>?, steps: SharedFlow<Int>, o
             },
             onRelease = { player.clearVideoSurfaceView(it.surface) },
         )
+        // The time over the film, as the aerial and photo screensavers have it. Home's own clock is
+        // not there to hand over: it only carries these films on when their own wallpaper is the
+        // one set, and from any other wallpaper (an input's picture, a photo, the aerials) Home is
+        // covered whole and the screensaver brings the time itself.
+        Labels(null, now)
     }
 }

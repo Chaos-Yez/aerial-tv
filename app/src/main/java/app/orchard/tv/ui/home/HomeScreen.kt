@@ -253,6 +253,14 @@ private class GridMetrics(
 /** How long the screensaver waits for the wallpaper's film to move before playing its own. */
 private const val FILM_SAVER_WAIT_MS = 10_000L
 
+/**
+ * How long the moving wallpapers are left alone after the screensaver has gone, before their film
+ * is asked for again: one decoder is shared, and the screensaver's player is still letting go of
+ * the video path as it fades out. Taken in that moment, the new player put a green picture up
+ * until the film moved (measured with the aerial wallpaper over the video screensaver).
+ */
+private const val SAVER_RESUME_MS = 1_000L
+
 /** How long the large clock's time takes back from the screensaver's corner (ShelfClock waits for it). */
 internal const val CLOCK_BACK_MS = 1000
 
@@ -380,6 +388,21 @@ fun HomeScreen(
         }
     }
     val carrying = filmSaver || stillSaver != null || videoSaver
+    // The screensaver's own film lets go of the video path as it fades out, and the chip wants a
+    // moment before it is given to another player. Asking for the wallpaper's decoder in that same
+    // moment is where the aerial wallpaper came back green: the new player is on the plane before
+    // it has a frame, and the plane shows green until the film moves. So the film is asked for a
+    // second after the screensaver has gone, as the input's picture is (SourceWallpaper).
+    var saverGap by remember { mutableStateOf(false) }
+    var wasSaving by remember { mutableStateOf(vm.screensaverVisible) }
+    LaunchedEffect(vm.screensaverVisible) {
+        if (wasSaving && !vm.screensaverVisible) {
+            saverGap = true
+            delay(SAVER_RESUME_MS)
+            saverGap = false
+        }
+        wasSaving = vm.screensaverVisible
+    }
     val toSaver = remember { Animatable(0f) }
     LaunchedEffect(carrying) {
         when {
@@ -657,7 +680,7 @@ fun HomeScreen(
             // The owner's own videos go on behind the Personalize sheet, so it can be opened over
             // them without cutting them short, and behind Control Center too when they are set to
             // play on whatever is on screen.
-            val videoMoves = vm.resumed && !pastShelf && moving == null &&
+            val videoMoves = vm.resumed && !pastShelf && moving == null && !saverGap &&
                 // Carried into the screensaver: they go on playing where they are, while Home
                 // around them fades away, as the aerial wallpaper's film does.
                 if (videoSaver) true else !vm.screensaverVisible &&
@@ -674,6 +697,7 @@ fun HomeScreen(
                     lastInputAt = vm.lastInputAt,
                     cover = filmCover,
                     hold = filmSaver && vm.resumed,
+                    gap = saverGap,
                     // Control Center and Personalize leave Home sharp (dimmed, or above the sheet):
                     // the paused film stays. Swapped for its picture there, the background jumped
                     // (another plane and processing; a key frame a second off where the exact

@@ -117,6 +117,12 @@ fun LiveWallpaper(
     cover: Animatable<Float, *>,
     /** The screensaver carries the film on: it keeps moving whatever the keys do. */
     hold: Boolean,
+    /**
+     * The screensaver has just gone: its player is still letting go of the video path, and a film
+     * asked for now put a green picture up until it moved (measured). The film waits this out,
+     * Home's picture showing as it is.
+     */
+    gap: Boolean = false,
     /** Nothing over Home that blurs it: a stopped film may stand in for its picture. */
     standIn: Boolean,
     live: LiveFilm,
@@ -135,7 +141,7 @@ fun LiveWallpaper(
         idle = true
     }
     // Set to keep moving, it plays as soon as Home shows it and keys do not stop it (issue #360).
-    val play = moving && (idle || AerialSettings.wallpaperAlwaysMoves) || hold
+    val play = ((moving && (idle || AerialSettings.wallpaperAlwaysMoves)) || hold) && !gap
     val keepNow by rememberUpdatedState(keep)
     val standInNow by rememberUpdatedState(standIn)
 

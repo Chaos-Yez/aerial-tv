@@ -170,8 +170,11 @@ fun SourceWallpaper(
             DiagLog.i("input wallpaper: chip not on port $port (try $attempt)")
         }
         DiagLog.i("input wallpaper: chip on port $port = $on, signal ${XgimiTvSource.signalStatus()}")
-        // The chip mutes a port it is not showing; the sound comes with the picture.
-        if (on) XgimiTvSource.unmute(port)
+        // The chip's own audio path (setVideoUnmute) is deliberately not touched: it unmutes the
+        // hardware plane's sound straight onto the built-in speaker, and with an external audio
+        // device chosen (a sound bar, Bluetooth, line out) the picture's sound then comes out of
+        // the projector itself while the external one goes silent. Left alone, the input session's
+        // audio goes the ordinary way and follows whatever output the TV is set to.
     }
 }
 
@@ -185,7 +188,8 @@ private const val SWITCH_TRIES = 4
 /**
  * How long the input is left alone after the screensaver has gone, before the picture is asked for
  * again: the screensaver's film has just let go of the video path, and the chip wants a moment
- * before it is pointed at a port again.
+ * before it is pointed at a port again. One second, as asked: the chip needs no longer than that
+ * here, and the switch below is tried again if it is not on the port yet.
  */
-private const val RESUME_DELAY_MS = 3_000L
+private const val RESUME_DELAY_MS = 1_000L
 private val RETRY_DELAYS_MS = longArrayOf(3_000L, 5_000L, 10_000L, 15_000L, 20_000L, 30_000L)

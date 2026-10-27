@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,14 +27,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Paint as ComposePaint
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.layer.CompositingStrategy
-import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -48,6 +48,16 @@ import app.orchard.tv.wallpaper.Wallpapers
 import kotlin.math.roundToInt
 
 /**
+ * True where a panel sits over another app's window (AppInfoActivity), not over Aerial's wallpaper:
+ * it is then plain translucent dark glass, so that app shows through. There is no live blur here,
+ * and Aerial's frosted wallpaper would be the wrong picture behind it.
+ */
+val LocalGlassOverApp = compositionLocalOf { false }
+
+/** Dark glass for [LocalGlassOverApp]: dense enough for white text, thin enough to see the app. */
+private val OverAppGlass = Palette.Glass.copy(alpha = 0.86f)
+
+/**
  * Liquid Glass, the material of tvOS 26's panels, without a live blur: the TVs here mostly run
  * Android 9–11 (no RenderEffect) and their GPUs could not afford one. The surface shows the part
  * of the frosted wallpaper (Wallpapers.frosted, baked small) that lies behind it, dimmed so white
@@ -60,7 +70,8 @@ import kotlin.math.roundToInt
  * rounded rect, which holds it.
  */
 fun Modifier.liquidGlass(corner: Dp, bottomCorners: Boolean = true): Modifier = composed {
-    val (frost, under, swap) = rememberFrostSwap(Wallpapers.frosted.takeIf { Wallpapers.backdrop != null })
+    val overApp = LocalGlassOverApp.current
+    val (frost, under, swap) = rememberFrostSwap(Wallpapers.frosted.takeIf { Wallpapers.backdrop != null && !overApp })
     var at by remember { mutableStateOf(Offset.Zero) }
     var root by remember { mutableStateOf(IntSize.Zero) }
     val shape = if (bottomCorners) RoundedCornerShape(corner) else RoundedCornerShape(topStart = corner, topEnd = corner)
@@ -81,54 +92,39 @@ fun Modifier.liquidGlass(corner: Dp, bottomCorners: Boolean = true): Modifier = 
             val mask = smoothMask(w, h, radius, if (bottomCorners) radius else 0f)
             val brush = shader?.let { ShaderBrush(it) }
             val flat = mask.asImageBitmap()
-            // The glass in a layer the GPU keeps: drawn again only when it moves or its picture
-            // fades, not with every frame of what lies on it. Drawn each frame, the Personalize
-            // sheet cost MiTV-MFTR0's GPU about 29 ms a frame while focus moved along its cards.
-            val glass = obtainGraphicsLayer().apply { compositingStrategy = CompositingStrategy.Offscreen }
-            var drawnAt: Offset? = null
-            var drawnRoot = IntSize.Zero
-            var drawnT = -1f
             onDrawBehind {
                 if (shader == null || brush == null || root == IntSize.Zero) {
-                    drawImage(flat, dstSize = IntSize(w, h), colorFilter = ColorFilter.tint(Palette.Glass))
-                    drawGlassEdge(size, radius, bottomCorners)
+                    drawImage(flat, dstSize = IntSize(w, h), colorFilter = ColorFilter.tint(if (overApp) OverAppGlass else Palette.Glass))
                 } else if (AerialSettings.lite) {
                     // Lite (AerialSettings.lite): one solid color, the frosted wallpaper's average as
                     // the glass would dim it, without the layer the glass needs every frame, which
                     // weak GPUs feel most while a panel slides in. Solid: the plain glass color is
                     // see-through and showed the tiles under the Personalize sheet.
                     drawImage(flat, dstSize = IntSize(w, h), colorFilter = ColorFilter.tint(liteGlass(frost)))
-                    drawGlassEdge(size, radius, bottomCorners)
                 } else {
+                    fun place(s: BitmapShader, image: ImageBitmap) = s.setLocalMatrix(Matrix().apply {
+                        setScale(root.width.toFloat() / image.width, root.height.toFloat() / image.height)
+                        postTranslate(-at.x, -at.y)
+                    })
+                    place(shader, frost)
                     val t = swap()
-                    if (drawnAt != at || drawnRoot != root || drawnT != t) {
-                        drawnAt = at
-                        drawnRoot = root
-                        drawnT = t
-                        fun place(s: BitmapShader, image: ImageBitmap) = s.setLocalMatrix(Matrix().apply {
-                            setScale(root.width.toFloat() / image.width, root.height.toFloat() / image.height)
-                            postTranslate(-at.x, -at.y)
-                        })
-                        place(shader, frost)
-                        // The outline is drawn first in the layer and the glass kept where it lies.
-                        // One shader per draw: a ComposeShader of the glass and the mask (1.27-1.30)
-                        // came out an opaque dark slab on Xiaomi MiTV-ASTP0 (Android 9, Mali-G31),
-                        // and before Android 9 hardware drawing cannot compose two bitmaps.
-                        glass.record(this, layoutDirection, IntSize(w, h)) {
-                            drawImage(flat, dstSize = IntSize(w, h))
-                            if (underShader != null && under != null && t < 1f) {
-                                // A new frosted picture fades in over the old within the outline.
-                                place(underShader, under)
-                                drawRect(ShaderBrush(underShader), colorFilter = PanelTint, blendMode = BlendMode.SrcIn)
-                                drawRect(brush, alpha = t, colorFilter = PanelTint, blendMode = BlendMode.SrcAtop)
-                            } else {
-                                drawRect(brush, colorFilter = PanelTint, blendMode = BlendMode.SrcIn)
-                            }
-                            drawGlassEdge(size, radius, bottomCorners)
-                        }
+                    // The outline is drawn first in a layer of the panel's size and the glass kept
+                    // where it lies. One shader per draw: a ComposeShader of the glass and the mask
+                    // (1.27-1.30) came out an opaque dark slab on Xiaomi MiTV-ASTP0 (Android 9,
+                    // Mali-G31), and before Android 9 hardware drawing cannot compose two bitmaps.
+                    drawContext.canvas.saveLayer(Rect(Offset.Zero, size), ComposePaint())
+                    drawImage(flat, dstSize = IntSize(w, h))
+                    if (underShader != null && under != null && t < 1f) {
+                        // A new frosted picture fades in over the old within the outline.
+                        place(underShader, under)
+                        drawRect(ShaderBrush(underShader), colorFilter = PanelTint, blendMode = BlendMode.SrcIn)
+                        drawRect(brush, alpha = t, colorFilter = PanelTint, blendMode = BlendMode.SrcAtop)
+                    } else {
+                        drawRect(brush, colorFilter = PanelTint, blendMode = BlendMode.SrcIn)
                     }
-                    drawLayer(glass)
+                    drawContext.canvas.restore()
                 }
+                drawGlassEdge(size, radius, bottomCorners)
             }
         }
 }

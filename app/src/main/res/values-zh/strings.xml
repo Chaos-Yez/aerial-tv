@@ -205,6 +205,7 @@
     <string name="cc_update_failed_blocked">这台电视不让 App 安装别的 App，请用下面的命令升级。</string>
     <string name="cc_update_failed_signature">这台电视上的 Aerial 和官方版本签名不同，不能直接覆盖。</string>
     <string name="cc_update_failed_older">官网上的版本还不比这台电视上的新，过一会儿再试。</string>
+    <string name="cc_update_storage_permission">这台电视需要存储权限才能保存更新。请允许弹出的文件权限请求，再点一次「下载并安装」。</string>
     <string name="st_pin">家长密码</string>
     <string name="st_pin_off">关闭</string>
     <string name="st_pin_on">开启</string>

@@ -206,6 +206,7 @@
     <string name="cc_update_failed_blocked">This TV does not let apps install other apps. Update with the command below.</string>
     <string name="cc_update_failed_signature">The Aerial on this TV is signed differently from the official one, so it cannot be updated over.</string>
     <string name="cc_update_failed_older">The website does not have a newer version yet. Try again in a while.</string>
+    <string name="cc_update_storage_permission">This TV needs storage access to save the update. Allow the file permission request, then choose Download and Install again.</string>
     <string name="st_pin">Parental PIN</string>
     <string name="st_pin_off">Off</string>
     <string name="st_pin_on">On</string>

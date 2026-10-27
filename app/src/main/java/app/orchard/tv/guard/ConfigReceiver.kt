@@ -5,10 +5,9 @@ import android.content.Context
 import android.content.Intent
 import app.orchard.tv.apps.TileSheet
 import app.orchard.tv.settings.AerialSettings
-import app.orchard.tv.system.DeviceProfile
+import app.orchard.tv.settings.NameMode
+import app.orchard.tv.settings.PlateMode
 import app.orchard.tv.system.DiagLog
-import app.orchard.tv.system.HisenseSources
-import app.orchard.tv.system.SystemProbe
 import app.orchard.tv.update.Updates
 import app.orchard.tv.ui.components.UhdCanvas
 import app.orchard.tv.wallpaper.ScreensaverMode
@@ -23,8 +22,9 @@ import kotlinx.coroutines.launch
  *                                   for TVs that do not wake with it enabled, issue #371)
  *   ... --ez clear_pin true         (turn the parental PIN off, for an owner who forgot it)
  *   ... --ez large_clock true --ez clock_right false --ez one_row_home true
- *       --ez peek_next_row false --ez home_plate true --ez show_all_names false
- *                                   (Home's layout, as in Personalize; for screenshots of each)
+ *       --ez peek_next_row false --ez home_plate true --es name_mode hero
+ *                                   (Home's layout, as in Personalize; for screenshots of each;
+ *                                    name_mode is focused, all or hero, as App Names in Personalize)
  *   ... --ez check_update true      (look for a new version now, not within three hours)
  *   ... --ez update_test true       ("Download and Install" takes files/update-test.apk instead,
  *                                   until Aerial restarts; for trying an update before a release)
@@ -44,42 +44,13 @@ class ConfigReceiver : BroadcastReceiver() {
             resultData = "exporting $name"
             return
         }
-        // ... --es device_profile '{"hidden":[8],"labels":{"6":"HDMI 2"},"xiaomiSources":{"6":24}}'
-        //                                 (this TV's own corrections, see DeviceProfile; replaces
-        //                                 the built-in entry; "default" goes back to it. Home
-        //                                 lists the inputs again the next time it comes to front)
-        intent.getStringExtra("device_profile")?.let { json ->
-            val ok = DeviceProfile.setOwn(context, json.takeUnless { it.trim() == "default" })
-            val profile = DeviceProfile.current(context).toJson()
-            resultData = if (ok) "device_profile=$profile (${DeviceProfile.origin(context)})" else "device_profile not valid JSON; kept $profile"
-            return
-        }
-        // ... --ez list_sources true      (the inputs as JSON: what Home shows, and the hidden ones
-        //                                 the profile can bring back, with the Xiaomi source ids)
-        if (intent.getBooleanExtra("list_sources", false)) {
-            val shown = SystemProbe.sources(context).map { it.id }.toSet()
-            val all = (SystemProbe.sources(context) + SystemProbe.inputsToCheck(context).filter { it.hidden }).distinctBy { it.id }
-            resultData = org.json.JSONArray(all.map { s ->
-                org.json.JSONObject().put("id", s.id).put("label", s.label).put("kind", s.kind.name)
-                    .put("shown", s.id in shown).apply {
-                        s.hardware?.let { put("hw", it) }
-                        s.firmwareLabel?.let { put("firmwareLabel", it) }
-                        s.xiaomiInput?.let { put("xiaomiInput", it) }
-                    }
-            }).toString()
-            return
-        }
-        // ... --es open_source <input id>  (open an input the way its tile does, with this TV's
-        //                                 profile; ids are in the diagnostics' Inputs. For
-        //                                 tools/selftest.sh and agents checking a profile)
-        intent.getStringExtra("open_source")?.let { id ->
-            val source = (SystemProbe.inputsToCheck(context) + SystemProbe.sources(context)).firstOrNull { it.id == id }
-            resultData = if (source == null) "open_source: no input $id" else runCatching {
-                // Hisense's inputs switch by broadcast (HisenseSources.open), the rest by activity.
-                if (!HisenseSources.open(context, source.intent)) context.startActivity(source.intent)
-                "open_source: ${source.label} -> ${source.intent.component?.flattenToShortString() ?: source.intent.data}" +
-                    (source.xiaomiInput?.let { " input=$it" } ?: "")
-            }.getOrElse { "open_source: ${it.javaClass.simpleName} ${it.message}" }
+        // ... --ei xgimi_level 4   (the DLP light-engine level, 1..10, on XGIMI; the broadcast
+        //                           result says what the HAL read back, so a dropped write shows)
+        if (intent.hasExtra("xgimi_level")) {
+            val before = app.orchard.tv.system.SystemProbe.xgimiBrightnessLevel()
+            val after = app.orchard.tv.system.SystemProbe.setXgimiBrightnessLevel(intent.getIntExtra("xgimi_level", 6))
+            DiagLog.i("xgimi level: asked ${intent.getIntExtra("xgimi_level", 6)}, before $before, after $after")
+            resultData = "xgimi before=$before after=$after"
             return
         }
         if (intent.getBooleanExtra("clear_pin", false)) {
@@ -91,12 +62,25 @@ class ConfigReceiver : BroadcastReceiver() {
             "clock_right" to AerialSettings::chooseClockRight,
             "one_row_home" to AerialSettings::chooseOneRowHome,
             "peek_next_row" to AerialSettings::choosePeekNextRow,
-            "home_plate" to AerialSettings::chooseHomePlate,
-            "show_all_names" to AerialSettings::chooseShowAllNames,
         ).filterKeys { intent.hasExtra(it) }
         if (layout.isNotEmpty()) {
             AerialSettings.init(context)
             layout.forEach { (key, choose) -> choose(intent.getBooleanExtra(key, false)) }
+        }
+        // ... --es plate_mode live|still|none   (under which wallpapers the top row's plate shows)
+        intent.getStringExtra("plate_mode")?.let { key ->
+            AerialSettings.init(context)
+            PlateMode.of(key)?.let { AerialSettings.choosePlateMode(it) }
+        }
+        // ... --ez home_plate true   (before this setting had three choices: plate or none, read as "moving")
+        if (intent.hasExtra("home_plate")) {
+            AerialSettings.init(context)
+            AerialSettings.choosePlateMode(if (intent.getBooleanExtra("home_plate", true)) PlateMode.Live else PlateMode.None)
+        }
+        // ... --es name_mode focused|all|hero   (which App names show on Home; see NameMode)
+        intent.getStringExtra("name_mode")?.let { key ->
+            AerialSettings.init(context)
+            NameMode.of(key)?.let { AerialSettings.chooseNameMode(it) }
         }
         // ... --ez diag true / --ez mode_switch false / --ez soft_layer true   (see DiagLog;
         //                                 the last two apply the next time Home starts)

@@ -202,6 +202,10 @@
         </service>
 
         <receiver
+            android:name=".update.UpdateResult"
+            android:exported="false" />
+
+        <receiver
             android:name=".guard.ConfigReceiver"
             android:exported="true"
             android:permission="android.permission.WRITE_SECURE_SETTINGS">

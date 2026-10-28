@@ -1,0 +1,42 @@
+Starting a Gradle Daemon, 17 busy and 4 incompatible and 3 stopped Daemons could not be reused, use --status for details
+Reusing configuration cache.
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preStandardDebugBuild UP-TO-DATE
+> Task :app:createStandardDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:generateStandardDebugBuildConfig UP-TO-DATE
+> Task :app:generateStandardDebugResValues UP-TO-DATE
+> Task :app:generateStandardDebugResources UP-TO-DATE
+> Task :app:extractDeepLinksStandardDebug UP-TO-DATE
+> Task :app:packageStandardDebugResources UP-TO-DATE
+> Task :app:mapStandardDebugSourceSetPaths UP-TO-DATE
+> Task :app:parseStandardDebugLocalResources UP-TO-DATE
+> Task :app:mergeStandardDebugResources UP-TO-DATE
+> Task :app:checkStandardDebugAarMetadata UP-TO-DATE
+> Task :app:processStandardDebugMainManifest UP-TO-DATE
+> Task :app:processStandardDebugManifest UP-TO-DATE
+> Task :app:processStandardDebugManifestForPackage UP-TO-DATE
+> Task :app:processStandardDebugResources UP-TO-DATE
+> Task :app:compileStandardDebugKotlin
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:958:29 No parameter with name 'topRow' found.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1008:22 Unresolved reference 'focusProperties'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1010:100 Unresolved reference 'down'.
+
+> Task :app:compileStandardDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileStandardDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 48s
+15 actionable tasks: 1 executed, 14 up-to-date
+Configuration cache entry reused.

@@ -72,11 +72,20 @@ object SystemProbe {
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
             !caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) && !caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
         ) {
-            caps = runCatching { cm.allNetworks.mapNotNull { cm.getNetworkCapabilities(it) } }.getOrDefault(emptyList())
-                .firstOrNull {
-                    !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
-                        (it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) || it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI))
-                } ?: caps
+            @Suppress("DEPRECATION")
+            val physicalNetworks = runCatching { cm.allNetworks }.getOrDefault(emptyArray()).mapNotNull { network ->
+                runCatching {
+                    cm.getNetworkCapabilities(network)?.takeIf {
+                        !it.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
+                            (it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) || it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) &&
+                            cm.getNetworkInfo(network)?.isConnected == true
+                    }
+                }.getOrNull()
+            }
+            // Match the display priority below, independent of enumeration order. This does not
+            // identify the VPN's actual uplink when both physical transports are connected.
+            caps = physicalNetworks.firstOrNull { it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) }
+                ?: physicalNetworks.firstOrNull() ?: caps
         }
         return when {
             caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkStatus(NetKind.Ethernet)
@@ -186,6 +195,9 @@ object SystemProbe {
             // Haier 65U2 (YunOS 9, Android 9) answers ACTION_SETTINGS with a Bluetooth page that
             // crashes as it opens; its own settings are here (the reporter opened them, issue #458).
             Intent(Intent.ACTION_MAIN).setComponent(ComponentName("com.haier.tv.menusetting", "com.haier.tv.menusetting.RootActivity")),
+            // Konka V563 (Hi3751V563, Android 9) answers no ACTION_SETTINGS; the reporter opened its
+            // settings panel here by component (issue #771).
+            Intent(Intent.ACTION_MAIN).setComponent(ComponentName("com.konka.tvsettings", "com.konka.settingcenter.settings.view.MainSettingsActivity")),
             Intent(Settings.ACTION_SETTINGS),
             // TCL MT5879 (China): nothing answers ACTION_SETTINGS; MAIN opens TCL's full settings panel.
             Intent(Intent.ACTION_MAIN).setComponent(ComponentName("com.tcl.settings", "com.tcl.settings.ui.MainActivity")),

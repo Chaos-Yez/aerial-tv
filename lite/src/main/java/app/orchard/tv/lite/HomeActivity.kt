@@ -202,7 +202,18 @@ class HomeActivity : Activity(), HomeView.Host {
         }
     }
 
+    /** The face size the tiles were last loaded at (AppCatalog.faceW). */
+    private var loadedFaceW = 0
+
+    /** Another number of apps a row: the faces again at the new size, as the full app's artwork. */
+    private fun refaceIfResized() {
+        if (loadedFaceW == 0 || loadedFaceW == AppCatalog.faceW) return
+        folderTiles.clear()
+        loadApps()
+    }
+
     private fun loadApps() {
+        loadedFaceW = AppCatalog.faceW
         work.execute {
             val started = System.currentTimeMillis()
             // Home first, with stand-ins for tiles not made yet; then the real ones as they come.
@@ -413,7 +424,7 @@ class HomeActivity : Activity(), HomeView.Host {
                 handler.removeCallbacks(bake)
                 handler.postDelayed(bake, 500)
             },
-            onLayout = { home.applySettings(); showWeather() },
+            onLayout = { home.applySettings(); showWeather(); refaceIfResized() },
             onHidden = { whenUnlocked(::openHidden) },
             onSaverNow = { closeAll(); showSaver() },
             onPin = { on ->
@@ -557,6 +568,15 @@ class HomeActivity : Activity(), HomeView.Host {
      */
     private fun openBootApp() {
         val pkg = LiteSettings.bootApp ?: return
+        // Once per power-on, kept on disk: a firmware that stops Lite in the background made each
+        // cold start back in it open the app again (the full app's issue #766, Coocaa).
+        val prefs = getSharedPreferences("boot_open", MODE_PRIVATE)
+        val bootStamp = System.currentTimeMillis() - SystemClock.elapsedRealtime()
+        val openedAt = prefs.getLong("elapsed", -1L)
+        if (openedAt in 0..SystemClock.elapsedRealtime() && Math.abs(prefs.getLong("boot", 0L) - bootStamp) < 2 * 60 * 1000L) {
+            Log.i(TAG, "already opened $pkg since power-on")
+            return
+        }
         val launch = runCatching {
             (if (android.os.Build.VERSION.SDK_INT >= 21) packageManager.getLeanbackLaunchIntentForPackage(pkg) else null)
                 ?: packageManager.getLaunchIntentForPackage(pkg)
@@ -568,6 +588,7 @@ class HomeActivity : Activity(), HomeView.Host {
                 val online = ControlCenter.network(this@HomeActivity).first != Glyph.Offline
                 if (!online && SystemClock.elapsedRealtime() - since < 20_000) { handler.postDelayed(this, 500); return }
                 Log.i(TAG, "opening $pkg, what the TV starts on")
+                prefs.edit().putLong("elapsed", SystemClock.elapsedRealtime()).putLong("boot", bootStamp).apply()
                 open(launch.addFlags(Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED))
             }
         }
@@ -608,6 +629,7 @@ class HomeActivity : Activity(), HomeView.Host {
         override fun settingsChanged() {
             home.applySettings()
             showWeather()
+            refaceIfResized()
             (panels.lastOrNull() as? Personalize)?.refreshChips()
         }
         override fun weatherChanged() {

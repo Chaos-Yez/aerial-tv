@@ -305,4 +305,8 @@
     <string name="st_video_sink_hint">选用「我的视频」当壁纸时，第一排磁贴下沉以露出更多画面，焦点磁贴升起。选「否」则与航拍壁纸一样正常显示。</string>
     <string name="ss_show_time">时间</string>
     <string name="ss_show_time_hint">航拍和照片屏保上的时间。时间和地名会不时挪一点位置，避免烧屏。</string>
+
+    <string name="st_plate_glass">玻璃</string>
+    <string name="wp_videos_rotate">我的视频 · 轮播</string>
+    <string name="wp_video_note">你从手机发来的这个视频，静音、循环播放。和航拍一样会动，按键时停在当前画面。</string>
 </resources>

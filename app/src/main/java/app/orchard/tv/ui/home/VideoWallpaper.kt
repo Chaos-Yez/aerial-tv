@@ -82,8 +82,8 @@ private const val TILE_IDLE_MS = 3_000L
 
 /**
  * The owner's own videos behind Home (issues #410, #583), sent from the phone page as for the video
- * screensaver: one after another, filling the screen. They move when the aerial wallpaper would
- * (LiveWallpaper): on a still top row, or all the time when set to keep moving. A key that
+ * screensaver: silent, filling the screen, one after another or just the one chosen on a loop (#762). They move when the aerial wallpaper
+ * would (LiveWallpaper): on a still top row, or all the time when set to keep moving. A key that
  * stops them leaves the frame they stopped on as the wallpaper's picture, read off the video plane
  * where the TV allows it and otherwise decoded from the file, which is on the TV.
  *
@@ -143,7 +143,7 @@ fun VideoWallpaper(
     }
 
     suspend fun open(): ExoPlayer? {
-        val films = withContext(Dispatchers.IO) { ScreensaverVideos.all(context) }
+        val films = withContext(Dispatchers.IO) { Wallpapers.videoFilms() }
         if (films.isEmpty()) return null
         // Where the picture on screen came from, so moving again does not cut to another place.
         val spot = Wallpapers.videoSpot()

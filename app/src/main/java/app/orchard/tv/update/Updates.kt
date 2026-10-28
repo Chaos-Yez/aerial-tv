@@ -1,16 +1,19 @@
 package app.orchard.tv.update
 
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageInfo
+import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -190,9 +193,11 @@ object Updates {
 
     /**
      * Downloads this flavor's APK of the latest release and opens the system installer on it.
-     * Not PackageInstaller sessions: TCL's verifier (docs/devices/tcl-mt5879-cn.md) passes only
-     * installs that go through com.android.packageinstaller, as Dangbei's do, and an ACTION_VIEW on
-     * the APK makes the installer itself the one installing. The APK must be this package, signed
+     * Android 13 and later, a PackageInstaller session first (installBySession): the installer's
+     * ACTION_VIEW records the APK as a local file (packageSource 3), and Android then restricts the
+     * app's settings (issue #723). TCL's verifier (docs/devices/tcl-mt5879-cn.md) passes only installs
+     * that go through com.android.packageinstaller, as Dangbei's do, and an ACTION_VIEW on the APK
+     * makes the installer itself the one installing. The APK must be this package, signed
      * with this copy's key and no older, or the installer would only fail with a less clear message.
      */
     fun install(context: Context) {
@@ -240,7 +245,68 @@ object Updates {
                 install = Install.Failed(failure)
                 return@launch
             }
-            install = if (openInstaller(context, app, file)) Install.Opened else Install.Failed(Failure.Blocked)
+            val opened = if (Build.VERSION.SDK_INT >= 33) installBySession(app, file) else openInstaller(context, app, file)
+            install = if (opened) Install.Opened else Install.Failed(Failure.Blocked)
+        }
+    }
+
+    /**
+     * From Android 13 the installer's ACTION_VIEW records the APK as a local file (packageSource 3),
+     * and Android then restricts the app's settings (ACCESS_RESTRICTED_SETTINGS deny; seen on the
+     * Android 13 TV emulator). On TCL T966D5 (Android 14) Home Guard was off after every update made
+     * this way, and stayed on after one pushed by 多屏互动 (issue #723). A session that says where
+     * the APK came from is not restricted; the system still asks the owner to confirm. Where the
+     * firmware turns the session down, the installer's ACTION_VIEW as before (UpdateResult).
+     */
+    @RequiresApi(33)
+    private fun installBySession(app: Context, file: File): Boolean = runCatching {
+        val installer = app.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(app.packageName)
+            setPackageSource(PackageInstaller.PACKAGE_SOURCE_OTHER)
+        }
+        val id = installer.createSession(params)
+        installer.openSession(id).use { session ->
+            file.inputStream().use { input ->
+                session.openWrite("aerial.apk", 0, file.length()).use { out ->
+                    input.copyTo(out)
+                    session.fsync(out)
+                }
+            }
+            val result = Intent(app, UpdateResult::class.java)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+            GuardSetup.noteInstallerOpened(app)
+            session.commit(PendingIntent.getBroadcast(app, id, result, flags).intentSender)
+        }
+        Log.i(TAG, "install session $id committed for ${file.length()} bytes")
+        true
+    }.getOrElse {
+        Log.w(TAG, "no install session; opening the installer", it)
+        openInstaller(app, app, file)
+    }
+
+    /** The session's answer (UpdateResult): the owner's confirmation, or the installer instead. */
+    internal fun onSessionResult(context: Context, intent: Intent) {
+        val app = context.applicationContext
+        val status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)
+        when (status) {
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                @Suppress("DEPRECATION")
+                val confirm = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT) ?: return
+                runCatching { app.startActivity(confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    .onFailure { Log.w(TAG, "could not ask to confirm the update", it) }
+            }
+            PackageInstaller.STATUS_SUCCESS -> Unit // this process is replaced
+            PackageInstaller.STATUS_FAILURE_ABORTED -> {
+                Log.i(TAG, "update not confirmed")
+                install = Install.Idle
+            }
+            else -> {
+                val message = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                Log.w(TAG, "install session failed ($status, $message); opening the installer")
+                val file = apkFile(app)
+                if (!file.isFile || !openInstaller(app, app, file)) install = Install.Failed(Failure.Blocked)
+            }
         }
     }
 

@@ -165,6 +165,14 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { snapshotFlow { SourceLooks.all }.drop(1).collect { if (loaded) arrange() } }
         // An app renamed on the phone page.
         viewModelScope.launch { snapshotFlow { AppNames.all }.drop(1).collect { if (loaded) arrange() } }
+        viewModelScope.launch { snapshotFlow { AerialSettings.previewApps }.drop(1).collect { if (loaded) arrange() } }
+        // Another number of apps a row: the artwork again if four a row wants it larger, else
+        // every face at the new size, before the tiles draw them.
+        viewModelScope.launch {
+            snapshotFlow { AerialSettings.homeColumns }.drop(1).collect {
+                if (TileArtFactory.fitColumns()) reload() else if (loaded) prepareFaces()
+            }
+        }
     }
 
     /**
@@ -270,7 +278,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
     /** Makes the faces again, e.g. after the row's count changed the tiles' size. */
     internal fun prepareFaces() {
         val shown = apps + folderApps.values.flatten()
-        val row = apps.take(AerialSettings.gridColumns)
+        val row = apps.take(AerialSettings.homeColumns)
         facesJob?.cancel()
         facesJob = viewModelScope.launch {
             val started = SystemClock.uptimeMillis()
@@ -322,7 +330,7 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 ?: TileArtFactory.forFolder(shown).also { folderArt[folder.id] = shown to it }
             folderEntry(folder, art)
         }
-        apps = arrangement.home
+        apps = AerialSettings.previewApps.takeIf { it > 0 }?.let { arrangement.home.take(it) } ?: arrangement.home
         AppCatalog.home = arrangement.home
         AppCatalog.folderApps = arrangement.folders
         AppCatalog.hiddenApps = arrangement.hidden

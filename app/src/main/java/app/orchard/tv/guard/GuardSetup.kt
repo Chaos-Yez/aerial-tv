@@ -340,10 +340,28 @@ object GuardSetup {
         }
     }
 
-    /** Switches accessibility off and, a moment later, on again, so Android binds every service anew. */
+    /**
+     * Switches accessibility off and, a moment later, on again, so Android binds every service anew.
+     * Past Android 6 accessibility_enabled no longer unbinds anything: on Xiaomi Box 5 Max
+     * (MiTV-AZFU0, Android 14) the guard stayed deaf after it (issue #651). There Aerial is taken
+     * out of the list and put back, as rebindIfStalled does.
+     */
     fun restartAccessibility(context: Context) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return
         val resolver = context.contentResolver
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) {
+            val me = ComponentName(context, HomeGuardService::class.java).flattenToString()
+            fun others() = Settings.Secure.getString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+                .split(':').filter { it.isNotBlank() && ComponentName.unflattenFromString(it)?.flattenToString() != me }
+            runCatching {
+                Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, others().joinToString(":"))
+                Handler(Looper.getMainLooper()).postDelayed({
+                    runCatching { Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (others() + me).joinToString(":")) }
+                        .onFailure { Log.w(TAG, "could not put Home Guard back", it) }
+                }, 1500)
+            }.onFailure { Log.w(TAG, "could not take Home Guard out", it) }
+            return
+        }
         runCatching {
             Settings.Secure.putInt(resolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0)
             // See rebindIfStalled: two writes in a row are coalesced.
@@ -414,32 +432,17 @@ object GuardSetup {
 
     /**
      * The screensaver chosen in Personalize changed. "System" gives the TV's dream back to the one
-     * the firmware came with, where Aerial had taken it (TCL; XGIMI's own dream where the projector
-     * ships one); any other choice takes it again.
+     * the firmware came with, where Aerial had taken it (TCL); any other choice takes it again.
      */
     fun screensaverModeChanged(context: Context) {
         if (!isUserUnlocked(context)) return
-        if (!systemChosen(context)) {
-            keepScreensaver(context)
-            return
-        }
-        giveBackSystemScreensaver(context)
-        // The TV's own screensaver is the one wanted: switched back on where "Never" had it off.
-        setSystemScreensaverOff(context, off = false)
-    }
-
-    /**
-     * Hands the screensaver setting back to the firmware's dream, where Aerial holds it — installed
-     * by tools/install.sh, or any earlier build of this one. Someone else's choice is left alone.
-     */
-    private fun giveBackSystemScreensaver(context: Context) {
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_OWN_SCREENSAVER, false)) return
+        if (!systemChosen(context)) { keepScreensaver(context); return }
         val resolver = context.contentResolver
-        val current = Settings.Secure.getString(resolver, "screensaver_components").orEmpty()
         val mine = ComponentName(context, AerialDream::class.java).flattenToString()
-        if (current != mine && "dream.OrchardDream" !in current) return
         val firmware = SystemScreensaver.firmwareDream(context) ?: return
-        if (firmware == current) return
+        if (Settings.Secure.getString(resolver, "screensaver_components").orEmpty() != mine) return
         runCatching {
             Settings.Secure.putString(resolver, "screensaver_components", firmware)
             Log.i(TAG, "screensaver set to the system's; the dream is $firmware again")
@@ -457,9 +460,6 @@ object GuardSetup {
         ensureAdb(context)
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_SECURE_SETTINGS) != PackageManager.PERMISSION_GRANTED) return false
         keepScreensaver(context)
-        // "System" chosen: the TV's screensaver setting belongs to the firmware's own dream, also
-        // where it was chosen before a build knew which dream that is (XGIMI's, not the DeskClock's).
-        if (systemChosen(context)) giveBackSystemScreensaver(context)
         RevivalSync.ensure(context)
         if (standingOut(context)) { watchScreenOn(context); return false }
         val me = ComponentName(context, HomeGuardService::class.java).flattenToString()

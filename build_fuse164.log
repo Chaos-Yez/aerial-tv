@@ -1,0 +1,64 @@
+Starting a Gradle Daemon, 17 busy and 3 incompatible and 2 stopped Daemons could not be reused, use --status for details
+Calculating task graph as configuration cache cannot be reused because file 'app\build.gradle.kts' has changed.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preStandardDebugBuild UP-TO-DATE
+> Task :app:mergeStandardDebugNativeDebugMetadata NO-SOURCE
+> Task :app:javaPreCompileStandardDebug UP-TO-DATE
+> Task :app:mergeStandardDebugShaders UP-TO-DATE
+> Task :app:l8DexDesugarLibStandardDebug UP-TO-DATE
+> Task :app:createStandardDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:generateStandardDebugBuildConfig UP-TO-DATE
+> Task :app:generateStandardDebugResValues UP-TO-DATE
+> Task :app:mergeStandardDebugJniLibFolders UP-TO-DATE
+> Task :app:validateSigningStandardDebug UP-TO-DATE
+> Task :app:extractDeepLinksStandardDebug UP-TO-DATE
+> Task :app:compileStandardDebugShaders NO-SOURCE
+> Task :app:generateStandardDebugAssets UP-TO-DATE
+> Task :app:generateStandardDebugResources UP-TO-DATE
+> Task :app:mergeStandardDebugResources UP-TO-DATE
+> Task :app:checkStandardDebugDuplicateClasses UP-TO-DATE
+> Task :app:mergeLibDexStandardDebug UP-TO-DATE
+> Task :app:writeStandardDebugAppMetadata UP-TO-DATE
+> Task :app:writeStandardDebugSigningConfigVersions UP-TO-DATE
+> Task :app:checkStandardDebugAarMetadata UP-TO-DATE
+> Task :app:packageStandardDebugResources UP-TO-DATE
+> Task :app:desugarStandardDebugFileDependencies UP-TO-DATE
+> Task :app:mapStandardDebugSourceSetPaths UP-TO-DATE
+> Task :app:parseStandardDebugLocalResources UP-TO-DATE
+> Task :app:mergeExtDexStandardDebug UP-TO-DATE
+> Task :app:processStandardDebugMainManifest UP-TO-DATE
+> Task :app:processStandardDebugManifest UP-TO-DATE
+> Task :app:mergeStandardDebugNativeLibs UP-TO-DATE
+> Task :app:processStandardDebugManifestForPackage UP-TO-DATE
+> Task :app:stripStandardDebugDebugSymbols UP-TO-DATE
+> Task :app:mergeStandardDebugAssets
+> Task :app:compressStandardDebugAssets
+> Task :app:processStandardDebugResources UP-TO-DATE
+> Task :app:compileStandardDebugKotlin
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/apps/AppDetails.kt:81:46 'fun unsafeCheckOpNoThrow(p0: String, p1: Int, p2: String): Int' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/apps/SourceLooks.kt:18:42 This annotation is currently applied to the value parameter only, but in the future it will also be applied to field.
+- To opt in to applying to both value parameter and field, add '-Xannotation-default-target=param-property' to your compiler arguments.
+- To keep applying to the value parameter only, use the '@param:' annotation target.
+
+See https://youtrack.jetbrains.com/issue/KT-73255 for more details.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:95:54 'fun get(p0: String!): Any?' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/HomeGuardService.kt:558:30 Condition is always 'true'.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/components/LiquidGlass.kt:117:48 Condition is always 'true'.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/wallpaper/AerialStream.kt:139:29 'constructor(p0: Context, p1: MediaCodecSelector, p2: Long, p3: Boolean, p4: Handler?, p5: VideoRendererEventListener?, p6: Int): MediaCodecVideoRenderer' is deprecated. Deprecated in Java.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/wallpaper/Aerials.kt:110:27 Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type 'MediaCodecInfo.VideoCapabilities?'.
+w: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/wallpaper/PhoneServer.kt:474:45 'val allNetworks: Array<(out) Network!>' is deprecated. Deprecated in Java.
+
+> Task :app:processStandardDebugJavaRes UP-TO-DATE
+> Task :app:mergeStandardDebugJavaResource UP-TO-DATE
+> Task :app:compileStandardDebugJavaWithJavac
+> Task :app:dexBuilderStandardDebug
+> Task :app:mergeStandardDebugGlobalSynthetics UP-TO-DATE
+> Task :app:mergeProjectDexStandardDebug
+> Task :app:packageStandardDebug
+> Task :app:assembleStandardDebug
+> Task :app:createStandardDebugApkListingFileRedirect
+
+BUILD SUCCESSFUL in 3m 8s
+38 actionable tasks: 8 executed, 30 up-to-date
+Configuration cache entry stored.

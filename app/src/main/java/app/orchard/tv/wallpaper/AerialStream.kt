@@ -1,6 +1,7 @@
 package app.orchard.tv.wallpaper
 
 import android.content.Context
+import android.os.Handler
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.OptIn
@@ -18,7 +19,13 @@ import androidx.media3.datasource.cache.ContentMetadataMutations
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import kotlinx.coroutines.Dispatchers
@@ -77,7 +84,13 @@ object AerialStream {
     fun mediaItem(film: Aerial, quality: AerialQuality, overHttp: Boolean): MediaItem =
         MediaItem.Builder().setUri(url(film, quality, overHttp)).setMediaId(film.id).setCustomCacheKey(key(film, quality)).build()
 
-    fun player(context: Context, quality: AerialQuality): ExoPlayer {
+    /**
+     * [decodeOnScreen]: the decoder starts only once the player has its SurfaceView, not on
+     * ExoPlayer's off-screen placeholder surface. Xiaomi MiTV-MFTR0's Dolby Vision decoder set up on
+     * the placeholder copies its frames out through the GPU (MStar's DIP), and keeps doing so on the
+     * SurfaceView it is handed later: the film plays, but not in Dolby Vision (issue #754).
+     */
+    fun player(context: Context, quality: AerialQuality, decodeOnScreen: Boolean = false): ExoPlayer {
         val source = CacheDataSource.Factory()
             .setCache(cache(context))
             .setUpstreamDataSourceFactory(http())
@@ -97,7 +110,8 @@ object AerialStream {
             )
             .setPrioritizeTimeOverSizeThresholds(false)
             .build()
-        return ExoPlayer.Builder(context)
+        val builder = if (decodeOnScreen) ExoPlayer.Builder(context, OnScreenRenderers(context)) else ExoPlayer.Builder(context)
+        return builder
             .setLoadControl(load)
             .setMediaSourceFactory(
                 DefaultMediaSourceFactory(source).setLoadErrorHandlingPolicy(DefaultLoadErrorHandlingPolicy(1)),
@@ -108,6 +122,27 @@ object AerialStream {
                 repeatMode = Player.REPEAT_MODE_ALL
                 videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
             }
+    }
+
+    /** ExoPlayer's renderers, with a video renderer that never decodes onto the placeholder surface. */
+    private class OnScreenRenderers(context: Context) : DefaultRenderersFactory(context) {
+        override fun buildVideoRenderers(
+            context: Context,
+            extensionRendererMode: Int,
+            mediaCodecSelector: MediaCodecSelector,
+            enableDecoderFallback: Boolean,
+            eventHandler: Handler,
+            eventListener: VideoRendererEventListener,
+            allowedVideoJoiningTimeMs: Long,
+            out: ArrayList<Renderer>,
+        ) {
+            out += object : MediaCodecVideoRenderer(
+                context, mediaCodecSelector, allowedVideoJoiningTimeMs, enableDecoderFallback,
+                eventHandler, eventListener, MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY,
+            ) {
+                override fun shouldUsePlaceholderSurface(codecInfo: MediaCodecInfo) = false
+            }
+        }
     }
 
     private fun isReady(cache: SimpleCache, film: Aerial, quality: AerialQuality): Boolean {

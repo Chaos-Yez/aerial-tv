@@ -2,6 +2,7 @@ package app.orchard.tv.settings
 
 import android.content.Context
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
@@ -58,10 +59,8 @@ enum class NameMode(val key: String) {
 /** Ten steps of the videos' sound, one tenth of it each. */
 const val VIDEO_VOLUME_STEPS = 10
 
-/** How many tiles a row may hold: five, as tvOS has it, up to eight. */
-const val GRID_COLUMNS_MIN = 5
-const val GRID_COLUMNS_MAX = 8
-const val GRID_COLUMNS_DEFAULT = GRID_COLUMNS_MIN
+/** The count the plate and tiles are sized for: five, as tvOS has it. Not a choice, only a geometry base. */
+const val GRID_COLUMNS_DEFAULT = 5
 
 /**
  * When the owner's own videos ("My videos") play behind Home.
@@ -139,6 +138,19 @@ object AerialSettings {
      */
     var oneRowHome by mutableStateOf(true); private set
 
+    /**
+     * Apps a row on Home: [HOME_COLUMNS], five by default as Aerial always had, six as tvOS 26 lays
+     * them out, four for bigger tiles from the sofa. Folders follow it.
+     */
+    var homeColumns by mutableIntStateOf(DEFAULT_HOME_COLUMNS); private set
+
+    /**
+     * Home shows only its first this many tiles, for trying a nearly empty Home on a TV that has
+     * many apps (ConfigReceiver preview_apps). Kept in memory only: nothing is hidden or moved,
+     * and the next start, or 0, shows them all again.
+     */
+    var previewApps by mutableIntStateOf(0)
+
     /** In one-row mode, the top of the second row peeking under the first; off hides it until you go down. */
     var peekNextRow by mutableStateOf(true); private set
 
@@ -158,13 +170,6 @@ object AerialSettings {
      * on the wallpaper, #151).
      */
     var plateMode by mutableStateOf(PlateMode.All); private set
-
-    /**
-     * How many tiles sit in the top row, and so in every row of the grid: five, six, seven or eight.
-     * Five is the size tvOS uses; more of them, and they narrow to fit — the row keeps its width and
-     * the tiles keep their shape, only smaller.
-     */
-    var gridColumns by mutableStateOf(GRID_COLUMNS_DEFAULT); private set
 
     /** The clock, with the date and weather, in the top right instead of the top left. */
     var clockRight by mutableStateOf(false); private set
@@ -256,6 +261,9 @@ object AerialSettings {
     val lite: Boolean get() = effects == Effects.Lite || (effects == Effects.Auto && lowEnd)
     private const val DEFAULT_SCREENSAVER_MINUTES = 5
 
+    val HOME_COLUMNS = 4..6
+    private const val DEFAULT_HOME_COLUMNS = 5
+
     fun init(context: Context) {
         if (started) return
         started = true
@@ -270,11 +278,11 @@ object AerialSettings {
         pinArrows = prefs.getBoolean("pin_arrows", false)
         oneRowHome = prefs.getBoolean("one_row_home", true)
         peekNextRow = prefs.getBoolean("peek_next_row", true)
+        homeColumns = prefs.getInt("home_columns", DEFAULT_HOME_COLUMNS).takeIf { it in HOME_COLUMNS } ?: DEFAULT_HOME_COLUMNS
         clockRight = prefs.getBoolean("clock_right", false)
         largeClock = prefs.getBoolean("large_clock", false)
         plateMode = PlateMode.of(prefs.getString("plate_mode", null))
             ?: if (prefs.getBoolean("home_plate", true)) PlateMode.Live else PlateMode.None
-        gridColumns = prefs.getInt("grid_columns", GRID_COLUMNS_DEFAULT).coerceIn(GRID_COLUMNS_MIN, GRID_COLUMNS_MAX)
         adbAccess = prefs.getBoolean("adb_access", false)
         // Before this setting had three modes it was a boolean "show every name"; keep old installs.
         nameMode = NameMode.of(prefs.getString("name_mode", null))
@@ -342,6 +350,12 @@ object AerialSettings {
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("one_row_home", on) }
     }
 
+    fun chooseHomeColumns(columns: Int) {
+        if (columns !in HOME_COLUMNS) return
+        homeColumns = columns
+        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putInt("home_columns", columns) }
+    }
+
     fun choosePeekNextRow(on: Boolean) {
         peekNextRow = on
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putBoolean("peek_next_row", on) }
@@ -365,12 +379,6 @@ object AerialSettings {
             // Kept for a build before this setting had three choices.
             putBoolean("home_plate", mode != PlateMode.None)
         }
-    }
-
-    fun chooseGridColumns(count: Int) {
-        val n = count.coerceIn(GRID_COLUMNS_MIN, GRID_COLUMNS_MAX)
-        gridColumns = n
-        app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit { putInt("grid_columns", n) }
     }
 
     fun chooseClockRight(on: Boolean) {

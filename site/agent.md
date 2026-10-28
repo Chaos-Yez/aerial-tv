@@ -41,7 +41,7 @@ adb devices
 
 - **`unauthorized`**：电视上弹出了「允许 USB 调试吗？」，请用户选「允许」并勾选「始终允许」，再运行一次 `adb devices`。Android 4.0–4.2.1 没有这个弹窗，不用等。
 - **`failed to connect` / `Connection refused` / 超时**：电视的 ADB 调试没打开，或 IP 不对。让用户按下表打开，再试：
-- **5555 连不上、电视里只有「无线调试」没有 USB 调试**（TCL Q9M / Q10L 等 Android 11+ 机型）：这类固件要先配对。让用户在电视上打开 开发者选项 → 无线调试 → **使用配对码配对设备**，要来两组 IP:端口和 6 位配对码——一组在配对码屏幕上，一组在无线调试主屏幕上（两个端口不一样，每次进这个页面都会变）。然后运行 `adb pair <配对屏IP:端口> <配对码>`，成功后 `adb connect <主屏IP:端口>`，`adb devices` 显示 `device` 后马上 `adb tcpip 5555`，再 `adb connect <IP>:5555`，以后就不用再配对。新版 `install.sh` 会引导整个过程（交互输入，或先设 `ADB_PAIR=<ip:端口> ADB_CODE=<配对码> ADB_CONNECT=<ip:端口>` 再运行）。部分 TCL 固件（Q10M、鹤 7 Pro）没有配对码入口，只能用数据线把电视连上电脑执行一次 `adb tcpip 5555`。
+- **5555 连不上、电视里只有「无线调试」没有 USB 调试**（索尼 BRAVIA Android 14、TCL Q9M / Q10L 等 Android 11+ 机型）：这类固件要先配对。让用户在电视上打开 开发者选项 → 无线调试 → **使用配对码配对设备**，要来两组 IP:端口和 6 位配对码——一组在配对码屏幕上，一组在无线调试主屏幕上（两个端口不一样，每次进这个页面都会变）。然后运行 `adb pair <配对屏IP:端口> <配对码>`，成功后 `adb connect <主屏IP:端口>`，`adb devices` 显示 `device` 后马上 `adb tcpip 5555`，再 `adb connect <IP>:5555`，以后就不用再配对。新版 `install.sh` 会引导整个过程（交互输入，或先设 `ADB_PAIR=<ip:端口> ADB_CODE=<配对码> ADB_CONNECT=<ip:端口>` 再运行）。部分 TCL 固件（Q10M、鹤 7 Pro）没有配对码入口，只能用数据线把电视连上电脑执行一次 `adb tcpip 5555`。
 
 | 电视 | 怎么打开 ADB |
 |---|---|
@@ -219,7 +219,7 @@ adb shell "sleep 5; dumpsys window" | grep mCurrentFocus
 
 ```
 adb shell "dumpsys package app.orchard.tv | grep versionName"
-adb shell "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME"
+adb shell "cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -c android.intent.category.DEFAULT"
 adb shell settings get secure enabled_accessibility_services
 adb shell "dumpsys accessibility | grep -c -E 'label=(Aerial|app.orchard.tv)'"
 adb shell input keyevent KEYCODE_HOME
@@ -231,7 +231,7 @@ adb shell "sleep 8; dumpsys window | grep mCurrentFocus"
 - 第 3 条有 `app.orchard.tv/app.orchard.tv.guard.HomeGuardService`：守护已打开（原生 Android TV 已是默认桌面时可能没有，看第 6 条即可）。
 - 第 4 条大于 0：守护正在运行。
 - **第 6 条包含 `app.orchard.tv`：按主页键进入 Aerial，安装成功。** 这一条不满足，就不能告诉用户装好了。有的固件按主页键后自家桌面要停几秒，守护才把 Aerial 拉回来（OPPO ColorOS TV 约 5 秒，#664）：第 6 条是原桌面时，再运行一次 `adb shell "sleep 5; dumpsys window | grep mCurrentFocus"`，两次都不是 `app.orchard.tv` 才算失败。
-- 第 2、3、6 条的原始输出必须贴给用户，不要只说「成功」。第 2 条报错（老系统没有 `cmd`）时，改用 `adb shell pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME`。
+- 第 2、3、6 条的原始输出必须贴给用户，不要只说「成功」。第 2 条报错（老系统没有 `cmd`）时，改用 `adb shell pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -c android.intent.category.DEFAULT`。
 
 第 6 条不是 `app.orchard.tv` 时，等 5 秒再运行一次第 5、6 条（有的电视守护启动得慢）。还不是，看「常见情况」。
 

@@ -80,8 +80,6 @@ import app.orchard.tv.settings.UiSounds
 import app.orchard.tv.settings.Effects
 import app.orchard.tv.settings.VideoMode
 import app.orchard.tv.settings.VIDEO_VOLUME_STEPS
-import app.orchard.tv.settings.GRID_COLUMNS_MAX
-import app.orchard.tv.settings.GRID_COLUMNS_MIN
 import app.orchard.tv.system.Sounds
 import app.orchard.tv.ui.components.Pressable
 import app.orchard.tv.ui.components.consumeTaps
@@ -180,7 +178,7 @@ fun WallpaperSheet(
                     WallpaperRows()
                     // Only for a wallpaper that moves: whether keys stop it. The owner's own videos
                     // have three ways of playing and a sound of their own (issues #410, #583).
-                    if (Wallpapers.selectedId == Wallpapers.VIDEOS) Group { note ->
+                    if (Wallpapers.isVideo()) Group { note ->
                         Choices(
                             R.string.st_play, stringResource(R.string.st_video_play_hint), note,
                             listOf(
@@ -247,6 +245,11 @@ fun WallpaperSheet(
                         )
                         // 极米: 底板在哪种壁纸下出现——动态（航拍、我的视频）/ 静态 / 都不。
                         Choices(
+                            R.string.st_columns, stringResource(R.string.st_columns_hint), note,
+                            AerialSettings.HOME_COLUMNS.map { it to it.toString() },
+                            AerialSettings.homeColumns, AerialSettings::chooseHomeColumns,
+                        )
+                        Choices(
                             R.string.st_plate, stringResource(R.string.st_plate_hint), note,
                             listOf(
                                 PlateMode.Live to R.string.st_plate_live,
@@ -255,13 +258,6 @@ fun WallpaperSheet(
                                 PlateMode.None to R.string.st_plate_none,
                             ),
                             AerialSettings.plateMode, AerialSettings::choosePlateMode,
-                        )
-                        // How many tiles the row holds: five, as tvOS has it, up to eight. More of
-                        // them, and they narrow to fit, the rows below following.
-                        Choices(
-                            R.string.st_columns, stringResource(R.string.st_columns_hint), note,
-                            (GRID_COLUMNS_MIN..GRID_COLUMNS_MAX).map { it to it.toString() },
-                            AerialSettings.gridColumns, AerialSettings::chooseGridColumns,
                         )
                         Choices(
                             R.string.st_names, stringResource(R.string.st_names_hint), note,
@@ -440,9 +436,14 @@ private fun WallpaperRows() {
     val scope = rememberCoroutineScope()
     val dailyTitle = stringResource(R.string.wp_daily_latest)
     val rotateTitle = stringResource(R.string.wp_photos_rotate)
-    val list = remember(items, selected, dailyTitle, rotateTitle) {
+    val videosTitle = stringResource(R.string.wp_videos_rotate)
+    val list = remember(items, selected, dailyTitle, rotateTitle, videosTitle) {
         buildList {
-            addAll(items.filter { it.kind == WallpaperKind.Live || it.kind == WallpaperKind.Video })
+            addAll(items.filter { it.kind == WallpaperKind.Live })
+            // Each video on its own, and with two or more one card that plays them in turn (#762).
+            val videos = items.filter { it.kind == WallpaperKind.Video && it.id != Wallpapers.VIDEOS }
+            if (videos.size > 1 || selected == Wallpapers.VIDEOS) add(Wallpaper(Wallpapers.VIDEOS, WallpaperKind.Video, videosTitle))
+            addAll(videos)
             if (items.any { it.kind == WallpaperKind.Daily && !Wallpapers.isRandom(it.id) }) {
                 add(Wallpaper(Wallpapers.LATEST_DAILY, WallpaperKind.Daily, dailyTitle))
             }
@@ -499,7 +500,8 @@ private fun wallpaperNote(wp: Wallpaper): String? = when {
         else -> stringResource(R.string.wp_random_hint)
     }
     wp.kind == WallpaperKind.Live -> stringResource(R.string.wp_live)
-    wp.kind == WallpaperKind.Video -> stringResource(R.string.wp_videos_note)
+    wp.id == Wallpapers.VIDEOS -> stringResource(R.string.wp_videos_note)
+    wp.kind == WallpaperKind.Video -> stringResource(R.string.wp_video_note)
     wp.kind == WallpaperKind.Source -> stringResource(R.string.wp_source_note)
     wp.id == Wallpapers.LATEST_DAILY -> stringResource(R.string.wp_daily_note)
     wp.id == Wallpapers.ROTATE_PHOTOS -> stringResource(R.string.wp_photos_rotate_note)

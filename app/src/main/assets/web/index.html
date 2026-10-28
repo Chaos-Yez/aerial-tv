@@ -163,9 +163,9 @@
   .arow { min-height: 60px; background: var(--card); }
   .arow .thumb { width: 64px; }
   .arow .act { flex-shrink: 0; font-weight: 600; }
-  /* Home as on the TV: five tiles a row, the first on a shelf. */
+  /* Home as on the TV: as many tiles a row (--cols, Personalize on the TV), the first on a shelf. */
   .agrid {
-    position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px 7px;
+    position: relative; display: grid; grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr)); gap: 14px 7px;
     padding: 12px 10px 14px; background: var(--card); border-radius: 14px;
   }
   .agrid .shelf { position: absolute; left: 4px; right: 4px; top: 4px; border-radius: 11px; background: var(--fill); pointer-events: none; }
@@ -1329,6 +1329,8 @@ function renderWallpapers() {
   for (const [kind, title, sub] of groups) {
     // Moving: the aerial films and the owner's videos.
     let list = state.wallpapers.filter(w => w.kind === kind || (kind === 'live' && w.kind === 'video'));
+    // Each video on its own; the card that plays them in turn only for two or more (#762), as on the TV.
+    if (kind === 'live' && list.filter(w => w.kind === 'video').length < 3 && state.selected !== 'videos:mine') list = list.filter(w => w.id !== 'videos:mine');
     if (kind === 'daily') {
       // The random photo stays inside the daily group, as the last card after the daily items.
       const r = list.find(w => w.id === 'daily:random');
@@ -1354,8 +1356,8 @@ function renderWallpapers() {
     list.forEach(w => g.appendChild(card(w)));
     root.appendChild(g);
     if (sub) root.appendChild(el('p', 'foot', sub));
-    // Whether keys stop a moving wallpaper; only for one that moves, as on the TV.
-    if (kind === 'live' && (state.selected === 'aerial:live' || state.selected === 'videos:mine')) {
+    // Whether keys stop the owner's videos, as on the TV; the aerial films always move.
+    if (kind === 'live' && /^videos?:/.test(state.selected)) {
       const l = el('div', 'list'); l.style.marginTop = '10px';
       const row = el('label', 'item');
       const txt = el('span', 'txt', t('sw_always')); txt.appendChild(el('span', 'sub', t('sw_always_sub')));
@@ -1674,6 +1676,7 @@ function buildFolderView(view, folder, apps) {
 
 function tileGrid(entries, shelf) {
   const grid = el('div', 'agrid');
+  grid.style.setProperty('--cols', homeCols());
   if (shelf && entries.length) grid.appendChild(el('div', 'shelf'));
   for (const e of entries) {
     const tile = el('div', 'atile'); tile.dataset.key = e.key; tile.setAttribute('role', 'button'); tile.tabIndex = 0;
@@ -1685,11 +1688,13 @@ function tileGrid(entries, shelf) {
   }
   return grid;
 }
+/* Apps a row on the TV's Home. */
+function homeCols() { return (state.layout && state.layout.columns) || 5; }
 /* The shelf sits behind Home's first row, as the glass plate does on the TV. */
 function placeShelves() {
   document.querySelectorAll('#homeBody .agrid').forEach(g => {
     const shelf = g.querySelector('.shelf'); if (!shelf) return;
-    const first = [...g.querySelectorAll('.atile')].slice(0, 5);
+    const first = [...g.querySelectorAll('.atile')].slice(0, homeCols());
     const bottom = Math.max(...first.map(t => t.offsetTop + t.offsetHeight));
     shelf.style.height = (bottom + 6 - 4) + 'px';
   });

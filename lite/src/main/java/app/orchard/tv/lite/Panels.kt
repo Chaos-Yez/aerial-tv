@@ -434,6 +434,8 @@ class Personalize(
             // Two rows show the second row whole; only one row has a peek to hide.
             if (LiteSettings.oneRowHome) choices(R.string.st_peek, string(R.string.st_peek_hint), listOf(true to R.string.st_peek_show, false to R.string.st_peek_hide),
                 LiteSettings.peekNextRow) { LiteSettings.choosePeekNextRow(it); onLayout() }
+            choices(R.string.st_columns, string(R.string.st_columns_hint), LiteSettings.HOME_COLUMNS.map { it to it.toString() },
+                LiteSettings.homeColumns) { LiteSettings.chooseHomeColumns(it); onLayout() }
             choices(R.string.st_plate, string(R.string.st_plate_hint), listOf(true to R.string.st_plate_glass, false to R.string.st_plate_none),
                 LiteSettings.homePlate) { LiteSettings.chooseHomePlate(it); onLayout() }
             choices(R.string.st_names, string(R.string.st_names_hint), listOf(false to R.string.st_names_focused, true to R.string.st_names_all),

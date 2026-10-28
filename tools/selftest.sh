@@ -80,8 +80,8 @@ echo '```'
 # 1. Home Guard bound: everything below depends on it where Aerial is not the default home.
 ACC=$(sh_ settings get secure enabled_accessibility_services)
 BOUND=$(sh_ dumpsys accessibility | grep -c -E "label=(Aerial|$PKG)")
-HOME_TO=$(sh_ cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -n1)
-[ -n "$HOME_TO" ] || HOME_TO=$(sh_ pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -n1)
+HOME_TO=$(sh_ cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -c android.intent.category.DEFAULT | tail -n1)
+[ -n "$HOME_TO" ] || HOME_TO=$(sh_ pm resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -c android.intent.category.DEFAULT | tail -n1)
 if [ "${HOME_TO%%/*}" = "$PKG" ]; then result guard PASS "Aerial is the default home ($HOME_TO)"
 elif [ "${BOUND:-0}" -gt 0 ]; then result guard PASS "Home Guard bound; default home is $HOME_TO"
 elif printf '%s' "$ACC" | grep -q "$PKG/"; then result guard FAIL "Home Guard enabled but not bound; default home is $HOME_TO"

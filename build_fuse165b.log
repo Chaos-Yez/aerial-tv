@@ -1,0 +1,208 @@
+Starting a Gradle Daemon, 17 busy and 4 incompatible and 2 stopped Daemons could not be reused, use --status for details
+Reusing configuration cache.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preStandardDebugBuild UP-TO-DATE
+> Task :app:createStandardDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:generateStandardDebugBuildConfig UP-TO-DATE
+> Task :app:generateStandardDebugResValues UP-TO-DATE
+> Task :app:generateStandardDebugResources UP-TO-DATE
+> Task :app:extractDeepLinksStandardDebug UP-TO-DATE
+> Task :app:packageStandardDebugResources UP-TO-DATE
+> Task :app:mapStandardDebugSourceSetPaths UP-TO-DATE
+> Task :app:mergeStandardDebugResources UP-TO-DATE
+> Task :app:parseStandardDebugLocalResources UP-TO-DATE
+> Task :app:checkStandardDebugAarMetadata UP-TO-DATE
+> Task :app:processStandardDebugMainManifest UP-TO-DATE
+> Task :app:processStandardDebugManifest UP-TO-DATE
+> Task :app:processStandardDebugManifestForPackage UP-TO-DATE
+> Task :app:processStandardDebugResources UP-TO-DATE
+> Task :app:compileStandardDebugKotlin
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:592:26 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:592:43 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:592:61 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:22 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:38 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:60 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:87 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:596:52 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:596:60 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:25 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:41 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:59 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:69 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:650:39 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:653:59 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:653:83 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:713:46 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:739:48 Unresolved reference 'plateHere'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:741:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:742:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:39 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:72 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:99 None of the following candidates is applicable:
+fun Dp.toPx(): Float
+fun TextUnit.toPx(): Float
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:40 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:68 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:86 None of the following candidates is applicable:
+fun Dp.toPx(): Float
+fun TextUnit.toPx(): Float
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:801:51 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:802:44 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:812:46 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:820:33 Unresolved reference 'oneRow'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:820:44 Unresolved reference 'peek'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:841:37 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Not enough information to infer type argument for 'R'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Function 'component1()' is ambiguous for this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Function 'component2()' is ambiguous for this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:843:44 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:843:44 Function 'component1()' is ambiguous for this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:843:44 Function 'component2()' is ambiguous for this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:29 Not enough information to infer type argument for 'A'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:29 Not enough information to infer type argument for 'B'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:46 Unresolved reference 'minus' for operator '-'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:48 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:76 Unresolved reference 'minus' for operator '-'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:867:42 None of the following candidates is applicable:
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier
+fun Modifier.width(width: Dp): Modifier
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:868:67 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:868:89 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:39 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:39 Function 'component1()' is ambiguous for this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:39 Function 'component2()' is ambiguous for this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:68 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:882:81 None of the following candidates is applicable:
+fun Dp.roundToPx(): Int
+fun TextUnit.roundToPx(): Int
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:890:37 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:891:38 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:949:67 Unresolved reference 'saverFadeOffscreen'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:957:113 Unresolved reference 'plateNames'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:959:29 No parameter with name 'topRow' found.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:985:18 Unresolved reference 'align'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:986:45 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1003:56 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1009:22 Unresolved reference 'focusProperties'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1011:100 Unresolved reference 'down'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1041:33 Unresolved reference 'align'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1102:21 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1103:21 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1104:19 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1224:42 Unresolved reference 'align'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1234:1 Syntax error: Expecting a top level declaration.
+
+> Task :app:compileStandardDebugKotlin FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileStandardDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 45s
+15 actionable tasks: 1 executed, 14 up-to-date
+Configuration cache entry reused.

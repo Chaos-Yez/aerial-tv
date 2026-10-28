@@ -27,8 +27,8 @@
     },
     {
       "models": ["MiTV4-ANSM0", "MiTV4_ANSM0", "MiTV4A"],
-      "buildAtLeast": "22.11",
-      "note": "Mi TV 4, firmware 22.11.x: the port droidlogic registers as Hdmi3InputService/HW7 is the one tvplayer calls HDMI 1, source 23 (22.11.18.3386 #584, 22.11.28.3390 #514); 22.4.15 still follows hw + 18 (#375). HW6/HW5 as 24/25 is the same order turned round, not yet seen.",
+      "buildAtLeast": "22.8",
+      "note": "Mi TV 4, firmware 22.8 and later: the port droidlogic registers as Hdmi3InputService/HW7 is the one tvplayer calls HDMI 1, source 23 (22.8.15.3312 #592, 22.11.18.3386 #584, 22.11.28.3390 #514); 22.4.15 still follows hw + 18 (#375). HW6/HW5 as 24/25 is the same order turned round, not yet seen.",
       "labels": {"7": "HDMI 1", "6": "HDMI 2", "5": "HDMI 3"},
       "xiaomiSources": {"7": 23, "6": 24, "5": 25}
     },

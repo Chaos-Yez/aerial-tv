@@ -130,6 +130,16 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
     }
 
     private fun relayout() {
+        // Another number of apps a row: the tiles take its size (their faces follow with the reload).
+        val tileW = Ui.pxi(TILE_W + 2 * TILE_EXT)
+        if (tiles.firstOrNull()?.layoutParams?.width.let { it != null && it != tileW }) {
+            for (t in tiles) t.layoutParams = t.layoutParams.apply { width = tileW; height = Ui.pxi(TILE_H + 2 * TILE_EXT) }
+            for (n in names) n.layoutParams = n.layoutParams.apply { width = Ui.pxi(TILE_W + 36f) }
+        }
+        plate.layoutParams.height.let { h ->
+            val want = Ui.pxi(TILE_H + 2 * PLATE_PAD_V + PLATE_NAME_ROOM)
+            if (h != want) plate.layoutParams = plate.layoutParams.apply { height = want }
+        }
         val rows = (apps.size + COLS - 1) / COLS
         oneRow = LiteSettings.oneRowHome || rows <= 1
         peek = LiteSettings.peekNextRow
@@ -474,12 +484,13 @@ class HomeView(context: Context, private val host: Host) : FrameLayout(context) 
 
     companion object {
         const val PILL = -1
-        const val COLS = 5
+        /** Apps a row, from Personalize; the sizes below follow it, as the full app's GridMetrics. */
+        val COLS get() = LiteSettings.homeColumns
         const val MARGIN = 56f
-        const val GAP = 28f
-        const val TILE_W = (960f - 2 * MARGIN - (COLS - 1) * GAP) / COLS
-        const val TILE_H = TILE_W * 9 / 16
-        const val PITCH = TILE_H + 50f
+        val GAP get() = when (COLS) { 4 -> 34f; 6 -> 24f; else -> 28f }
+        val TILE_W get() = (960f - 2 * MARGIN - (COLS - 1) * GAP) / COLS
+        val TILE_H get() = TILE_W * 9 / 16
+        val PITCH get() = TILE_H + 50f
         const val FOCUS_SCALE = 1.15f
         const val CORNER = 12f
         const val RING_GAP = 5f

@@ -1,0 +1,480 @@
+Starting a Gradle Daemon, 17 busy and 4 incompatible and 1 stopped Daemons could not be reused, use --status for details
+Calculating task graph as configuration cache cannot be reused because file 'app\build.gradle.kts' has changed.
+> Task :app:preBuild UP-TO-DATE
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:preStandardDebugBuild UP-TO-DATE
+> Task :app:generateStandardDebugResValues UP-TO-DATE
+> Task :app:createStandardDebugCompatibleScreenManifests
+> Task :app:generateStandardDebugResources UP-TO-DATE
+> Task :app:generateStandardDebugBuildConfig
+> Task :app:packageStandardDebugResources UP-TO-DATE
+> Task :app:extractDeepLinksStandardDebug UP-TO-DATE
+> Task :app:parseStandardDebugLocalResources UP-TO-DATE
+> Task :app:mergeStandardDebugResources UP-TO-DATE
+> Task :app:checkStandardDebugAarMetadata UP-TO-DATE
+> Task :app:mapStandardDebugSourceSetPaths UP-TO-DATE
+> Task :app:processStandardDebugMainManifest
+> Task :app:processStandardDebugManifest
+> Task :app:processStandardDebugManifestForPackage
+> Task :app:processStandardDebugResources
+
+> Task :app:compileStandardDebugKotlin FAILED
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:34 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:35 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:36 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:38 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:46 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:56 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:57 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:64 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:66 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:72 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:73 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:88 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:89 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:90 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:94 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:95 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:97 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:102 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:97:103 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:14 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:21 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:27 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:40 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:41 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:43 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:44 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:54 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:55 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:57 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:58 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:78 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:79 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:80 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:82 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:99:82 Function declaration must have a name.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:100:17 Unresolved reference 'intent'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:100:33 Unresolved reference 'key'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:100:57 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:100:66 Unresolved reference 'key'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:100:71 Unresolved reference 'intent'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:100:94 Unresolved reference 'key'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:40 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:41 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:42 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:44 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:104:44 Function declaration must have a name.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:105:30 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:105:39 Unresolved reference 'intent'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:41 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:42 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:43 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:107:45 Function declaration must have a name.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:108:35 Unresolved reference 'intent'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:109:30 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:109:38 Unresolved reference 'getExternalFilesDir'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:109:67 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:109:75 Unresolved reference 'filesDir'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:35 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:36 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:37 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:49 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:50 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:52 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:57 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:58 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:60 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:112:60 Function declaration must have a name.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:113:26 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:38 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:39 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:40 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:42 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:52 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:53 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:63 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:64 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:71 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:73 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:79 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:80 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:95 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:96 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:97 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:105 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:106 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:108 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:113 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:116:114 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:44 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:46 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:48 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:58 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:59 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:72 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:74 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:80 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:81 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:92 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:93 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:94 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:108 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:109 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:111 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:119:115 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:50 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:51 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:52 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:54 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:64 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:65 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:80 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:81 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:88 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:90 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:96 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:97 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:112 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:113 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:114 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:134 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:135 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:137 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:142 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:120:143 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:28 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:29 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:46 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:47 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:49 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:59 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:60 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:77 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:78 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:85 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:87 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:93 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:94 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:109 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:110 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:111 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:126 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:127 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:129 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:134 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:121:135 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:15 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:16 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:30 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:31 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:32 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:43 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:44 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:47 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:51 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:51 Function declaration must have a name.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:53 Unresolved reference 'key'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:123:57 Syntax error: Unexpected tokens (use ';' to separate expressions on the same line).
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:124:29 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:125:61 Unresolved reference 'key'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:129:102 Unresolved reference 'intent'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:12 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:13 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:21 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:31 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:32 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:33 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:35 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:130:35 Function declaration must have a name.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:131:24 Function invocation 'context(...)' expected.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:131:32 Unresolved reference 'getSharedPreferences'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:132:54 Unresolved reference 'intent'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:132:82 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:132:89 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:136:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:136:19 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:136:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:136:33 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:136:34 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:136:41 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:9 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:20 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:22 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:23 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:32 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:34 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:44 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:45 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:52 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:53 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:60 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:61 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:62 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:84 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:86 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:96 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:97 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:109 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:110 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:117 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:118 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:137:119 Syntax error: Expecting member declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/guard/ConfigReceiver.kt:139:1 Syntax error: Expecting a top level declaration.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:592:26 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:592:43 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:592:61 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:22 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:38 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:60 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:594:87 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:596:52 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:596:60 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:25 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:41 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:59 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:599:69 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:650:39 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:653:59 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:653:83 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:713:46 Unresolved reference 'rows'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:739:48 Unresolved reference 'plateHere'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:741:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:742:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:39 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:72 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:743:99 None of the following candidates is applicable:
+fun Dp.toPx(): Float
+fun TextUnit.toPx(): Float
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:22 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:40 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:68 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:744:86 None of the following candidates is applicable:
+fun Dp.toPx(): Float
+fun TextUnit.toPx(): Float
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:801:51 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:802:44 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:812:46 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:820:33 Unresolved reference 'oneRow'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:820:44 Unresolved reference 'peek'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:841:37 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Not enough information to infer type argument for 'R'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Function 'component1()' is ambiguous for this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:842:46 Function 'component2()' is ambiguous for this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:843:44 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:843:44 Function 'component1()' is ambiguous for this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:843:44 Function 'component2()' is ambiguous for this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:29 Cannot infer type for this parameter. Specify it explicitly.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:29 Not enough information to infer type argument for 'A'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:29 Not enough information to infer type argument for 'B'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:46 Unresolved reference 'minus' for operator '-'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:48 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:845:76 Unresolved reference 'minus' for operator '-'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:867:42 None of the following candidates is applicable:
+fun Modifier.width(intrinsicSize: IntrinsicSize): Modifier
+fun Modifier.width(width: Dp): Modifier
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:868:67 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:868:89 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:39 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:39 Function 'component1()' is ambiguous for this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:39 Function 'component2()' is ambiguous for this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:879:68 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:882:81 None of the following candidates is applicable:
+fun Dp.roundToPx(): Int
+fun TextUnit.roundToPx(): Int
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:890:37 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:891:38 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:949:67 Unresolved reference 'saverFadeOffscreen'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:957:113 Unresolved reference 'plateNames'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:959:29 No parameter with name 'topRow' found.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:985:18 Unresolved reference 'align'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:986:45 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1003:56 Unresolved reference 'inGrid'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1009:22 Unresolved reference 'focusProperties'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1011:100 Unresolved reference 'down'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1041:33 Unresolved reference 'align'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1102:21 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1103:21 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1104:19 Unresolved reference 'metrics'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1224:42 Unresolved reference 'align'.
+e: file:///C:/Users/Administrator/WorkBuddy/2026-10-22-17-40-12/_v157xgimi/app/src/main/java/app/orchard/tv/ui/home/HomeScreen.kt:1234:1 Syntax error: Expecting a top level declaration.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileStandardDebugKotlin'.
+> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 2s
+15 actionable tasks: 7 executed, 8 up-to-date
+Configuration cache entry stored.

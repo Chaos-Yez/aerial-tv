@@ -325,8 +325,10 @@ fi
 sleep 5
 adb shell cmd package compile -m speed -f "$PKG" >/dev/null 2>&1 || true
 
+# With CATEGORY_DEFAULT, as Home itself is resolved: on XGIMI m7642 (Android 9) a query without it
+# lists Settings' FallbackHome too, and Android drops the default Home over the changed set (#767).
 resolve_home() {
-  adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME \
+  adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME -c android.intent.category.DEFAULT \
     | tail -n 1 | tr -d '\r'
 }
 

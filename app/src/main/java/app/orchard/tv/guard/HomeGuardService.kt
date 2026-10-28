@@ -6,6 +6,7 @@ import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -21,13 +22,17 @@ import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import android.hardware.input.InputManager
+import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.ViewConfiguration
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import app.orchard.tv.MainActivity
 import app.orchard.tv.settings.AerialSettings
+import app.orchard.tv.system.BootOpen
 import app.orchard.tv.system.SystemProbe
 
 /**
@@ -57,8 +62,24 @@ class HomeGuardService : AccessibilityService() {
     /** HOME activities that are not ours: package to class names. Refreshed on every connect. */
     private var stockHomes: Map<String, Set<String>> = emptyMap()
 
+    /**
+     * Fallback Home activities (negative priority, kept out of stockHomes): the setup wizard's and
+     * Settings' FallbackHome, which show only for a moment at boot. One seen last says nothing about
+     * what is in front now: on Tencent 极光 BA101 (Android 14) the guard last saw
+     * com.android.provision at boot, and the launcher after it raised no window change, so both
+     * boot rechecks left the launcher in front (issue #701, the reporter's 1.61 log).
+     */
+    private var fallbackHomes: Set<Pair<String, String>> = emptySet()
+
     /** Set when the user opens the stock launcher on purpose from Aerial's grid. */
     private var allowStockUntil = 0L
+
+    /**
+     * When the guard itself pressed Home to open the stock launcher from its tile. The system sends
+     * "homekey" for that press as for one on the remote; taken for the viewer's, it brought Aerial
+     * back at once (MiTV-MFFU0, Android 14, issue #680).
+     */
+    private var ownHomeAt = Long.MIN_VALUE / 2
 
     /** The last window that came to the front, as package to class; null until one does. */
     private var lastWindow: Pair<String, String>? = null
@@ -83,7 +104,7 @@ class HomeGuardService : AccessibilityService() {
         // Bound early in a boot, the guard found no stock launcher at all on the same Mi TV 4, and
         // so took PatchWall for an app the viewer chose (issue #318, the reporter's 1.40 log).
         if (stockHomes.isEmpty()) refreshStockHomes()
-        takeOverIfStockHomeInFront("looking again after boot", woke = false)
+        takeOverIfStockHomeInFront("looking again after boot", woke = false, coveredSilently = true)
     }
 
     /**
@@ -110,7 +131,8 @@ class HomeGuardService : AccessibilityService() {
             // Its home screen only, as for window changes: PatchWall's children's mode, opened
             // from its tile, is in the same package and stays.
             val (pkg, cls) = window
-            if (cls !in stockHomes[pkg].orEmpty()) return
+            val bootCover = pkg == PATCHWALL && cls == PATCHWALL_BOOT && SystemClock.elapsedRealtime() < BOOT_WINDOW_MS
+            if (cls !in stockHomes[pkg].orEmpty() && !bootCover) return
             foregroundTakenAt = at
             if (SystemClock.uptimeMillis() - broughtBackAt < 1_000) return
             Log.i(TAG, "stock launcher $pkg in front by usage stats; bringing Aerial back")
@@ -145,6 +167,22 @@ class HomeGuardService : AccessibilityService() {
         return foreground(UNKNOWN_FRONT_LOOKBACK_MS)?.first?.takeIf { it.first != packageName }
     }
 
+    /**
+     * The stock home that usage stats say moved to the front last, when the last window seen is
+     * Aerial's yet its Home is not resumed; null otherwise. Xiaomi MiTV-MTEQ0 (Android 10) puts
+     * PatchWall over Aerial's Home some 15 s into a boot with no window change, so both boot
+     * rechecks found Aerial in front and left PatchWall there (issue #704: Home created and
+     * paused, never shown). Only a stock home counts, so Aerial's own screensaver or settings stay;
+     * only at the boot rechecks, when Aerial is not in the middle of opening.
+     */
+    private fun coveredAerial(window: Pair<String, String>): Pair<String, String>? {
+        if (window.first != packageName || aerialResumed || !usageStatsAllowed(this)) return null
+        val (front, _) = foreground(UNKNOWN_FRONT_LOOKBACK_MS) ?: return null
+        if (front.second !in stockHomes[front.first].orEmpty()) return null
+        Log.i(TAG, "Aerial's Home is not resumed and usage stats say ${front.first} is in front")
+        return front
+    }
+
     private fun scheduleBootRechecks() {
         handler.removeCallbacks(bootRecheck)
         BOOT_RECHECKS_MS.forEach { handler.postDelayed(bootRecheck, it) }
@@ -152,6 +190,20 @@ class HomeGuardService : AccessibilityService() {
 
     /** Whether any window change has reached this binding. */
     private var sawEvent = false
+
+    /**
+     * Whether another enabled service filters keys without being marked default (flagDefault), up
+     * to Android 6. There a key goes to one service only: AccessibilityManagerService
+     * .notifyKeyEventLocked walks the bound services from the one bound last and hands the key to
+     * the first that filters keys, first among the services not marked default, then among those
+     * that are; a key that service lets go goes back to the system, not to the next one. Read from
+     * the services.jar of Mi TV 4 (MiTV4 pulpfiction, Android 6.0.1, firmware 9.1.8.2318), where
+     * Xiaomi's voice microphone service (小米语言麦克风, com.xiaomi.mitv.karaoke.service) filters
+     * keys too: marked default, the guard never got a key and Home went to PatchWall (issue #81).
+     * Not marked, it got every key there in 8 boots: started with the others, its process connects
+     * last and so is bound last.
+     */
+    private val keyFilterRival by lazy { keyFilterRival() }
 
     /**
      * On the same Mi TV 4 the guard bound at boot is sometimes deaf: bound, yet no window change
@@ -197,6 +249,7 @@ class HomeGuardService : AccessibilityService() {
             screenOff = intent.action == Intent.ACTION_SCREEN_OFF
             updateKeyFilter()
             if (screenOff) {
+                BootOpen.noteScreenOff(this@HomeGuardService)
                 if (GuardSetup.offInStandby(this@HomeGuardService)) GuardSetup.stepOutForStandby(this@HomeGuardService)
                 return
             }
@@ -228,9 +281,18 @@ class HomeGuardService : AccessibilityService() {
             // Android 6) answers the Home key by starting its own launcher by component, and Home
             // resolution never happens.
             if (intent.getStringExtra("reason") != "homekey") return
+            // The guard's own press for the stock launcher's tile, not the viewer's.
+            if (SystemClock.uptimeMillis() - ownHomeAt < OWN_HOME_MS) return
             if (backOnPause) noteHomeInAerial()
             val front = lastWindow?.first
-            if (front != null && front !in stockHomes) return
+            if (front != null && front !in stockHomes) {
+                windowsAtHome = windowsSeen
+                homePressedAt = SystemClock.uptimeMillis()
+                handler.removeCallbacks(frontAfterHome)
+                handler.removeCallbacks(frontAfterHomeAgain)
+                handler.postDelayed(frontAfterHome, if (deafAfterHome) DEAF_LOOK_MS else FRONT_AFTER_HOME_MS)
+                return
+            }
             // The stock launcher's window change usually comes first and already brought Aerial
             // back; starting it again redid Home's resume (MiTV-MFTR0: 0.2 s apart).
             if (SystemClock.uptimeMillis() - broughtBackAt < 1_000) return
@@ -239,6 +301,52 @@ class HomeGuardService : AccessibilityService() {
             goHome()
         }
     }
+
+    private var windowsSeen = 0L
+    private var windowsAtHome = 0L
+    private var homePressedAt = Long.MIN_VALUE / 2
+
+    /**
+     * Home pressed in another app, and no window change since: the guard may have gone deaf. On
+     * Xiaomi Box 5 Max (MiTV-AZFU0, Android 14) it did after Xiaomi Weather or Mi Home had been
+     * open, and stayed so: the last window it had seen was the app's, so Home in it left PatchWall
+     * in front, and so did Home in every app after (issue #651). Usage stats still see PatchWall
+     * come to the front; then Aerial comes back, and accessibility is switched off and on once per
+     * process, which is what brought the events back there (Aerial started by hand did too).
+     * Where that did not bring them back, each Home after it waited the full 1.5 s with PatchWall
+     * on screen (1.61, the reporter's log: 1.98 s every time). Once deaf, usage stats are read
+     * every DEAF_LOOK_MS from the press on instead, until a window change is seen again.
+     */
+    private val frontAfterHome: Runnable = Runnable {
+        // XGIMI (Android 9, m7642) answers Home with its own Home chooser when set-home-activity did
+        // not take; it was never drawn and the remote went dead over it (issue #44). Only right
+        // after Home: the same chooser also serves apps' "open with".
+        lastWindow?.takeIf { it.first == XGIMI_FRAMEWORK && it.second.endsWith(".resolver.ResolverActivity") }?.let {
+            Log.i(TAG, "Home pressed and XGIMI's Home chooser came up; bringing Aerial back")
+            goHome()
+            return@Runnable
+        }
+        if (windowsSeen != windowsAtHome) return@Runnable
+        val front = frontByUsage()
+        if (front == null || front.first !in stockHomes) {
+            // Usage stats may not have the stock launcher yet: look again until the usual wait is up.
+            if (deafAfterHome && SystemClock.uptimeMillis() - homePressedAt < FRONT_AFTER_HOME_MS) {
+                handler.postDelayed(frontAfterHomeAgain, DEAF_LOOK_MS)
+            }
+            return@Runnable
+        }
+        Log.i(TAG, "Home pressed, no window change since, and usage stats say ${front.first} is in front; bringing Aerial back")
+        lastWindow = front
+        allowStockUntil = 0L
+        goHome()
+        deafAfterHome = true
+        if (!deafAfterHomeRestarted) {
+            deafAfterHomeRestarted = true
+            Log.i(TAG, "no window change for that; switching accessibility off and on")
+            GuardSetup.restartAccessibility(this)
+        }
+    }
+    private val frontAfterHomeAgain: Runnable = Runnable { frontAfterHome.run() }
 
     /** The firmware putting its own screensaver back while Aerial's is chosen (GuardSetup). */
     private val screensaverObserver by lazy {
@@ -323,6 +431,10 @@ class HomeGuardService : AccessibilityService() {
         }
         refreshStockHomes()
         screenOff = getSystemService<PowerManager>()?.isInteractive == false
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
+            runCatching { getSystemService<InputManager>()?.registerInputDeviceListener(gamepadListener, handler) }
+            lookForGamepads()
+        }
         updateKeyFilter()
         watchCecInput()
         volumeSeen = volumeNow()
@@ -409,7 +521,7 @@ class HomeGuardService : AccessibilityService() {
      * (Android 9) accepts set-home-activity, yet when standby force-stops Aerial, PatchWall's old
      * task is simply uncovered and stays in front after wake (issue #6).
      */
-    private fun takeOverIfStockHomeInFront(reason: String, woke: Boolean) {
+    private fun takeOverIfStockHomeInFront(reason: String, woke: Boolean, coveredSilently: Boolean = false) {
         if (!GuardSetup.isUserUnlocked(this)) return
         // No window seen since bound: ask usage stats what moved to the front last. Revived after
         // the firmware killed Aerial in the background, an unknown front was taken for the stock
@@ -418,7 +530,8 @@ class HomeGuardService : AccessibilityService() {
         // the boot rechecks, on firmwares that raise no window change for the app the viewer
         // opened (Skyworth 9S52_Q4A, Android 6, issue #489). Aerial itself says nothing about what
         // it uncovered when it died, so it stays unknown.
-        val last = lastWindow ?: frontByUsage()?.also { Log.i(TAG, "$reason; usage stats say ${it.first} is in front") }
+        val last = lastWindow?.takeIf { it !in fallbackHomes }?.let { (if (coveredSilently) coveredAerial(it) else null) ?: it }
+            ?: frontByUsage()?.also { Log.i(TAG, "$reason; usage stats say ${it.first} is in front") }
         // Unknown means we were only just bound, which happens after a standby kill. Any screen of
         // the stock launcher counts: when Aerial is killed, whatever was on top of the launcher's
         // task is uncovered, not always its home activity (PatchWall's StrategicLayerActivity).
@@ -454,6 +567,7 @@ class HomeGuardService : AccessibilityService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             runCatching { unregisterReceiver(userUnlocked) }
         }
+        runCatching { getSystemService<InputManager>()?.unregisterInputDeviceListener(gamepadListener) }
         runCatching { contentResolver.unregisterContentObserver(adbObserver) }
         runCatching { contentResolver.unregisterContentObserver(screensaverObserver) }
         if (cecWatching) {
@@ -499,15 +613,56 @@ class HomeGuardService : AccessibilityService() {
         // places a press again (云视听极光 on MiTV-MFTR0, Android 14; issue #475).
         // Not on Xiaomi, which answers Home in Aerial another way: see backOnPause.
         val aerialInFront = aerialResumed && !backOnPause
-        val wanted = !keysPassThrough && !screenOff && (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R || aerialInFront)
+        // A game played with a gamepad: with the filter on, every event of the pad goes through
+        // system_server's main thread and is injected again. On Xiaomi MiTV-MFTR0 (Android 11)
+        // streaming with Moonlight and a pad, that thread hung in AccessibilityInputFilter's
+        // nativeInjectInputEvent holding InputManagerService's lock, and the watchdog restarted the
+        // TV every 5-20 minutes (issue #774, eight dropbox records). Home in that app then goes to
+        // the system, and Aerial comes back after Android's 5 s hold.
+        val padGame = gamepadAttached && !aerialResumed && lastWindow?.first.let { it != null && it != packageName && it !in stockHomes }
+        val wanted = !keysPassThrough && !screenOff && !padGame && (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R || aerialInFront)
         val homeWanted = wanted && !isDefaultHome()
         val cecWanted = !screenOff && CecHome.active(this, lastWindow?.first)
         filteringForCecOnly = cecWanted && !homeWanted
-        val want = if (homeWanted || cecWanted) info.flags or flag else info.flags and flag.inv()
+        var want = if (homeWanted || cecWanted) info.flags or flag else info.flags and flag.inv()
+        if (keyFilterRival) want = want and AccessibilityServiceInfo.DEFAULT.inv()
         if (want == info.flags) return
         info.flags = want
         serviceInfo = info
         Log.i(TAG, if (want and flag != 0) "filtering keys" else "stopped filtering keys")
+    }
+
+    /** Whether a gamepad is connected; see updateKeyFilter. Not the joystick bit: TCL's IR receiver has it. */
+    private var gamepadAttached = false
+
+    private fun lookForGamepads() {
+        gamepadAttached = runCatching {
+            InputDevice.getDeviceIds().any { id ->
+                InputDevice.getDevice(id)?.let { !it.isVirtual && it.supportsSource(InputDevice.SOURCE_GAMEPAD) } == true
+            }
+        }.getOrDefault(false)
+        updateKeyFilter()
+    }
+
+    private val gamepadListener = object : InputManager.InputDeviceListener {
+        override fun onInputDeviceAdded(deviceId: Int) = lookForGamepads()
+        override fun onInputDeviceRemoved(deviceId: Int) = lookForGamepads()
+        override fun onInputDeviceChanged(deviceId: Int) = lookForGamepads()
+    }
+
+    private fun keyFilterRival(): Boolean {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.M) return false
+        val me = ComponentName(this, HomeGuardService::class.java)
+        val enabled = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+            .split(':').mapNotNull { ComponentName.unflattenFromString(it) }.toSet()
+        val installed = getSystemService<AccessibilityManager>()?.installedAccessibilityServiceList.orEmpty()
+        return installed.any { info ->
+            val name = ComponentName.unflattenFromString(info.id)
+            name != me && name in enabled &&
+                info.flags and AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS != 0 &&
+                info.flags and AccessibilityServiceInfo.DEFAULT == 0 &&
+                info.capabilities and AccessibilityServiceInfo.CAPABILITY_CAN_REQUEST_FILTER_KEY_EVENTS != 0
+        }
     }
 
     /**
@@ -730,6 +885,8 @@ class HomeGuardService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         sawEvent = true
+        deafAfterHome = false
+        windowsSeen++
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
         val cls = event.className?.toString() ?: return
@@ -823,6 +980,12 @@ class HomeGuardService : AccessibilityService() {
         // switch, from Aerial or the remote, was taken back at once (issue #223). It stays one
         // only where it is the Home the system resolves.
         val resolved = resolvedHome()
+        fallbackHomes = runCatching {
+            packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0)
+                .filter { it.priority < 0 && it.activityInfo.packageName != packageName }
+                .filter { it.activityInfo.name != LOW_PRIORITY_HOMES[it.activityInfo.packageName] }
+                .map { it.activityInfo.packageName to it.activityInfo.name }.toSet()
+        }.getOrDefault(emptySet())
         val homes = (standard + vendor)
             // Negative priority entries are fallbacks shown only while nothing else can be Home,
             // except the ones a firmware does start.
@@ -927,6 +1090,11 @@ class HomeGuardService : AccessibilityService() {
         homeInAerialAt = now
     }
 
+    private fun pressHomeForStock(): Boolean {
+        ownHomeAt = SystemClock.uptimeMillis()
+        return performGlobalAction(GLOBAL_ACTION_HOME)
+    }
+
     private fun goHome(woke: Boolean = false) {
         if (!GuardSetup.isUserUnlocked(this)) return
         // Starting an activity can light the screen: on OPPO K9 the TV came back on by itself a few
@@ -955,6 +1123,11 @@ class HomeGuardService : AccessibilityService() {
         private const val WAKE_WINDOW_MS = 15_000L
         private val BOOT_RECHECKS_MS = listOf(30_000L, 45_000L)
         private const val DEAF_AFTER_MS = 20_000L
+        /** How long a stock launcher's window change may take to arrive after Home (see frontAfterHome). */
+        private const val FRONT_AFTER_HOME_MS = 1_500L
+        /** How often usage stats are read after Home once the guard has been found deaf. */
+        private const val DEAF_LOOK_MS = 150L
+        private const val XGIMI_FRAMEWORK = "com.xgimi.xgimiframeworkui"
         private const val FOREGROUND_POLL_MS = 1_000L
         private const val FOREGROUND_LOOKBACK_MS = 10_000L
         /** How far back to look for the front when no window has been seen; see frontByUsage. */
@@ -962,17 +1135,35 @@ class HomeGuardService : AccessibilityService() {
         private const val DOUBLE_HOME_MS = 400L
         /** Android's hold on app starts after Home (stopAppSwitches), with a margin. */
         private const val APP_SWITCH_HOLD_MS = 5_500L
+        private const val PATCHWALL = "com.mitv.tvhome"
+        /**
+         * PatchWall's boot cover, which comes up over Aerial some 20 s into a boot and is no home
+         * activity. Taken over from usage stats in the boot window, at the next poll instead of at
+         * the boot recheck: 19.7 s of it before, 1.0 s with this (MiTV4 pulpfiction, Android 6.0.1;
+         * the class is the one usage stats record at every boot there).
+         */
+        private const val PATCHWALL_BOOT = "com.mitv.tvhome.BootActivity"
         /** Hisense VIDAA's launcher, invisible to window changes; see foregroundCheck. */
         private const val VIDAA_LAUNCHER = "com.jamdeo.tv.vod"
         /** Actions the firmware's own task centre answers, tried in order before SystemUI's recents. */
         private val TASK_CENTRE_ACTIONS = listOf("com.dangbei.recentstask.action.SHOW_RECENTS_FOR_USER")
         private const val VOLUME_REPEAT_MAX_MS = 8_000L
         private const val HOME_PAUSE_MS = 400L
+        /** "homekey" came 350 ms or more after the key while Aerial was busy (see noteHomeInAerial). */
+        private const val OWN_HOME_MS = 1_500L
         private const val DOUBLE_HOME_BROADCAST_MS = 600L
         private val VOLUME_KEYS = setOf(KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN, KeyEvent.KEYCODE_VOLUME_MUTE)
 
         @Volatile
         private var deafRetried = false
+
+        /** Accessibility switched off and on for a deaf guard once already in this process; see frontAfterHome. */
+        @Volatile
+        private var deafAfterHomeRestarted = false
+
+        /** Home has found the guard deaf, and no window change has come since; see frontAfterHome. */
+        @Volatile
+        private var deafAfterHome = false
 
         /** VIDAA's assistant and its launcher (聚好看), on the two VIDAA builds reported (issues #7, #40). */
         private val VIDAA_PACKAGES = listOf("com.hisense.vidaaassistant", "com.jamdeo.tv.vod")
@@ -1004,6 +1195,9 @@ class HomeGuardService : AccessibilityService() {
          * them for an app the viewer had opened. Panasonic DX01C (Skyworth-made, Tianci, Android 6)
          * starts this one from /system/pcfg's DEFAULT_HOMEPAGE, and it declares only the private
          * action com.skyworth.home.neo, which left it in front at power-on and on the Home key.
+         * E900V21F's LeJia is here for the other reason: it does declare CATEGORY_HOME, but the
+         * firmware keeps Home candidates out of a third-party caller's query, so that query does
+         * not return it either.
          */
         private val FIRMWARE_HOMES_WITHOUT_FILTER = mapOf(
             "com.skyworth.panasonichome" to listOf("com.skyworth.panasonichome.MainActivity"),
@@ -1014,6 +1208,18 @@ class HomeGuardService : AccessibilityService() {
             // What Tianci shows as its home, named only in persist.service.homepage.cls; the
             // package's HOME.CC is on MainActivity (Skyworth 7S70_A9, Android 8, issues #106 #461).
             "com.tianci.movieplatform" to listOf("com.coocaa.homepage.vast.HomePageActivity"),
+            // China Mobile "Mobile HD Box 6" 2024 (Skyworth E900V21F, S905L3S, Android 9): the
+            // firmware starts LeJia's DesktopActivity by component at power-on and on the Home
+            // key. It declares CATEGORY_HOME, but queryIntentActivities(HOME) from a third-party
+            // process returns nothing (the firmware filters Home candidates by signature), so
+            // resolve-activity stays on FallbackHome and set-home-activity rejects Aerial with
+            // "cannot be home". Verified on device; dumpsys and logs in the linked issue.
+            "com.mylejia.launcher" to listOf("com.mylejia.launcher.activity.DesktopActivity"),
+            // Hisense VIDAA's 聚好看 on VIDAA_TV V7N_Ultra (MT9653, Android 11): Home showed it, the
+            // diagnostics list it as a Home candidate (priority 50), yet the guard did not keep it
+            // away, so Home stayed there and its usage stats were not watched (issue #700). Not
+            // seen on a TV here; named so it counts wherever the activity exists.
+            "com.jamdeo.tv.vod" to listOf("com.ju.main.launcher.LauncherActivity"),
         )
 
         /**
@@ -1075,8 +1281,8 @@ class HomeGuardService : AccessibilityService() {
         fun openStockLauncher(pkg: String, startDirectly: () -> Boolean): Boolean {
             val s = instance ?: return startDirectly()
             allowStockLauncher()
-            if (s.resolvedHome() == pkg && s.performGlobalAction(GLOBAL_ACTION_HOME)) return true
-            return startDirectly() || s.performGlobalAction(GLOBAL_ACTION_HOME)
+            if (s.resolvedHome() == pkg && s.pressHomeForStock()) return true
+            return startDirectly() || s.pressHomeForStock()
         }
 
         /** Lets the stock launcher stay in front until Aerial is back: the viewer opened it on purpose. */

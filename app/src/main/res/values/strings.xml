@@ -306,4 +306,8 @@
     <string name="st_video_sink_hint">When your own videos are the wallpaper, the top row sinks so more of the film shows; the focused tile rises. Off, and Home sits as it does with the aerial films.</string>
     <string name="ss_show_time">Time</string>
     <string name="ss_show_time_hint">The time over the aerial and photo screensavers. The time and place name move a little now and then, so nothing stays on the same pixels.</string>
+
+    <string name="st_plate_glass">Glass</string>
+    <string name="wp_videos_rotate">My Videos, In Turn</string>
+    <string name="wp_video_note">Your own video, sent from the phone, silent and on a loop. It moves like the aerial films and stops on the frame showing.</string>
 </resources>

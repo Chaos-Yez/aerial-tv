@@ -212,6 +212,7 @@
       <div class="panel" data-panel="oppo"><p>设置 → 系统 → 关于本机 → <b>设备型号</b>，按 <b>上上右右</b> 再按确认；然后到 设置 → 系统 → <b>开发者选项</b>，打开 <b>USB 调试</b>（有的机型叫「ADB 调试」）。<br>IP 在 设置 → 网络 → 已连接的网络 <b>最下面</b>。</p></div>
       <div class="panel" data-panel="other"><p>设置 → 设备偏好设置 → 关于 → 连按 <b>内部版本号</b>（Build，不是「Android 版本」）7 次，再在开发者选项里打开 <b>USB 调试</b>。<br>IP 在 设置 → 网络 → 已连接的网络 里。</p></div>
       <p class="note">老乐视、荣耀智慧屏、老康佳（看不到版本号）等机型打不开 ADB。极米 H3 需先用第三方工具打开 ADB，见机型说明。</p>
+      <p class="note"><b>索尼 BRAVIA 的 Android 14 等 Android 11 以上的电视</b>：无线调试第一次要先配对，不能直接 <code>adb connect &lt;电视IP&gt;:5555</code>。打开 无线调试 → <b>使用配对码配对设备</b>，运行 <code>adb pair &lt;电视IP&gt;:&lt;配对屏端口&gt;</code> 并输入 6 位配对码，再 <code>adb connect &lt;电视IP&gt;:&lt;无线调试主页端口&gt;</code>（两组端口不一样），然后照常安装。详见 <a href="https://github.com/pengchujin/aerial-tv/blob/main/docs/devices/adb-by-brand.md">分品牌说明</a>；装好后想以后直接用 <code>&lt;电视IP&gt;:5555</code>，连上时再运行一次 <code>adb tcpip 5555</code>。</p>
 
       <h3 class="step"><span>2</span>填上电视 IP</h3>
       <p class="hint">在电视的 设置 → 网络 → 已连接的网络 里（OPPO S1 在这一页最下面）。电脑要和电视连同一个网络。</p>

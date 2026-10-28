@@ -287,6 +287,7 @@ class PhoneServer private constructor(private val context: Context, private val 
             .put("folders", folders)
             .put("hidden", JSONArray().apply { if (!locked) AppCatalog.hiddenApps.forEach { put(tile(it)) } })
             .put("hiddenCount", AppCatalog.hiddenApps.size)
+            .put("columns", AerialSettings.homeColumns)
             .put("locked", locked)
             .put("ready", AppCatalog.layout != null)
     }

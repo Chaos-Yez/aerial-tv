@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
@@ -219,17 +220,21 @@ suspend fun drawIn(push: Animatable<Float, *>) {
 /** [image] over the whole screen, [push] (0 to 1) of the way into its slow draw-in: larger by 8%, drifting right. */
 fun androidx.compose.ui.graphics.drawscope.DrawScope.drawDrawingIn(image: ImageBitmap, push: Float, alpha: Float = 1f) {
     val s = 1f + 0.08f * push
-    val w = size.width * s
-    val h = size.height * s
-    val left = (size.width - w) / 2f + 24.dp.toPx() * push
-    val top = (size.height - h) / 2f
-    drawImage(
-        image,
-        dstOffset = androidx.compose.ui.unit.IntOffset(left.roundToInt(), top.roundToInt()),
-        dstSize = IntSize(w.roundToInt(), h.roundToInt()),
-        alpha = alpha,
-        filterQuality = FilterQuality.Low,
-    )
+    // Scaled and moved by the canvas, in fractions of a pixel: placed on whole pixels, the picture
+    // stood still and jumped a pixel every few frames, its edges at different times (it draws in
+    // only 2-3 px a second), and read as a shake (Xiaomi MiTV-MFTR0).
+    val drift = 24.dp.toPx() * push
+    withTransform({
+        translate(left = drift)
+        scale(s, s, center)
+    }) {
+        drawImage(
+            image,
+            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+            alpha = alpha,
+            filterQuality = FilterQuality.Low,
+        )
+    }
 }
 
 /** Where a screensaver of aerials starts when it cannot carry Home's player on (AerialDream). */
@@ -387,7 +392,8 @@ private fun AerialSaver(
         if (first != null) listOf(first) + (all - first) else AerialStream.withOpenerFirst(context, all, quality)
     }
     val firstAtMs = remember { startAt?.takeIf { (id, _) -> films.first().id == id }?.second ?: 0L }
-    val player = remember { AerialStream.player(context, quality) }
+    // Its decoder starts on the film's own surface, not ExoPlayer's placeholder (AerialStream.player).
+    val player = remember { AerialStream.player(context, quality, decodeOnScreen = true) }
     var index by remember { mutableIntStateOf(0) }
     var failures by remember { mutableIntStateOf(0) }
     var playing by remember { mutableStateOf(false) }
@@ -506,6 +512,9 @@ private fun AerialSaver(
         if (playing) AerialStream.prepareOpener(context, films, film, quality, aerialsOverHttp)
     }
 
+    // A picture wallpaper is not carried into the aerial screensaver: the two cannot blend (another
+    // plane, Dolby Vision or HDR on the film), and holding the picture until the film moved kept
+    // Home's wallpaper on screen for seconds (Xiaomi MiTV-MFTR0, 1.61 to 1.63).
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { ctx ->

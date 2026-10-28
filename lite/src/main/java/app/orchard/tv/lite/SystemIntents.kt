@@ -52,8 +52,27 @@ object SystemIntents {
         }
         if (runCatching { pm.resolveService(tcl, 0) }.getOrNull() != null && runCatching { context.startService(tcl) }.getOrNull() != null) return true
         val coocaa = Intent("coocaa.intent.action.SOURCE_DIALOG").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (runCatching { pm.resolveActivity(coocaa, 0) }.getOrNull() == null) return false
-        return runCatching { context.startActivity(coocaa) }.isSuccess
+        if (runCatching { pm.resolveActivity(coocaa, 0) }.getOrNull() != null && runCatching { context.startActivity(coocaa) }.isSuccess) return true
+        // Coocaa C10's AI launcher picker and the older SkyMovie broadcast (issue #779).
+        val aigc = Intent("coocaa.intent.aigc.home.tvsource").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { pm.resolveActivity(aigc, 0) }.getOrNull() != null && runCatching { context.startActivity(aigc) }.isSuccess) return true
+        val skyMovie = Intent("com.coocaa.action.SOURCE")
+            .setComponent(ComponentName("com.tianci.movieplatform", "com.ccos.cooui.homepage.receiver.LaunchSourceReceiver"))
+        if (runCatching { pm.queryBroadcastReceivers(skyMovie, 0) }.getOrNull().orEmpty().any { it.activityInfo.exported }) {
+            return runCatching { context.sendBroadcast(skyMovie) }.isSuccess
+        }
+        return false
+    }
+
+    /**
+     * Konka's full settings menu, a panel its settings app shows as a service (Konka V563, issue
+     * #771); false where the TV has no such service.
+     */
+    fun openSettingsPanel(context: Context): Boolean {
+        val konka = Intent("com.konka.settings.action.SETTING_MAIN_VIEW")
+            .setComponent(ComponentName("com.konka.tvsettings", "com.konka.service.SettingService"))
+        if (runCatching { context.packageManager.resolveService(konka, 0) }.getOrNull()?.serviceInfo?.exported != true) return false
+        return runCatching { context.startService(konka) }.getOrNull() != null
     }
 
     /** Not Intent.resolveActivity: it returns an explicit component unchecked. */

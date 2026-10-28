@@ -43,7 +43,7 @@ TCL 手机 App 有一个「把手机里的 APK 推到电视」的功能。电视
 - 同一个 versionCode 也可以覆盖安装。
 - 其他指令（发 Intent、截图、模拟按键、应用列表）和加密握手见 [../tcast-protocol.md](../tcast-protocol.md)。
 
-**方法二：当贝**（多屏互动不在或 6553 端口不通时，`install.sh` 会自动回退到这条）
+**方法二：当贝**（多屏互动不在或 6553 端口不通时，`install.sh` 会自动回退到这条；只用电视上已经装着的当贝，不要为此去装当贝或别的应用商店）
 1. `adb push app-guard-release.apk /sdcard/Download/Aerial.apk`，然后触发媒体扫描（`content call --uri content://media --method scan_volume --arg external_primary`）。
 2. 打开当贝市场的安装包管理：`am start -n com.dangbeimarket/.ui.apkmanager.ApkManagerActivity`。
 3. 选中 Aerial →「安装应用」→（首次安装会提示「应用未被认证」，选「继续」）→ 系统安装器的「安装」。升级时只有最后一步。

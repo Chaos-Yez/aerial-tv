@@ -46,9 +46,10 @@ class NetworkStatusTest {
 
         repeat(3) {
             setDefault(ConnectivityManager.TYPE_VPN, NetworkCapabilities.TRANSPORT_VPN)
-            assertEquals(expected, SystemProbe.network(context))
+            assertEquals(expected.copy(vpn = true), SystemProbe.network(context))
+            // The VPN stays among the networks, so only the name and signal are compared here.
             connectivity.setActiveNetworkInfo(cm.getNetworkInfo(wifi))
-            assertEquals(expected, SystemProbe.network(context))
+            assertEquals(expected, SystemProbe.network(context).copy(vpn = false))
         }
     }
 
@@ -178,6 +179,21 @@ class NetworkStatusTest {
         setDefault(ConnectivityManager.TYPE_VPN, NetworkCapabilities.TRANSPORT_VPN)
         addPhysical(100, ConnectivityManager.TYPE_WIFI, NetworkCapabilities.TRANSPORT_WIFI)
         assertEquals(NetKind.Wifi, SystemProbe.network(context).kind)
+    }
+
+    @Test
+    fun vpnThatLeavesAerialOutStillShows() {
+        setDefault(ConnectivityManager.TYPE_ETHERNET, NetworkCapabilities.TRANSPORT_ETHERNET)
+        assertEquals(false, SystemProbe.network(context).vpn)
+        addPhysical(100, ConnectivityManager.TYPE_VPN, NetworkCapabilities.TRANSPORT_VPN)
+        assertEquals(NetworkStatus(NetKind.Ethernet, vpn = true), SystemProbe.network(context))
+    }
+
+    @Test
+    fun disconnectedVpnDoesNotShow() {
+        setDefault(ConnectivityManager.TYPE_ETHERNET, NetworkCapabilities.TRANSPORT_ETHERNET)
+        addPhysical(100, ConnectivityManager.TYPE_VPN, NetworkCapabilities.TRANSPORT_VPN, connected = false)
+        assertEquals(false, SystemProbe.network(context).vpn)
     }
 
     private fun setWifiInfo(ssid: String, rssi: Int) {

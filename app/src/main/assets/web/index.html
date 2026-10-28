@@ -1892,8 +1892,10 @@ function sortableGrid(grid, keys, onMove, onTap) {
       });
     };
     const edge = () => {
-      // The page scrolls; the tab bar covers its bottom.
-      const top = 0, bottom = document.querySelector('nav').getBoundingClientRect().top, zone = 70;
+      // The page scrolls; on a phone the tab bar covers its bottom. On a computer the bar is the
+      // side bar, whose top is 0: taken for the bottom, it scrolled the page from mid-window (#786).
+      const bar = document.querySelector('nav').getBoundingClientRect();
+      const top = 0, bottom = bar.top > innerHeight / 2 ? bar.top : innerHeight, zone = 70;
       const v = y < top + zone ? -(top + zone - y) / 4 : y > bottom - zone ? (y - (bottom - zone)) / 4 : 0;
       if (v) { window.scrollBy(0, Math.max(-16, Math.min(16, v))); place(); }
       raf = requestAnimationFrame(edge);

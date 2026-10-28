@@ -83,7 +83,7 @@ private const val TILE_IDLE_MS = 3_000L
 /**
  * The owner's own videos behind Home (issues #410, #583), sent from the phone page as for the video
  * screensaver: silent, filling the screen, one after another or just the one chosen on a loop (#762). They move when the aerial wallpaper
- * would (LiveWallpaper): on a still top row, or all the time when set to keep moving. A key that
+ * would (LiveWallpaper): on a still shelf, or all the time when set to keep moving. A key that
  * stops them leaves the frame they stopped on as the wallpaper's picture, read off the video plane
  * where the TV allows it and otherwise decoded from the file, which is on the TV.
  *

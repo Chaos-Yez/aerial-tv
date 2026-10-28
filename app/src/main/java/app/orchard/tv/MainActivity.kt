@@ -735,7 +735,8 @@ class MainActivity : ComponentActivity() {
         )
         getSystemService<ConnectivityManager>()?.let { cm ->
             if (Build.VERSION.SDK_INT >= 24) cm.registerDefaultNetworkCallback(networkCallback)
-            else cm.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback)
+            // A request leaves VPNs out unless told otherwise; the status pill shows one coming up (issue #809).
+            else cm.registerNetworkCallback(NetworkRequest.Builder().removeCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN).build(), networkCallback)
         }
         // Apps can change while Aerial is in the background without it hearing about it.
         vm.reload()
@@ -855,7 +856,7 @@ class MainActivity : ComponentActivity() {
 
         /** See handOverToFirmwareFallbackHome; for this process. */
         private var handedOverAtBoot = false
-        private val AOSP_FALLBACK_HOMES = setOf("com.android.settings.FallbackHome", "com.android.tv.settings.system.FallbackHome")
+        private val AOSP_FALLBACK_HOMES = setOf("com.android.settings.FallbackHome", "com.android.tv.settings.system.FallbackHome", "com.android.tv.settings.ui.activity.FallbackHome")
 
         /** How Home Guard and the boot receiver bring Aerial back: the same task the launcher entry uses. */
         fun bringBackIntent(context: Context): Intent =

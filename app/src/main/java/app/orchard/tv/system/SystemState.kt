@@ -33,7 +33,8 @@ fun ConnectivityManager.currentNetwork(): Network? {
     return allNetworks.firstOrNull { getNetworkInfo(it)?.type == type }
 }
 
-data class NetworkStatus(val kind: NetKind = NetKind.Offline, val name: String? = null, val level: Float = 1f)
+/** [vpn]: a VPN is up, shown beside the network as iOS does (issue #809). */
+data class NetworkStatus(val kind: NetKind = NetKind.Offline, val name: String? = null, val level: Float = 1f, val vpn: Boolean = false)
 
 data class VolumeStatus(val level: Int = 0, val max: Int = 100, val muted: Boolean = false) {
     val fraction: Float get() = if (max == 0) 0f else level / max.toFloat()
@@ -67,6 +68,11 @@ object SystemProbe {
     fun network(context: Context): NetworkStatus {
         val cm = context.getSystemService<ConnectivityManager>() ?: return NetworkStatus()
         var caps = cm.getNetworkCapabilities(cm.currentNetwork() ?: return NetworkStatus()) ?: return NetworkStatus()
+        // Also one that leaves Aerial out (a proxy app's per-app list), which is not the default here.
+        @Suppress("DEPRECATION")
+        val vpn = caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) || runCatching {
+            cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true && cm.getNetworkInfo(it)?.isConnected == true }
+        }.getOrDefault(false)
         // Under a VPN the default network is the VPN's, which carries no Wi-Fi or Ethernet
         // transport on Android 8, and was shown as Ethernet over Wi-Fi (Hisense H55E9A, issue #435).
         if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN) &&
@@ -88,7 +94,7 @@ object SystemProbe {
                 ?: physicalNetworks.firstOrNull() ?: caps
         }
         return when {
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkStatus(NetKind.Ethernet)
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> NetworkStatus(NetKind.Ethernet, vpn = vpn)
             caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
                 val wm = context.applicationContext.getSystemService<WifiManager>()
                 @Suppress("DEPRECATION")
@@ -100,9 +106,9 @@ object SystemProbe {
                     @Suppress("DEPRECATION")
                     WifiManager.calculateSignalLevel(info.rssi, 4) / 3f
                 }
-                NetworkStatus(NetKind.Wifi, ssid, level)
+                NetworkStatus(NetKind.Wifi, ssid, level, vpn)
             }
-            else -> NetworkStatus(NetKind.Ethernet)
+            else -> NetworkStatus(NetKind.Ethernet, vpn = vpn)
         }
     }
 
@@ -186,7 +192,22 @@ object SystemProbe {
     private val SETTINGS_PACKAGES = setOf("com.android.settings", "com.android.tv.settings", "com.xiaomi.mitv.settings", "com.tcl.settings", "com.helios.setting", "com.haier.tv.menusetting")
 
     fun settingsIntent(context: Context): Intent =
-        xgimiSettingsIntent(context, "Settings://com.xgimi.misckey.main/mainPage") ?: settingsActivityIntent(context)
+        xgimiSettingsIntent(context, "Settings://com.xgimi.misckey.main/mainPage")
+            ?: konkaSettingsIntent(context)
+            ?: settingsActivityIntent(context)
+
+    /**
+     * Konka's full settings menu (picture, sound and the rest) is a panel its settings app shows as
+     * a service, the one Konka's own launcher starts (LiveLauncher's ToolBarView). The activity
+     * below in settingsActivityIntent only routes to second-level pages and opens on Network
+     * without a known page (Konka V563, Android 9, found by the reporter of issue #771 on the TV).
+     */
+    private val KONKA_SETTINGS = ComponentName("com.konka.tvsettings", "com.konka.service.SettingService")
+
+    private fun konkaSettingsIntent(context: Context): Intent? {
+        val intent = Intent("com.konka.settings.action.SETTING_MAIN_VIEW").setComponent(KONKA_SETTINGS)
+        return intent.takeIf { context.packageManager.resolveService(it, 0)?.serviceInfo?.exported == true }
+    }
 
     private fun settingsActivityIntent(context: Context): Intent =
         firstResolvable(
@@ -332,6 +353,11 @@ object SystemProbe {
 
     fun startSettingsIntent(context: Context, intent: Intent) {
         if (HisenseSources.open(context, intent)) return
+        if (intent.component == KONKA_SETTINGS) {
+            if (runCatching { context.startService(intent) }.getOrNull() != null) return
+            context.startActivity(settingsLaunchIntent(context, settingsActivityIntent(context)))
+            return
+        }
         val activity = if (intent.component == XGIMI_SETTINGS) {
             val shown = runCatching { context.startService(intent) }.getOrNull() != null
             if (shown) return
@@ -445,8 +471,23 @@ object SystemProbe {
         // the TV middleware with no provider, but any app may open its source dialog, which the
         // remote's input key also shows (issues #519, #582, tried by both reporters with adb).
         val coocaa = Intent("coocaa.intent.action.SOURCE_DIALOG").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (runCatching { pm.resolveActivity(coocaa, 0) }.getOrNull() == null) return false
-        return runCatching { context.startActivity(coocaa) }.isSuccess
+        if (runCatching { pm.resolveActivity(coocaa, 0) }.getOrNull() != null &&
+            runCatching { context.startActivity(coocaa) }.isSuccess
+        ) return true
+        // Coocaa C10 projector (CCOS, no inputs in TvInputManager): its AI launcher's source picker
+        // is an activity any app may open, and the older SkyMovie launcher shows its source page on
+        // an exported broadcast; both switch through the firmware's own path (issue #779, both
+        // tried by the reporter with adb, the guard leaving them in front).
+        val aigc = Intent("coocaa.intent.aigc.home.tvsource").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { pm.resolveActivity(aigc, 0) }.getOrNull() != null &&
+            runCatching { context.startActivity(aigc) }.isSuccess
+        ) return true
+        val skyMovie = Intent("com.coocaa.action.SOURCE")
+            .setComponent(ComponentName("com.tianci.movieplatform", "com.ccos.cooui.homepage.receiver.LaunchSourceReceiver"))
+        if (runCatching { pm.queryBroadcastReceivers(skyMovie, 0) }.getOrNull().orEmpty().any { it.activityInfo.exported }) {
+            return runCatching { context.sendBroadcast(skyMovie) }.isSuccess
+        }
+        return false
     }
 
     /**
@@ -699,14 +740,17 @@ object SystemProbe {
      * Old Xiaomi firmwares with no tv_input service at all (MiTV4C / L32M5-AD, MStar "mainz",
      * Android 6, issue #665): TvInputManager refuses the list, and the firmware's own player is the
      * only way to switch. Its source ids there are 23 = HDMI 1 and 24 = HDMI 2, as the reporter
-     * found port by port; not tried here, and other models may have other ports, so only that one.
+     * found port by port; not tried here, and other models may have other ports, so only these.
+     * Mi TV 3 (MiTV3, MStar "inception", Android 5.1.1) has the service but lists nothing; 23 and 24
+     * are its HDMI 1 and 2 too (L60M4-AA, the reporter of issue #309 switched both with adb; #787
+     * is the same model string with no inputs in its diagnostics).
      * CLEAR_TOP: a player task left in the background is otherwise only brought to the front, and
      * the new `input` is dropped, so going from one port to the other seemed to do nothing.
      */
     private fun xiaomiSources(context: Context): List<TvSource> {
-        if (Build.MODEL != "MiTV4C" || !isInstalled(context, XIAOMI_PLAYER)) return emptyList()
+        if (Build.MODEL !in XIAOMI_NO_INPUT_MODELS || !isInstalled(context, XIAOMI_PLAYER)) return emptyList()
         val tim = context.getSystemService<TvInputManager>()
-        if (tim != null && runCatching { tim.tvInputList }.isSuccess) return emptyList()
+        if (tim != null && runCatching { tim.tvInputList }.getOrNull().orEmpty().isNotEmpty()) return emptyList()
         fun source(id: Int, label: String, kind: SourceKind) = TvSource(
             id = "xiaomi:$id",
             label = label,
@@ -720,6 +764,8 @@ object SystemProbe {
         )
         return listOf(source(23, "HDMI 1", SourceKind.Hdmi), source(24, "HDMI 2", SourceKind.Hdmi))
     }
+
+    private val XIAOMI_NO_INPUT_MODELS = setOf("MiTV4C", "MiTV3")
 
     private const val WHALEY_PLAYER = "com.whaley.tv.tvplayer.ui"
 

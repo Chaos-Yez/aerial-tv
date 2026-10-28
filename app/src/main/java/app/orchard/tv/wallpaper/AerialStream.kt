@@ -55,9 +55,12 @@ object AerialStream {
     /** The index is 115–170 KB in these files; a generous tail covers it. */
     private const val TAIL_BYTES = 1L * 1024 * 1024
 
-    /** Openers kept ready for the next screensavers; the cache never holds more than a few. */
+    /**
+     * Openers kept ready for the next screensavers, and for the aerial wallpaper after a Dolby
+     * Vision screensaver: three of each quality, about 9 MB each; the cache never holds more.
+     */
     private const val OPENERS = 3
-    private const val CACHE_BYTES = 48L * 1024 * 1024
+    private const val CACHE_BYTES = 64L * 1024 * 1024
 
     @Volatile
     private var cache: SimpleCache? = null

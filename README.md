@@ -36,12 +36,12 @@
 </p>
 
 - **首页**：常用的一排 App 放在屏幕下方的玻璃底板上，往下是全部 App。小米「应用中心」「米家」这类藏起来的系统 App 也在。
-- **整理**：长按 OK 键（或按菜单键）可以移动、放进文件夹、隐藏、卸载。固定到主屏幕的 HDMI 可以选接的是 Apple TV、PlayStation、Switch、Xbox、电脑等，换成对应的图标，也能在手机上起名字。
+- **整理**：长按 OK 键（或按菜单键）可以移动、放进文件夹、隐藏、卸载，或者设成「开机时打开」（开机、待机醒来直接进这个 App 或信号源）。固定到主屏幕的 HDMI 可以选接的是 Apple TV、PlayStation、Switch、Xbox、电脑等，换成对应的图标，也能在手机上起名字。
 - **用手机整理**：扫电视上的二维码，手机上就是和电视一样的图标网格：按住拖动排序，点一下改名、换图标、放进文件夹或隐藏，也能把 HDMI 等信号源加到主屏幕。
 - **控制中心**：在第一排按上键到右上角打开，有信号源、网络、设置、音量、亮度和个性化。
 - **屏保**：Apple TV 的 114 段航拍影片，电视支持时播 4K 或 4K 杜比视界，也可以换成照片、时钟或从手机添加的本地视频（[说明](docs/SCREENSAVER_VIDEOS.md)）。
-- **壁纸**：必应每日精选、14 张内置壁纸、用手机扫码传的照片，或者航拍：停在主屏幕 10 秒后在磁贴后面播放，按任意键停在当前画面。
-- **个性化**：单排或双排、时钟大小和位置、App 名称、焦点样式、按键声音，都能改。
+- **壁纸**：必应每日精选、14 张内置壁纸、用手机扫码传的照片和视频，或者航拍：停在主屏幕 10 秒后在磁贴后面播放，按任意键停在当前画面。
+- **个性化**：每排 4、5 或 6 个 App，单排或双排、时钟大小和位置、App 名称、焦点样式、按键声音，都能改。
 
 <p align="center">
   <img src="site/img/folder.jpg" width="49%" alt="打开的文件夹">
@@ -50,7 +50,7 @@
 
 <p align="center">
   <img src="site/img/screensaver-aerial.jpg" width="49%" alt="航拍屏保">
-  <img src="site/img/wallpaper.jpg" width="49%" alt="个性化面板">
+  <img src="site/img/columns.jpg" width="49%" alt="个性化：每排 App 选 6 个">
 </p>
 
 ## 安装
@@ -67,9 +67,9 @@
 | **OPPO（含 S1）** | 设置 → 系统 → 关于本机 → 设备型号，按「上上右右」再按确认；再到 设置 → 系统 → 开发者选项，打开「USB 调试」。IP 在 设置 → 网络 → 已连接的网络 最下面 |
 | **其他 Android TV** | 设置 → 设备偏好设置 → 关于 → 连按「内部版本号」7 次，再在开发者选项里打开「USB 调试」 |
 
-电视的 IP 在「设置 → 网络 → 已连接的网络」里。第一次连接时，电视会问是否允许调试，选「始终允许」。
+电视的 IP 在「设置 → 网络 → 已连接的网络」里。第一次连接时，有 USB 调试开关的电视会问是否允许调试，选「始终允许」；只有无线调试的电视不弹这个窗，见下一段。
 
-**Android 11 及以上用无线连接，第一次要先配对**（索尼 BRAVIA Android 14、Google TV 等，#747）：这类电视的「无线调试」和低版本不一样，不能直接 `adb connect <IP>:5555`。在电视上打开 设置 → 系统 → 开发者选项 → **无线调试** → **使用配对码配对设备**，把配对码屏幕上的 IP:端口和 6 位配对码输入电脑：
+**只有无线调试、没有 USB 调试 / 网络调试（ADB 调试）开关的 Android 11+ 电视，第一次要先配对**（例如索尼 BRAVIA 的 Android 14，#747）：这类电视不提供旧的明文端口，不能直接 `adb connect <IP>:5555`。在电视上打开 设置 → 系统 → 开发者选项 → **无线调试** → **使用配对码配对设备**，把配对码屏幕上的 IP:端口和 6 位配对码输入电脑：
 
 ```bash
 adb pair 192.168.1.20:37115   # 电视配对码屏幕上的端口（示例，以电视显示为准）
@@ -77,7 +77,7 @@ adb pair 192.168.1.20:37115   # 电视配对码屏幕上的端口（示例，以
 adb connect 192.168.1.20:39201   # 无线调试主页面上的另一组 IP:端口（示例）
 ```
 
-连上后照常安装。想让以后直接用 `<电视IP>:5555`，连上时再运行一次 `adb tcpip 5555`；配过对的电脑不用再配对。`install.sh` 和[安装说明](site/agent.md)里的 Agent 会引导这一步。
+连上后照常安装。想让以后直接用 `<电视IP>:5555`，连上时再运行一次 `adb tcpip 5555`；配过对的电脑不用再配对。`install.sh` 和[安装说明](site/agent.md)里的 Agent 会引导这一步。部分 TCL 固件（Q10M、Q10L、鹤 6 Ultra 等）没有配对码入口，只能先按下面的分品牌说明用数据线连电脑授权。
 
 更细的分品牌说明（包括打不开 ADB 的机型）见 [docs/devices/adb-by-brand.md](docs/devices/adb-by-brand.md)。
 
@@ -110,7 +110,12 @@ adb connect 192.168.1.20:39201   # 无线调试主页面上的另一组 IP:端�
 curl -fsSL https://aerial.qust.me/install.sh | KEEP_ADB=1 TV=192.168.1.20 bash
 ```
 
-**手动**：下载 [aerial-standard.apk](https://aerial.qust.me/download/aerial-standard.apk)，然后（Android 11 以上的无线调试要先按第 1 步配对，把第一行换成无线调试主页面的 IP:端口，其余不变）：
+只有无线调试的电视（见第 1 步）先 `export ADB_PAIR=<配对屏 IP:端口> ADB_CODE=<6 位配对码> ADB_CONNECT=<无线调试主页 IP:端口>`，再跑上面的命令；没有配对码入口的（TCL Q10M、Q10L、鹤 6 Ultra 等）先按[分品牌说明](docs/devices/adb-by-brand.md)用数据线连一次、运行 `adb tcpip 5555`，之后照常跑上面的命令。
+
+**手动**：下载 [aerial-standard.apk](https://aerial.qust.me/download/aerial-standard.apk)。只有无线调试的电视（见第 1 步）按下面两种情况之一先处理好，再运行命令：
+
+- **有配对码入口**（索尼 BRAVIA 的 Android 14 等）：按第 1 步配对，连上后运行一次 `adb tcpip 5555`，命令的第一行才用 5555；不运行的话，第一行换成无线调试主页面的 IP:端口，其余不变。
+- **没有配对码入口**（TCL Q10M、Q10L、鹤 6 Ultra 等）：按[分品牌说明](docs/devices/adb-by-brand.md)用数据线把电视连到电脑，授权后运行一次 `adb tcpip 5555`；没走这一步时，命令第一行的 `adb connect <电视IP>:5555` 不适用。
 
 ```bash
 adb connect 192.168.1.20:5555
@@ -207,7 +212,9 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 | 小米 | 小米电视 4 / 4A / 4X / 3S、小米盒子 4 | Android 6 | ✅ 1.43 起；按主页键后几秒才回到 Aerial（[笔记](docs/devices/xiaomi-android6.md)） |
 | 小米 | 小米电视 2（MiTV2-49） | Android 4.3 | ❌ Aerial Lite 能装能跑，但主页键由系统直接打开小米桌面，当不了桌面（[#770](https://github.com/pengchujin/aerial-tv/issues/770)） |
 | 小米（峰米） | Ultraman 系列投影仪 | Android 9 | ✅（[笔记](docs/devices/xiaomi-ultraman-projector.md)） |
-| TCL | MT5879 国行 | Android 11 | ✅ 日常使用（[笔记](docs/devices/tcl-mt5879-cn.md)） |
+| TCL | MT5879 国行、98T8H | Android 11 | ✅ 日常使用（[笔记](docs/devices/tcl-mt5879-cn.md)；98T8H 见 [#803](https://github.com/pengchujin/aerial-tv/issues/803)） |
+| TCL | Q9L Pro | Android 14 | ⚠️ 只能 USB 线连 adb；要在电视管家里允许 Aerial 自启；信号源切了没画面（[#792](https://github.com/pengchujin/aerial-tv/issues/792)） |
+| 雷鸟 | 75S78A Plus（FFALCON T966D5） | Android 14 | ❌ 固件约每分钟清掉无障碍，主页键接管不了；`boot_app_componentname` 能让开机进 Aerial（[笔记](docs/devices/ffalcon-t966d5.md)） |
 | TCL | 75V2（m7221） | Android 8 | ✅ 免 root，开机直达（[笔记](docs/devices/tcl-m7221-cn.md)） |
 | TCL / 雷鸟 | 60A730U、55V2 Pro（x32a0）、65Q10E 与鹤 6（m7642）、75S365C、75Q10L | Android 5.1–14 | ✅ 60A730U 只能装 guard 版；55V2 Pro 先 `setprop persist.tcl.debug.installapk 1` 才能 adb 安装（[#620](https://github.com/pengchujin/aerial-tv/issues/620)） |
 | 雷鸟 | 55S595C Ultra、鹤 6 2025 Ultra | Android 11+ | ❌ 能装，接管不了主页键（[笔记](docs/devices/tcl-mt9655-cn.md)） |
@@ -216,6 +223,8 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 | 创维 / 酷开 | K3 Pro、75A7D | Android 11 | ✅ 75A7D 的信号源 1.45 起能用 |
 | 创维 / 酷开 | 65G60、8R134 / 8R145、aigc 系（C10 投影、P60、7T863） | Android 8–11 | ⚠️ 开机先进酷开桌面，或被系统清理后要等 20–30 秒（[笔记](docs/devices/skyworth-coocaa.md)） |
 | 创维 / 酷开 | 5S21（50K2、7626K2）、5S05（60U2）、8H66 H7 | Android 5.x | ⚠️ 开机和待机后是 Aerial，主页键回不到 Aerial；信号源列不出来 |
+| 创维 / 酷开 | 8H57_H5 | Android 5.1 | ⚠️ 开机先转圈十几秒才进 Aerial（[#785](https://github.com/pengchujin/aerial-tv/issues/785)） |
+| 创维 | 1AA46_D4（T963） | Android 9 | ✅（[#796](https://github.com/pengchujin/aerial-tv/issues/796)） |
 | 创维 | 7T641、75A6E、55A5F Pro（8R702） | Android 13 | ❌ 黑屏或卡死 |
 | 创维 | 小湃 P3（Q5001 / cupid-p2）盒子 | Android 10 | ⚠️ 要改包名才能接管 HOME；开机广播全被拦（[笔记](docs/devices/skyworth-p3-box.md)） |
 | 松下 | TH-55HX560C（创维代工） | Android 8 | ⚠️ 信号源列不出来 |
@@ -224,6 +233,7 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 | 乐视 | 超3 X65（X65-168CQ） | Android 5.0.1 | ⚠️ 能装能显示；按主页键时系统会强杀第三方桌面，接管不稳定（[笔记](docs/devices/letv-x3-65.md)） |
 | 海信 / Vidda | VIDAA 各型号 | Android 5–14 | ⚠️ 主页键能接管，开机多数先进聚好看；VIDAA C1 投影接管不了（[笔记](docs/devices/hisense-vidaa.md)） |
 | 海信 | 65E52D | Android 8 | ✅ 开机直接进 Aerial（[#672](https://github.com/pengchujin/aerial-tv/issues/672)） |
+| 海信 | E5Q Pro | Android 11 | ✅（[#790](https://github.com/pengchujin/aerial-tv/issues/790)） |
 | 海信 | VIDAA_TV（MSD6A348） | Android 4.4 | ✅ Aerial Lite，U 盘安装，主页键选「始终」即可；亮度调不了（[#769](https://github.com/pengchujin/aerial-tv/issues/769)） |
 | 夏普 | LCD-50SU671A | Android 6 | ✅ 要用 QuickShortcutMaker 打开 ADB |
 | OPPO | K9 | Android 9 | ⚠️ 要改包名才能装（[笔记](docs/devices/oppo-coloros-tv.md)） |
@@ -234,6 +244,8 @@ curl -fsSL https://aerial.qust.me/install.sh | TV=192.168.1.20 bash -s restore
 | 大眼橙 | X7、X7D 投影仪 | Android 9 / 5.1 | ✅ HDMI 里按主页键可以回到 Apple TV 主屏幕（[笔记](docs/devices/obe-x7.md)） |
 | 腾讯极光盒子 | 6 / 6SE / 7S | Android 10 / 14 | ✅ 6 正常；⚠️ 7S 开机停在原桌面（[笔记](docs/devices/tencent-aurora-box.md)） |
 | 当贝 | 盒子 Max1、H5，哈趣 K2（当贝 OS） | Android 9 | ✅ |
+| 当贝 | F3 投影仪 | Android 6 | ❌ 固件不让第三方当桌面，也没有无障碍服务（[#789](https://github.com/pengchujin/aerial-tv/issues/789)） |
+| 坚果 | S621 | Android 13 | ❌ 固件不让写无障碍设置，主页键接管不了（[#793](https://github.com/pengchujin/aerial-tv/issues/793)） |
 | 爱普生 | DTP9733 投影仪 | Android 11 | ✅ |
 | 其他盒子 | CM311-1（改版 ATV）、PPTV K55U27 | Android 9 | ✅ |
 

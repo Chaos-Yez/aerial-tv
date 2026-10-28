@@ -32,6 +32,7 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 enum class WallpaperKind { Daily, Builtin, Photo, Auto, Live, Video, Source }
@@ -107,6 +108,9 @@ object Wallpapers {
     private const val SOURCE_PICTURE = "hills_night"
     private const val FOLLOW = "follow"
     private const val DEFAULT_FALLBACK = "grad:aurora"
+
+    /** Let go this close to where the picture was taken: the film did not move on from it. */
+    private const val SAME_SPOT_MS = 2_000L
 
     /** The built-ins Personalize offers, one or two of each family; the rest stay for whoever chose them. */
     val FEATURED_BUILTINS = setOf("grad:hills_dawn", "grad:hills_night", "grad:dunes_gold", "grad:sea_sunset", "grad:waves_blue", "grad:aurora")
@@ -449,7 +453,7 @@ object Wallpapers {
         val id = selectedId
         backdropJob?.cancel()
         val key = if (isVideo(id)) "video" else "live"
-        prefs.edit { putString("${key}_film", film).putLong("${key}_at", atMs) }
+        prefs.edit { putString("${key}_film", film).putLong("${key}_at", atMs).remove("${key}_left_film").remove("${key}_left_at") }
         val (bmp, frost) = withContext(Dispatchers.Default) {
             runCatching { (if (isVideo(id)) videoFrame else liveFrame).outputStream().use { frame.compress(Bitmap.CompressFormat.JPEG, 90, it) } }
                 .onFailure { Log.w(TAG, "could not keep the film's frame", it) }
@@ -465,12 +469,44 @@ object Wallpapers {
     }
 
     /**
-     * The film and moment the wallpaper's picture was taken from, so the film starts again on the
+     * Where the aerial film goes on from: where it was let go without a frame taken ([leftLiveSpot]),
+     * else the moment the wallpaper's picture was taken from, so the film starts again on the
      * picture on screen rather than cutting to another place. Null until one has stopped on a frame.
      */
-    fun liveSpot(): Pair<String, Long>? {
+    fun liveSpot(): Pair<String, Long>? = leftLiveSpot() ?: livePictureSpot()
+
+    /** The film and moment the wallpaper's picture was taken from. */
+    fun livePictureSpot(): Pair<String, Long>? {
         val film = prefs.getString("live_film", null)?.takeIf { it.isNotEmpty() } ?: return null
         return film to prefs.getLong("live_at", 0L)
+    }
+
+    /**
+     * Where the aerial film was let go with no frame taken, past the picture: Home went behind an
+     * app, or the screensaver played its own films on from the wallpaper's. Without it the film
+     * started again from the same picture every time, and the wallpaper never changed (Weibo
+     * report, 2026-10-28). Null once the picture has caught up ([useLiveFrame]).
+     */
+    fun leftLiveSpot(): Pair<String, Long>? {
+        val film = prefs.getString("live_left_film", null)?.takeIf { it.isNotEmpty() } ?: return null
+        return film to prefs.getLong("live_left_at", 0L)
+    }
+
+    /** The film starts afresh rather than from where it was let go. */
+    fun forgetLeftLiveSpot() {
+        prefs.edit { remove("live_left_film").remove("live_left_at") }
+    }
+
+    /** The aerial film was let go at [atMs] into [film] with no frame taken: it goes on from there. */
+    fun leaveLiveFilm(film: String, atMs: Long) {
+        if (selectedId != LIVE) return
+        val picture = livePictureSpot()
+        // Let go where the picture is (stopped there, or never moved): nothing to catch up.
+        if (picture != null && picture.first == film && abs(picture.second - atMs) < SAME_SPOT_MS) {
+            prefs.edit { remove("live_left_film").remove("live_left_at") }
+        } else {
+            prefs.edit { putString("live_left_film", film).putLong("live_left_at", atMs) }
+        }
     }
 
     /** The same for the owner's videos: which one and where it last stopped. */

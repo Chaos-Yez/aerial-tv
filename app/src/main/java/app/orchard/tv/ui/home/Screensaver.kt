@@ -372,7 +372,8 @@ private var aerialQualityCap: AerialQuality? = null
 
 /**
  * [startAt]: the aerial wallpaper's film and moment to begin with, played in the wallpaper's format
- * (AerialFormats.forWallpaper) so it goes on as the wallpaper looked.
+ * so it goes on as the wallpaper looked; not with Dolby Vision chosen (AerialFormats.forScreensaver),
+ * which begins on a film whose start is on disk.
  */
 @Composable
 private fun AerialSaver(
@@ -388,10 +389,15 @@ private fun AerialSaver(
     }
     val films = remember {
         val all = Aerials.all(context).shuffled()
-        val first = startAt?.let { (id, _) -> all.firstOrNull { it.id == id } }
+        // In another format than the wallpaper's (Dolby Vision chosen by hand) there is no going on
+        // from it: the screen goes black as the TV changes mode whatever plays. A film whose start
+        // is on disk shows first instead: 0.5 s to its first frame, where the wallpaper's moment,
+        // mid-film from Apple, took 0.8-3.3 s of black more (Xiaomi MiTV-MFTR0).
+        val from = startAt?.takeIf { AerialFormats.screensaverCarriesWallpaper(context) }
+        val first = from?.let { (id, _) -> all.firstOrNull { it.id == id } }
         if (first != null) listOf(first) + (all - first) else AerialStream.withOpenerFirst(context, all, quality)
     }
-    val firstAtMs = remember { startAt?.takeIf { (id, _) -> films.first().id == id }?.second ?: 0L }
+    val firstAtMs = remember { startAt?.takeIf { (id, _) -> films.first().id == id && AerialFormats.screensaverCarriesWallpaper(context) }?.second ?: 0L }
     // Its decoder starts on the film's own surface, not ExoPlayer's placeholder (AerialStream.player).
     val player = remember { AerialStream.player(context, quality, decodeOnScreen = true) }
     var index by remember { mutableIntStateOf(0) }

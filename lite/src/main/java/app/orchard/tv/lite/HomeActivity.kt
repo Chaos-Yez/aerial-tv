@@ -10,6 +10,7 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -78,6 +79,8 @@ class HomeActivity : Activity(), HomeView.Host {
             addAction(Intent.ACTION_PACKAGE_CHANGED)
             addDataScheme("package")
         })
+        @Suppress("DEPRECATION")
+        registerReceiver(connectivity, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
         if (savedInstanceState == null && SystemClock.elapsedRealtime() < 3 * 60 * 1000L) openBootApp()
     }
 
@@ -90,6 +93,7 @@ class HomeActivity : Activity(), HomeView.Host {
 
     override fun onDestroy() {
         unregisterReceiver(packages)
+        unregisterReceiver(connectivity)
         hideSaver()
         proxy.stop()
         PhoneServer.stop()
@@ -119,6 +123,7 @@ class HomeActivity : Activity(), HomeView.Host {
         super.onResume()
         resumed = true
         home.refreshClock()
+        showNetwork()
         showWeather()
         refreshDaily()
         Weather.refreshIfStale({ work.execute(it) }) { handler.post { showWeather() } }
@@ -239,6 +244,25 @@ class HomeActivity : Activity(), HomeView.Host {
     }
 
     private val reload = Runnable { loadApps() }
+
+    /**
+     * A network or VPN coming or going (a VPN's tunnel sends CONNECTIVITY_ACTION too). The pill
+     * showed Wi-Fi whatever the network until it took the VPN badge (issue #809).
+     */
+    private val connectivity = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = showNetwork()
+    }
+
+    private fun showNetwork() {
+        work.execute {
+            val net = ControlCenter.network(this)
+            handler.post {
+                home.pill.network = net.glyph
+                home.pill.level = net.level
+                home.pill.vpn = net.vpn
+            }
+        }
+    }
 
     private val packages = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -585,7 +609,7 @@ class HomeActivity : Activity(), HomeView.Host {
         val tryOpen = object : Runnable {
             override fun run() {
                 if (isFinishing) return
-                val online = ControlCenter.network(this@HomeActivity).first != Glyph.Offline
+                val online = ControlCenter.network(this@HomeActivity).glyph != Glyph.Offline
                 if (!online && SystemClock.elapsedRealtime() - since < 20_000) { handler.postDelayed(this, 500); return }
                 Log.i(TAG, "opening $pkg, what the TV starts on")
                 prefs.edit().putLong("elapsed", SystemClock.elapsedRealtime()).putLong("boot", bootStamp).apply()

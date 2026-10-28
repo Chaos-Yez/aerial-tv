@@ -28,6 +28,7 @@
     <string name="net_ethernet">Ethernet</string>
     <string name="net_wifi">Wi-Fi</string>
     <string name="net_offline">Нет подключения</string>
+    <string name="net_vpn">VPN</string>
     <string name="input_connected">Подключено</string>
     <string name="input_live_tv">Эфирное ТВ</string>
     <string name="input_antenna">Антенна</string>
@@ -78,7 +79,7 @@
     <string name="wx_snow">Снег</string>
     <string name="wx_thunder">Гроза</string>
     <string name="wp_daily_latest">Всегда сегодняшнее</string>
-    <string name="wp_live">Аэросъёмка · запускается через 10 секунд на главном экране</string>
+    <string name="wp_live">Аэросъёмка · запускается через 10 секунд на главном экране (в двухрядном виде — на обоих рядах)</string>
     <string name="wp_daily_note">Фото дня от Bing, каждый день новое.</string>
     <string name="wp_photos_rotate">Одно в день</string>
     <string name="wp_photos_rotate_note">Каждый день другое из ваших фото.</string>

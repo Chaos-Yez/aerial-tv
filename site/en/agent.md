@@ -7,9 +7,10 @@ You are helping the user install Aerial (an open-source home screen for Android 
 1. **Run the commands yourself on the user's computer.** Don't just list steps for the user. If you can't run commands (for example, you are a phone or web chat, including Doubao on a phone), say so and ask the user to switch to a desktop agent that can (Doubao for desktop or Doubao Work, WorkBuddy, Qwen for desktop, Claude Code, Codex, Cursor, Trae and similar), and to allow it to run commands and use the network the first time it asks.
 2. **Don't claim success you haven't seen.** Read the real output of every command, and finish with "Check" below, pasting the raw output to the user, including the home screen `resolve-activity` finds and what `enabled_accessibility_services` contains. Without those outputs, don't say it is installed.
 3. **Don't uninstall or disable any system app** (including the TV's own launcher), don't delete any file on the TV, and don't factory-reset it. The only file you may delete is `/sdcard/Download/Aerial.apk`, if this install created it.
-4. Ask the user before rebooting the TV (`adb reboot`).
-5. When the user has to do something on the TV (allow debugging, accept an install), tell them exactly which remote buttons to press.
-6. If something fails, show the user the command and its exact output, then check "Common cases" below.
+4. **Install Aerial and nothing else** (package `app.orchard.tv`, or `app.orchard.tv.lite` on Android 4.x), and download its APK only from aerial.qust.me or https://github.com/pengchujin/aerial-tv/releases. Don't download or install any other app: no app stores (Dangbei and the like), no ADB enablers, no casting or cleaner tools, and no "Aerial" APK from any other site. If these steps can't install it, stop and show the user the output; don't find another way to put something on the TV. People often install Aerial to keep their TV clean, and any extra app works against them.
+5. Ask the user before rebooting the TV (`adb reboot`).
+6. When the user has to do something on the TV (allow debugging, accept an install), tell them exactly which remote buttons to press.
+7. If something fails, show the user the command and its exact output, then check "Common cases" below.
 
 ## Step 1: Get adb
 
@@ -117,8 +118,10 @@ Run these in PowerShell, with the adb from step 1. Everything inside `adb shell 
    adb shell cmd notification allow_listener app.orchard.tv/app.orchard.tv.guard.RevivalListener
    adb shell appops set app.orchard.tv APP_AUTO_START allow
    adb shell appops set app.orchard.tv APP_ASSOC_START allow
+   adb shell appops set app.orchard.tv AUTO_START allow
+   adb shell appops set app.orchard.tv ASSOC_START allow
    ```
-   The two `APP_*` app ops exist only on TCL; elsewhere they fail, which is fine.
+   The last four app ops exist only on TCL and FFALCON (each firmware knows two of them); elsewhere they fail, which is fine.
 
    Start Aerial once, wait 5 seconds, then compile it (takes up to a minute and makes Aerial run smoothly on the TV; on some TVs the compile only works after Aerial has started once):
    ```
@@ -176,7 +179,7 @@ python tcast-push.py <IP> http://127.0.0.1:8765/Aerial.apk app.orchard.tv Aerial
 
 After the last command, ask the user to answer the prompt in the top-right corner of the TV: **press Right, then OK, to choose 同意 (Agree)**. Once the script reports the app installed, stop the `python -m http.server` process, run `adb reverse --remove tcp:8765`, and continue from Windows item 3.
 
-If the TV has no 多屏互动: `adb push Aerial.apk /sdcard/Download/Aerial.apk`, then ask the user to open it with a file manager or the Dangbei store's local install (本地安装) on the TV.
+If the TV has no 多屏互动: `adb push Aerial.apk /sdcard/Download/Aerial.apk`, then ask the user to open it with a file manager or the Dangbei store's local install (本地安装) **already on** the TV. If the TV has neither, stop and tell the user; **don't download or install Dangbei or any other app store**.
 
 ## Android 4.0-4.4: Aerial Lite
 
@@ -259,6 +262,8 @@ adb shell appops set app.orchard.tv SYSTEM_ALERT_WINDOW default
 adb shell appops set app.orchard.tv REQUEST_INSTALL_PACKAGES default
 adb shell appops set app.orchard.tv APP_AUTO_START default
 adb shell appops set app.orchard.tv APP_ASSOC_START default
+adb shell appops set app.orchard.tv AUTO_START default
+adb shell appops set app.orchard.tv ASSOC_START default
 adb shell am force-stop app.orchard.tv
 adb shell cmd role remove-role-holder --user 0 android.app.role.HOME app.orchard.tv
 ```

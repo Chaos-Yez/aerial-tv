@@ -7,9 +7,10 @@
 1. **亲自在用户电脑上运行命令**，不要只把步骤列给用户。如果你不能执行命令（比如你是手机版或网页版聊天），直接告诉用户：请换成能执行命令的电脑版 Agent（WorkBuddy、豆包电脑版或豆包工作版、千问电脑版、Trae、Claude Code、Codex 等），并在第一次运行命令时允许它执行命令、访问网络。豆包手机版、网页版只会把步骤告诉用户，不会执行。
 2. **不要假装成功。** 每一步都看命令的真实输出；最后必须完成「验收」，把原始输出原样贴给用户，包括 `resolve-activity` 解析到的桌面和 `enabled_accessibility_services` 的内容。没有看到这些输出，就不能说装好了。
 3. **不要卸载、停用任何系统应用**（包括电视原来的桌面），不要删除电视上的任何文件，不要恢复出厂设置。只能删除这次安装自己创建的 `/sdcard/Download/Aerial.apk`。
-4. 重启电视（`adb reboot`）前先征得用户同意。
-5. 需要用户在电视上操作时（允许调试、同意安装），明确告诉用户按遥控器的哪个键。
-6. 失败时把命令和输出原样给用户看，再对照下面的「常见情况」处理。
+4. **只安装 Aerial**（包名 `app.orchard.tv`，Android 4.x 上是 `app.orchard.tv.lite`），APK 只从 aerial.qust.me 或 https://github.com/pengchujin/aerial-tv/releases 下载。不要下载、安装任何其他 App，包括应用商店（当贝市场等）、ADB 开启器、投屏或清理工具，也不要从别的网站找「Aerial」的 APK。按这份说明装不上时，停下来把输出给用户看，不要另找办法往电视上装东西。用户装 Aerial 往往就是想让电视干净，多出任何一个 App 都是在伤害用户。
+5. 重启电视（`adb reboot`）前先征得用户同意。
+6. 需要用户在电视上操作时（允许调试、同意安装），明确告诉用户按遥控器的哪个键。
+7. 失败时把命令和输出原样给用户看，再对照下面的「常见情况」处理。
 
 ## 第 1 步：准备 adb
 
@@ -117,8 +118,10 @@ curl -fsSL https://aerial.qust.me/install.sh | KEEP_ADB=1 TV=<IP> bash
    adb shell cmd notification allow_listener app.orchard.tv/app.orchard.tv.guard.RevivalListener
    adb shell appops set app.orchard.tv APP_AUTO_START allow
    adb shell appops set app.orchard.tv APP_ASSOC_START allow
+   adb shell appops set app.orchard.tv AUTO_START allow
+   adb shell appops set app.orchard.tv ASSOC_START allow
    ```
-   最后两条 `appops` 只有 TCL 认，别的电视报错是正常的。
+   最后四条 `appops` 只有 TCL / 雷鸟认（不同固件认其中两条），别的电视报错是正常的。
 
    再启动一次 Aerial，等 5 秒后编译（要几十秒，让 Aerial 在电视上更流畅；有的电视要先启动过一次，编译才有效）：
    ```
@@ -176,7 +179,7 @@ python tcast-push.py <IP> http://127.0.0.1:8765/Aerial.apk app.orchard.tv Aerial
 
 运行最后一条后，请用户在电视右上角的提示里**先按「右」再按确认，选「同意」**。脚本打印装好后，结束 `python -m http.server` 进程，运行 `adb reverse --remove tcp:8765`，再回到上面 Windows 第 3 条。
 
-电视上没有多屏互动时：`adb push Aerial.apk /sdcard/Download/Aerial.apk`，再请用户用电视上的文件管理器或当贝市场的「本地安装」打开它安装。
+电视上没有多屏互动时：`adb push Aerial.apk /sdcard/Download/Aerial.apk`，再请用户用电视上**已有的**文件管理器或当贝市场的「本地安装」打开它安装。电视上没有这类应用时，停下来告诉用户，**不要去下载安装当贝市场或其他应用商店**。
 
 ## Android 4.0–4.4：装 Aerial Lite
 
@@ -259,6 +262,8 @@ adb shell appops set app.orchard.tv SYSTEM_ALERT_WINDOW default
 adb shell appops set app.orchard.tv REQUEST_INSTALL_PACKAGES default
 adb shell appops set app.orchard.tv APP_AUTO_START default
 adb shell appops set app.orchard.tv APP_ASSOC_START default
+adb shell appops set app.orchard.tv AUTO_START default
+adb shell appops set app.orchard.tv ASSOC_START default
 adb shell am force-stop app.orchard.tv
 adb shell cmd role remove-role-holder --user 0 android.app.role.HOME app.orchard.tv
 ```

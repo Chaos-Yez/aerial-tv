@@ -16,6 +16,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -72,6 +73,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -714,6 +717,18 @@ private fun glyphFor(w: WeatherNow): Glyph = when (w.kind) {
     WeatherKind.Thunder -> Glyph.CloudBolt
 }
 
+/** "VPN" in a thin frame beside the network glyph while a VPN is up, as iOS's status bar has it (issue #809). */
+@Composable
+fun VpnBadge(color: Color, modifier: Modifier = Modifier, fontSize: TextUnit = 10.sp) {
+    BasicText(
+        stringResource(R.string.net_vpn),
+        style = Type.Caption.copy(color = color, fontSize = fontSize, fontWeight = FontWeight.W700, letterSpacing = 0.04.em),
+        modifier = modifier
+            .border(1.2.dp, color, RoundedCornerShape(4.dp))
+            .padding(horizontal = 4.dp, vertical = 1.dp),
+    )
+}
+
 /**
  * Top right: network and, once the shelf clock has scrolled away, the time. Focusable: it is
  * where Up from the top row leads, and it opens Control Center.
@@ -757,6 +772,7 @@ fun StatusPill(
                 NetKind.Offline -> Glyph.Offline
             }
             GlyphIcon(glyph, fg, 17.dp, level = network.level)
+            if (network.vpn) VpnBadge(fg)
             if (showTime) {
                 BasicText(timeText(now), style = Type.Headline.copy(color = fg))
             }
